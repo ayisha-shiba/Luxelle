@@ -1,0 +1,773 @@
+/* =========================================
+   Luxelle | Premium Luxury CSS
+   ========================================= */
+
+:root {
+    /* Color Palette */
+    --lux-beige: #F5F2EB;
+    --lux-beige-dark: #E6E0D4;
+    --lux-black: #1A1A1A;
+    --lux-white: #FFFFFF;
+    --lux-gold: #C9A26A;
+    --lux-gold-hover: #B89056;
+    --lux-gray: #8A8A8A;
+    --lux-gray-light: #E0E0E0;
+
+    /* Typography */
+    --font-playfair: 'Playfair Display', serif;
+    --font-inter: 'Inter', sans-serif;
+    
+    /* Shadows & Transitions */
+    --shadow-soft: 0 10px 40px rgba(0, 0, 0, 0.05);
+    --shadow-hover: 0 15px 50px rgba(0, 0, 0, 0.08);
+    --transition-smooth: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+body {
+    background-color: var(--lux-beige);
+    color: var(--lux-black);
+    font-family: var(--font-inter);
+    overflow-x: hidden;
+}
+
+/* Typography Classes */
+.font-playfair { font-family: var(--font-playfair); }
+.font-inter { font-family: var(--font-inter); }
+
+/* =========================================
+   Layout & Sections
+   ========================================= */
+.login-wrapper {
+    min-height: 100vh;
+}
+
+.banner-section {
+    background-color: var(--lux-beige-dark);
+}
+
+.banner-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+.banner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 50%);
+    z-index: 1;
+}
+
+/* =========================================
+   Card & Forms
+   ========================================= */
+.login-card {
+    max-width: 500px;
+    background-color: var(--lux-white);
+    border-radius: 20px;
+    box-shadow: var(--shadow-soft);
+    transition: var(--transition-smooth);
+}
+
+.login-card:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+}
+
+.brand-logo {
+    font-weight: 700;
+    font-size: 2.5rem;
+    letter-spacing: -0.5px;
+    color: var(--lux-black);
+}
+
+/* Inputs */
+.custom-input {
+    border: 1px solid var(--lux-gray-light);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    font-size: 1rem;
+    transition: var(--transition-smooth);
+    background-color: #FAFAFA;
+}
+
+.custom-input:focus {
+    background-color: var(--lux-white);
+    border-color: var(--lux-gold);
+    box-shadow: 0 0 0 4px rgba(201, 162, 106, 0.15);
+}
+
+.form-floating > label {
+    color: var(--lux-gray);
+    padding-left: 1.25rem;
+}
+
+.form-floating > .form-control:focus ~ label,
+.form-floating > .form-control:not(:placeholder-shown) ~ label {
+    color: var(--lux-gold);
+}
+
+/* Custom Checkbox */
+.custom-checkbox .form-check-input {
+    border-color: var(--lux-gray-light);
+    cursor: pointer;
+}
+
+.custom-checkbox .form-check-input:checked {
+    background-color: var(--lux-black);
+    border-color: var(--lux-black);
+}
+
+.custom-checkbox .form-check-input:focus {
+    box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.1);
+}
+
+/* Links */
+.forgot-link, .register-link {
+    color: var(--lux-black);
+    transition: var(--transition-smooth);
+    position: relative;
+}
+
+.forgot-link:hover, .register-link:hover {
+    color: var(--lux-gold);
+}
+
+/* Buttons */
+.luxury-btn {
+    background-color: var(--lux-black);
+    border: none;
+    border-radius: 10px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    transition: var(--transition-smooth);
+}
+
+.luxury-btn:hover {
+    background-color: var(--lux-gold);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(201, 162, 106, 0.4);
+}
+
+.luxury-btn:active {
+    transform: translateY(0);
+}
+
+.google-btn {
+    border: 1px solid var(--lux-gray-light);
+    border-radius: 10px;
+    background-color: var(--lux-white);
+    color: var(--lux-black);
+    font-weight: 500;
+    transition: var(--transition-smooth);
+}
+
+.google-btn:hover {
+    background-color: #FAFAFA;
+    border-color: #D0D0D0;
+    transform: translateY(-1px);
+}
+
+/* Divider */
+.divider .line {
+    height: 1px;
+    background-color: var(--lux-gray-light);
+}
+
+/* =========================================
+   Animations
+   ========================================= */
+.fade-in-section {
+    opacity: 0;
+    animation: fadeIn 1.2s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Floating Animation for Banner Image */
+.floating-anim {
+    animation: floatImage 8s ease-in-out infinite;
+    transform-origin: center center;
+}
+
+@keyframes floatImage {
+    0% {
+        transform: scale(1) translateY(0);
+    }
+    50% {
+        transform: scale(1.03) translateY(-10px);
+    }
+    100% {
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Input Focus Glow */
+.custom-input-group {
+    position: relative;
+}
+
+/* Responsive adjustments */
+@media (max-width: 991.98px) {
+    body {
+        background-color: var(--lux-white);
+    }
+    .login-card {
+        box-shadow: none;
+        padding: 2rem 1rem !important;
+    }
+    .login-card:hover {
+        box-shadow: none;
+        transform: none;
+    }
+}
+
+/* =========================================
+   Premium Homepage Elements
+   ========================================= */
+
+.bg-lux-beige {
+    background-color: var(--lux-beige);
+}
+
+.text-lux-black {
+    color: var(--lux-black) !important;
+}
+
+.text-lux-gray {
+    color: var(--lux-gray) !important;
+}
+
+.hover-lux-gold {
+    transition: var(--transition-smooth);
+}
+.hover-lux-gold:hover {
+    color: var(--lux-gold) !important;
+}
+
+.hover-lux-gold-scale {
+    transition: var(--transition-smooth);
+    display: inline-block;
+}
+.hover-lux-gold-scale:hover {
+    color: var(--lux-gold) !important;
+    transform: scale(1.15);
+}
+
+.small-badge {
+    font-size: 0.65rem;
+    padding: 0.25em 0.5em;
+    background-color: var(--lux-black);
+    color: var(--lux-white);
+    border-radius: 50%;
+}
+
+.no-caret::after {
+    display: none !important;
+}
+
+/* Hero Section */
+.hero-section {
+    min-height: 80vh;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: relative;
+}
+
+.hero-overlay {
+    background: linear-gradient(90deg, rgba(26, 26, 26, 0.75) 0%, rgba(26, 26, 26, 0.25) 50%, rgba(26, 26, 26, 0) 100%);
+    z-index: 1;
+}
+
+.hero-content-box {
+    text-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.btn-lux-dark {
+    background-color: var(--lux-black);
+    color: var(--lux-white);
+    border: none;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    transition: var(--transition-smooth);
+}
+
+.btn-lux-dark:hover {
+    background-color: var(--lux-gold);
+    color: var(--lux-white);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(201, 162, 106, 0.3);
+}
+
+.btn-lux-gold {
+    background-color: var(--lux-gold);
+    color: var(--lux-white);
+    border: none;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    transition: var(--transition-smooth);
+}
+
+.btn-lux-gold:hover {
+    background-color: var(--lux-black);
+    color: var(--lux-white);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(26, 26, 26, 0.2);
+}
+
+.hover-lux-gold-bg:hover {
+    background-color: var(--lux-gold) !important;
+}
+
+.hover-lux-dark-bg:hover {
+    background-color: var(--lux-black) !important;
+}
+
+/* Slider Controls */
+.slider-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.slider-dot.active {
+    background-color: var(--lux-white);
+    width: 24px;
+    border-radius: 4px;
+}
+
+.btn-outline-white {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: var(--lux-white);
+    transition: var(--transition-smooth);
+    background-color: transparent;
+}
+
+.btn-outline-white:hover {
+    background-color: var(--lux-white);
+    color: var(--lux-black) !important;
+    border-color: var(--lux-white);
+}
+
+/* Signature Collection Grid */
+.collection-card {
+    transition: var(--transition-smooth);
+    background-color: var(--lux-white);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.02);
+}
+
+.collection-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+}
+
+.collection-img-wrapper {
+    height: 380px;
+    background-color: #f7f7f7;
+}
+
+.hover-scale-110 {
+    transition: transform 0.8s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.collection-card:hover .hover-scale-110 {
+    transform: scale(1.08);
+}
+
+/* Promo Banner Section */
+.promo-section {
+    min-height: 55vh;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: relative;
+}
+
+.promo-overlay {
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1;
+}
+
+.max-w-lg {
+    max-width: 520px;
+}
+
+/* Featured Products */
+.product-card {
+    transition: var(--transition-smooth);
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.06) !important;
+    border-color: rgba(201, 162, 106, 0.2) !important;
+}
+
+.product-img-wrapper {
+    height: 290px;
+}
+
+.product-card:hover .hover-scale-110 {
+    transform: scale(1.06);
+}
+
+.btn-lux-action {
+    background-color: var(--lux-black);
+    color: var(--lux-white);
+    border: none;
+    width: 42px;
+    height: 42px;
+    transition: var(--transition-smooth);
+}
+
+.btn-lux-action:hover {
+    background-color: var(--lux-gold);
+    color: var(--lux-white);
+    transform: rotate(-45deg);
+}
+
+/* Typography Extensions */
+.tracking-tight {
+    letter-spacing: -0.03em;
+}
+
+.tracking-wide {
+    letter-spacing: 0.03em;
+}
+
+.tracking-widest {
+    letter-spacing: 0.15em;
+}
+
+.leading-tight {
+    line-height: 1.15;
+}
+
+.text-shadow-sm {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Animations */
+.fade-in-up {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.8s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+.fade-in-up-delay {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.8s cubic-bezier(0.25, 0.8, 0.25, 1) 0.2s forwards;
+}
+
+.fade-in-up-delay-2 {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.8s cubic-bezier(0.25, 0.8, 0.25, 1) 0.4s forwards;
+}
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Overrides */
+@media (max-width: 767.98px) {
+    .hero-section {
+        min-height: 60vh;
+        background-position: 70% center;
+    }
+    .collection-img-wrapper {
+        height: 280px;
+    }
+    .product-img-wrapper {
+        height: 220px;
+    }
+}
+
+/* =========================================
+   User Dashboard & Profile Specific Styles
+   ========================================= */
+
+.sidebar-avatar {
+    width: 110px;
+    height: 110px;
+    object-fit: cover;
+}
+
+.avatar-badge {
+    width: 26px;
+    height: 26px;
+    border: 2px solid var(--lux-white);
+}
+
+.bg-lux-gold-light {
+    background-color: rgba(201, 162, 106, 0.12);
+}
+
+.text-xxs {
+    font-size: 0.7rem !important;
+}
+
+.text-xs {
+    font-size: 0.8rem !important;
+}
+
+.sidebar-nav .nav-link {
+    color: var(--lux-gray);
+    font-weight: 500;
+    transition: var(--transition-smooth);
+}
+
+.sidebar-nav .nav-link i {
+    font-size: 1.1rem;
+    width: 24px;
+}
+
+.sidebar-nav .nav-link:hover {
+    background-color: var(--lux-beige);
+    color: var(--lux-black);
+}
+
+.sidebar-nav .nav-link.active {
+    background-color: var(--lux-black) !important;
+    color: var(--lux-white) !important;
+    box-shadow: 0 4px 12px rgba(26, 26, 26, 0.15);
+}
+
+.sidebar-nav .nav-link.active i {
+    color: var(--lux-gold);
+}
+
+.hover-lux-red:hover {
+    background-color: rgba(220, 53, 69, 0.08) !important;
+    color: #dc3545 !important;
+}
+
+.italic-subtitle {
+    font-style: italic;
+    font-family: var(--font-playfair);
+}
+
+/* Metric Cards */
+.metric-card {
+    transition: var(--transition-smooth);
+}
+
+.metric-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.04) !important;
+    border-color: rgba(201, 162, 106, 0.15) !important;
+}
+
+.metric-card h2 {
+    font-size: calc(1.4rem + 0.8vw) !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.1;
+    font-weight: 700;
+}
+
+/* Order Cards */
+.order-img-wrapper {
+    width: 75px;
+    height: 75px;
+    background-color: #fafafa;
+}
+
+.bg-warning-light {
+    background-color: rgba(255, 193, 7, 0.12) !important;
+}
+
+.bg-success-light {
+    background-color: rgba(40, 167, 69, 0.12) !important;
+}
+
+.order-card-item {
+    transition: var(--transition-smooth);
+    background-color: var(--lux-white);
+}
+
+.order-card-item:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.03);
+    border-color: var(--lux-beige-dark) !important;
+}
+
+/* Wishlist Small Button */
+.wishlist-btn-dashboard {
+    width: 32px;
+    height: 32px;
+    background-color: var(--lux-white);
+    color: var(--lux-gray-light);
+    transition: var(--transition-smooth);
+}
+
+.wishlist-btn-dashboard:hover {
+    transform: scale(1.1);
+}
+
+.wishlist-btn-dashboard.active-red {
+    color: #e54b4b;
+}
+
+/* Luxelle Credits Wallet Card */
+.bg-lux-dark-theme {
+    background-color: var(--lux-black);
+    color: var(--lux-white);
+}
+
+.wallet-card {
+    background: linear-gradient(135deg, #111111 0%, #252525 100%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.btn-lux-gold-outline {
+    border: 1.5px solid var(--lux-gold);
+    color: var(--lux-gold);
+    background-color: transparent;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    transition: var(--transition-smooth);
+}
+
+.btn-lux-gold-outline:hover {
+    background-color: var(--lux-gold);
+    color: var(--lux-white) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(201, 162, 106, 0.25);
+}
+
+.hover-white-text:hover {
+    color: var(--lux-white) !important;
+}
+
+/* Coupon dashed items */
+.coupon-item {
+    border-style: dashed !important;
+    background-color: rgba(245, 242, 235, 0.3);
+}
+
+.coupon-item:hover {
+    background-color: rgba(245, 242, 235, 0.7);
+    border-color: var(--lux-gold) !important;
+}
+
+.bg-light-soft {
+    background-color: rgba(245, 242, 235, 0.4) !important;
+}
+
+/* Activity Timeline */
+.activity-timeline {
+    position: relative;
+}
+
+.timeline-line {
+    left: 4px;
+}
+
+.timeline-item {
+    padding-left: 10px;
+}
+
+.timeline-dot {
+    width: 12px;
+    height: 12px;
+    left: -2px;
+    top: 3px;
+    z-index: 2;
+}
+
+@media (max-width: 991.98px) {
+    .profile-sidebar {
+        padding: 1.5rem !important;
+    }
+}
+
+/* Premium Modals and Input Fields Override */
+.form-control:focus, .form-select:focus {
+    border-color: var(--lux-gold) !important;
+    box-shadow: 0 0 0 0.2rem rgba(201, 162, 106, 0.15) !important;
+}
+
+.border-light-dark {
+    border-color: #e2dfd9 !important;
+}
+
+.text-xxs {
+    font-size: 0.72rem !important;
+}
+
+.text-xs {
+    font-size: 0.8rem !important;
+}
+
+.gap-1.5 {
+    gap: 0.35rem !important;
+}
+
+.bg-lux-gold-light {
+    background-color: rgba(201, 162, 106, 0.12) !important;
+}
+
+.bg-danger-light {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+.bg-warning-light {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+.bg-success-light {
+    background-color: rgba(40, 167, 69, 0.08) !important;
+}
+
+.hover-lux-red:hover {
+    color: #dc3545 !important;
+}
+
+.hover-scale-105 {
+    transition: var(--transition-smooth);
+}
+.hover-scale-105:hover {
+    transform: scale(1.05);
+    color: var(--lux-gold) !important;
+}
+
+.sidebar-avatar {
+    transition: var(--transition-smooth);
+}
+.position-relative:hover .sidebar-avatar {
+    filter: brightness(0.85);
+}
+
+.cursor-pointer {
+    cursor: pointer !important;
+}
+
+.otp-box:focus {
+    border-color: var(--lux-gold) !important;
+    box-shadow: 0 0 0 0.15rem rgba(201, 162, 106, 0.25) !important;
+}
+
+
+
