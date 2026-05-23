@@ -1,0 +1,217 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle Admin — User Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/admin_common.css' %}" rel="stylesheet">
+</head>
+<body>
+    {% include 'admin_panel/partials/sidebar.html' with active='users' %}
+
+    <main class="main">
+        <div class="top-bar">
+            <div><h1 class="page-title">User Management</h1><p class="page-sub">Manage all registered customers and admin accounts.</p></div>
+            <div class="top-actions">
+                <div class="top-btn"><i class="fa-solid fa-file-export"></i> Export</div>
+                <button class="top-btn top-btn-gold" onclick="openAddModal()"><i class="fa-solid fa-user-plus"></i> Add User</button>
+            </div>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-card"><div class="stat-icon"><i class="fa-solid fa-users"></i></div><div class="stat-label">Total Users</div><div class="stat-value" id="totalCount">5</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fa-solid fa-user-check"></i></div><div class="stat-label">Active</div><div class="stat-value">4</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fa-solid fa-crown"></i></div><div class="stat-label">VIP Members</div><div class="stat-value">2</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fa-solid fa-user-slash"></i></div><div class="stat-label">Banned</div><div class="stat-value">1</div></div>
+        </div>
+
+        <div class="filter-bar">
+            <div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="text" placeholder="Search users by name, email..." id="searchInput" oninput="filterUsers()"></div>
+            <select class="filter-select" id="roleFilter" onchange="filterUsers()"><option value="">All Roles</option><option>Admin</option><option>VIP</option><option>Customer</option></select>
+            <select class="filter-select" id="statusFilter" onchange="filterUsers()"><option value="">All Status</option><option>Active</option><option>Inactive</option><option>Banned</option></select>
+        </div>
+
+        <div class="panel">
+            <table class="users-table"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Orders</th><th>Total Spent</th><th>Joined</th><th>Actions</th></tr></thead>
+            <tbody id="usersBody"></tbody></table>
+            <div class="pagination-bar">
+                <div class="page-info" id="pageInfo">Showing 5 users</div>
+                <div class="page-btns">
+                    <button class="pg-btn" disabled><i class="fa-solid fa-chevron-left"></i></button>
+                    <button class="pg-btn active">1</button>
+                    <button class="pg-btn">2</button>
+                    <button class="pg-btn">3</button>
+                    <button class="pg-btn"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add/Edit User Modal -->
+    <div class="modal-overlay" id="userModal">
+        <div class="modal-box" style="width:520px;text-align:left">
+            <h3 class="modal-title" id="userModalTitle">Add New User</h3>
+            <p class="modal-desc" style="margin-bottom:1.5rem" id="userModalDesc">Fill in the details to create a new user account.</p>
+            <form id="userForm" onsubmit="saveUser(event)">
+                <input type="hidden" id="editIdx" value="-1">
+                <div class="fm-row"><div class="fm-group"><label class="fm-label">Full Name</label><input class="fm-input" id="fName" required placeholder="Enter full name"></div><div class="fm-group"><label class="fm-label">Email</label><input class="fm-input" id="fEmail" type="email" required placeholder="email@example.com"></div></div>
+                <div class="fm-row"><div class="fm-group"><label class="fm-label">Phone</label><input class="fm-input" id="fPhone" placeholder="+91 98765 43210"></div><div class="fm-group"><label class="fm-label">Role</label><select class="fm-input" id="fRole"><option>Customer</option><option>VIP</option><option>Admin</option></select></div></div>
+                <div class="fm-row"><div class="fm-group"><label class="fm-label">Status</label><select class="fm-input" id="fStatus"><option>Active</option><option>Inactive</option><option>Banned</option></select></div><div class="fm-group"><label class="fm-label">Gender</label><select class="fm-input" id="fGender"><option>Female</option><option>Male</option><option>Other</option></select></div></div>
+                <div class="modal-actions" style="margin-top:1.5rem"><button type="button" class="mbtn mbtn-cancel" onclick="closeModal('userModal')">Cancel</button><button type="submit" class="mbtn mbtn-gold" id="userSubmitBtn">Add User</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-box">
+            <div class="modal-icon"><i class="fa-solid fa-trash-can"></i></div>
+            <h3 class="modal-title">Delete User?</h3>
+            <p class="modal-desc">This will permanently remove <strong id="delName"></strong>'s account and all data. This cannot be undone.</p>
+            <div class="modal-actions"><button class="mbtn mbtn-cancel" onclick="closeModal('deleteModal')">Cancel</button><button class="mbtn mbtn-danger" onclick="confirmDelete()">Delete User</button></div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast-msg"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // User data store
+    let users=[
+        {name:'Priya Mehta',email:'priya.m@gmail.com',phone:'+91 98765 43210',role:'VIP',status:'Active',gender:'Female',orders:34,spent:'₹4,82,500',joined:'Jan 2024'},
+        {name:'Ravi Kumar',email:'ravi.k@outlook.com',phone:'+91 87654 32100',role:'Customer',status:'Active',gender:'Male',orders:12,spent:'₹1,65,200',joined:'Mar 2024'},
+        {name:'Ananya Das',email:'ananya.d@yahoo.com',phone:'+91 76543 21000',role:'Customer',status:'Inactive',gender:'Female',orders:5,spent:'₹42,800',joined:'Jun 2024'},
+        {name:'Deepak Shah',email:'deepak.shah@gmail.com',phone:'+91 65432 10000',role:'Admin',status:'Active',gender:'Male',orders:0,spent:'—',joined:'Oct 2023'},
+        {name:'Meera Iyer',email:'meera.iyer@gmail.com',phone:'+91 54321 00000',role:'VIP',status:'Banned',gender:'Female',orders:8,spent:'₹2,15,000',joined:'Feb 2024'}
+    ];
+    let deleteIdx=-1;
+
+    function getInitials(n){return n.split(' ').map(w=>w[0]).join('').toUpperCase()}
+    function roleClass(r){return r==='Admin'?'role-admin':r==='VIP'?'role-vip':'role-user'}
+    function statusDot(s){return s==='Active'?'dot-active':s==='Banned'?'dot-banned':'dot-inactive'}
+
+    function renderUsers(list){
+        const b=document.getElementById('usersBody');
+        if(!list)list=users;
+        b.innerHTML=list.map((u,i)=>{
+            const ri=users.indexOf(u);
+            return `<tr>
+            <td><div class="user-cell"><div class="user-thumb-init">${getInitials(u.name)}</div><div><div class="user-name">${u.name}</div><div class="user-email">${u.email}</div></div></div></td>
+            <td><span class="role-badge ${roleClass(u.role)}">${u.role}</span></td>
+            <td><span class="status-dot ${statusDot(u.status)}"></span>${u.status}</td>
+            <td>${u.orders||'—'}</td><td>${u.spent}</td><td>${u.joined}</td>
+            <td><div class="action-btns">
+                <a href="{% url 'admin_user_profile' %}" class="act-btn" title="View"><i class="fa-solid fa-eye"></i></a>
+                <button class="act-btn" title="Edit" onclick="openEditModal(${ri})"><i class="fa-solid fa-pen"></i></button>
+                <button class="act-btn act-btn-del" title="Delete" onclick="openDeleteModal(${ri})"><i class="fa-solid fa-trash"></i></button>
+            </div></td></tr>`}).join('');
+        document.getElementById('pageInfo').textContent=`Showing ${list.length} of ${users.length} users`;
+        document.getElementById('totalCount').textContent=users.length;
+    }
+
+    function filterUsers(){
+        const q=document.getElementById('searchInput').value.toLowerCase();
+        const r=document.getElementById('roleFilter').value;
+        const s=document.getElementById('statusFilter').value;
+        const f=users.filter(u=>{
+            if(q&&!u.name.toLowerCase().includes(q)&&!u.email.toLowerCase().includes(q))return false;
+            if(r&&u.role!==r)return false;
+            if(s&&u.status!==s)return false;
+            return true;
+        });
+        renderUsers(f);
+    }
+
+    // Add User
+    function openAddModal(){
+        document.getElementById('editIdx').value=-1;
+        document.getElementById('userModalTitle').textContent='Add New User';
+        document.getElementById('userModalDesc').textContent='Fill in the details to create a new user account.';
+        document.getElementById('userSubmitBtn').textContent='Add User';
+        document.getElementById('userForm').reset();
+        openModal('userModal');
+    }
+
+    // Edit User
+    function openEditModal(idx){
+        const u=users[idx];
+        document.getElementById('editIdx').value=idx;
+        document.getElementById('userModalTitle').textContent='Edit User';
+        document.getElementById('userModalDesc').textContent='Update the details for '+u.name+'.';
+        document.getElementById('userSubmitBtn').textContent='Save Changes';
+        document.getElementById('fName').value=u.name;
+        document.getElementById('fEmail').value=u.email;
+        document.getElementById('fPhone').value=u.phone;
+        document.getElementById('fRole').value=u.role;
+        document.getElementById('fStatus').value=u.status;
+        document.getElementById('fGender').value=u.gender;
+        openModal('userModal');
+    }
+
+    // Save (Add or Edit)
+    function saveUser(e){
+        e.preventDefault();
+        const idx=parseInt(document.getElementById('editIdx').value);
+        const obj={
+            name:document.getElementById('fName').value,
+            email:document.getElementById('fEmail').value,
+            phone:document.getElementById('fPhone').value,
+            role:document.getElementById('fRole').value,
+            status:document.getElementById('fStatus').value,
+            gender:document.getElementById('fGender').value,
+            orders:0,spent:'—',joined:'May 2026'
+        };
+        if(idx>=0){
+            obj.orders=users[idx].orders;
+            obj.spent=users[idx].spent;
+            obj.joined=users[idx].joined;
+            users[idx]=obj;
+            showToast('User updated successfully!');
+        }else{
+            users.push(obj);
+            showToast('New user added successfully!');
+        }
+        closeModal('userModal');
+        renderUsers();
+    }
+
+    // Delete
+    function openDeleteModal(idx){
+        deleteIdx=idx;
+        document.getElementById('delName').textContent=users[idx].name;
+        openModal('deleteModal');
+    }
+    function confirmDelete(){
+        if(deleteIdx>=0){
+            const name=users[deleteIdx].name;
+            users.splice(deleteIdx,1);
+            deleteIdx=-1;
+            closeModal('deleteModal');
+            renderUsers();
+            showToast(name+' has been deleted.','red');
+        }
+    }
+
+    // Modal helpers
+    function openModal(id){document.getElementById(id).classList.add('show')}
+    function closeModal(id){document.getElementById(id).classList.remove('show')}
+    document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show')})});
+
+    // Toast
+    function showToast(msg,color){
+        const t=document.getElementById('toast');
+        t.textContent=msg;
+        t.style.borderLeftColor=color==='red'?'#e74c3c':'#c5a059';
+        t.classList.add('show');
+        setTimeout(()=>t.classList.remove('show'),3000);
+    }
+
+    renderUsers();
+    </script>
+</body>
+</html>

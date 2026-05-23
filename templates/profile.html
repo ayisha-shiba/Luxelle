@@ -1,0 +1,513 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle | User Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+</head>
+<body class="bg-lux-beige">
+
+    <!-- =========================================
+       Premium Header / Navigation
+       ========================================= -->
+    <header class="navbar navbar-expand-lg navbar-light bg-white sticky-top py-3 px-4 border-bottom border-light shadow-sm">
+        <div class="container-fluid">
+            <!-- Brand Logo Left -->
+            <a class="navbar-brand font-playfair fs-2 fw-bold tracking-tight text-lux-black m-0" href="{% url 'home' %}">LUXELLE</a>
+            
+            <!-- Navbar Toggler for Mobile -->
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#luxNavbar" aria-controls="luxNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <!-- Center Navigation Links -->
+            <div class="collapse navbar-collapse justify-content-center" id="luxNavbar">
+                <ul class="navbar-nav gap-4 mb-2 mb-lg-0 font-inter text-uppercase small tracking-wider fw-medium">
+                    <li class="nav-item">
+                        <a class="nav-link text-lux-gray hover-lux-gold" href="{% url 'home' %}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-lux-gray hover-lux-gold" href="#">Collections</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-lux-gray hover-lux-gold" href="#">Shop</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-lux-gray hover-lux-gold" href="#">Stories</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-lux-gray hover-lux-gold" href="#">About Us</a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Right side Utility Icons -->
+            <div class="d-flex align-items-center gap-3 px-2 font-inter text-lux-black">
+                <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale" title="Search">
+                    <i class="fa-solid fa-magnifying-glass fs-5"></i>
+                </a>
+                <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale" title="Favorites">
+                    <i class="fa-regular fa-heart fs-5"></i>
+                </a>
+                <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale position-relative" title="Shopping Cart">
+                    <i class="fa-solid fa-bag-shopping fs-5"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-lux-black text-white small-badge">2</span>
+                </a>
+                <div class="dropdown">
+                    <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale dropdown-toggle no-caret" id="accountDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Account">
+                        <i class="fa-regular fa-user fs-5 text-lux-gold"></i>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-3 mt-2" aria-labelledby="accountDropdown">
+                        <li><a class="dropdown-item rounded-2 py-2" href="{% url 'home' %}"><i class="fa-solid fa-house me-2 text-muted"></i>Homepage</a></li>
+                        <li><a class="dropdown-item rounded-2 py-2" href="{% url 'login' %}"><i class="fa-solid fa-right-to-bracket me-2 text-muted"></i>Sign Out</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- =========================================
+       User Dashboard Body
+       ========================================= -->
+    <main class="container py-5">
+        <div class="row g-4">
+            
+            <!-- LEFT COLUMN: Sidebar Menu -->
+            <aside class="col-12 col-lg-3">
+                <div class="bg-white rounded-4 border border-light shadow-sm p-4 text-center profile-sidebar mb-4">
+                    <!-- User Avatar & Profile Card -->
+                    <div class="position-relative d-inline-block mb-3">
+                        <img src="{% static 'image/ayisha_avatar.png' %}" alt="Ayisha Shiba" class="rounded-circle border border-3 border-lux-beige shadow-sm sidebar-avatar">
+                        <span class="position-absolute bottom-0 end-0 bg-lux-gold text-white rounded-circle p-1 d-flex align-items-center justify-content-center avatar-badge" title="Verified Profile">
+                            <i class="fa-solid fa-check text-xxs"></i>
+                        </span>
+                    </div>
+                    <h3 class="font-playfair fw-bold fs-4 text-lux-black mb-1">Ayisha Shiba</h3>
+                    <span class="badge bg-lux-gold-light text-lux-gold text-uppercase tracking-wider rounded-2 mb-2 font-inter fw-bold px-3 py-1 text-xxs">Luxelle Premium Member</span>
+                    <p class="text-lux-gray small mb-4">ayishashiba@example.com</p>
+
+                    <hr class="border-light mb-4">
+
+                    <!-- Dashboard Menu -->
+                    <ul class="nav flex-column sidebar-nav text-start font-inter">
+                        <li class="nav-item mb-2">
+                            <a href="#" class="nav-link active rounded-3 py-2 px-3 d-flex align-items-center gap-3">
+                                <i class="fa-solid fa-grip-vertical"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
+                        <li class="nav-item mb-2">
+                            <a href="#" class="nav-link text-lux-gray hover-lux-gold rounded-3 py-2 px-3 d-flex align-items-center gap-3">
+                                <i class="fa-solid fa-bag-shopping"></i>
+                                <span>My Orders</span>
+                            </a>
+                        </li>
+                        <li class="nav-item mb-2">
+                            <a href="{% url 'addresses' %}" class="nav-link text-lux-gray hover-lux-gold rounded-3 py-2 px-3 d-flex align-items-center gap-3">
+                                <i class="fa-solid fa-location-dot"></i>
+                                <span>Addresses</span>
+                            </a>
+                        </li>
+                        <li class="nav-item mb-2">
+                            <a href="#" class="nav-link text-lux-gray hover-lux-gold rounded-3 py-2 px-3 d-flex align-items-center gap-3">
+                                <i class="fa-solid fa-heart"></i>
+                                <span>Wishlist</span>
+                            </a>
+                        </li>
+                        <li class="nav-item mb-2">
+                            <a href="#" class="nav-link text-lux-gray hover-lux-gold rounded-3 py-2 px-3 d-flex align-items-center gap-3">
+                                <i class="fa-solid fa-wallet"></i>
+                                <span>Wallet</span>
+                            </a>
+                        </li>
+                        <li class="nav-item mb-2">
+                            <a href="#" class="nav-link text-lux-gray hover-lux-gold rounded-3 py-2 px-3 d-flex align-items-center gap-3">
+                                <i class="fa-regular fa-comment-dots"></i>
+                                <span>My Reviews</span>
+                            </a>
+                        </li>
+                        <li class="nav-item mb-2">
+                            <a href="#" class="nav-link text-lux-gray hover-lux-gold rounded-3 py-2 px-3 d-flex align-items-center gap-3">
+                                <i class="fa-solid fa-ticket"></i>
+                                <span>My Coupons</span>
+                            </a>
+                        </li>
+                        <li class="nav-item mt-4 border-top border-light pt-3">
+                            <a href="{% url 'login' %}" class="nav-link text-danger hover-lux-red rounded-3 py-2 px-3 d-flex align-items-center gap-3">
+                                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                                <span>Logout</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </aside>
+
+            <!-- RIGHT COLUMN: Dashboard Main Grid -->
+            <div class="col-12 col-lg-9">
+                
+                <!-- TOP HEADER BAR: Welcome, Premium Status, and Edit Profile -->
+                <div class="bg-white rounded-4 border border-light shadow-sm p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+                    <div>
+                        <div class="d-flex align-items-center gap-3 mb-1">
+                            <h1 class="font-playfair text-lux-black display-6 fw-bold mb-0">Welcome Ayisha,</h1>
+                            <span class="badge bg-lux-gold text-white text-uppercase tracking-wider py-2 px-3 rounded-pill fw-semibold text-xxs d-flex align-items-center gap-1">
+                                <i class="fa-solid fa-crown"></i> Luxelle Premium
+                            </span>
+                        </div>
+                        <p class="font-playfair text-lux-gray fs-5 mb-0 italic-subtitle">Welcome Back To Your Luxury Space</p>
+                    </div>
+                    <a href="{% url 'profile_edit' %}" class="btn btn-lux-dark py-2.5 px-4 text-uppercase fw-semibold tracking-wider hover-lux-gold-bg d-flex align-items-center gap-2 text-decoration-none">
+                        Edit Profile <i class="fa-solid fa-arrow-right text-xs"></i>
+                    </a>
+                </div>
+
+                <!-- METRICS GRID ROW (4 metric card boxes) -->
+                <div class="row g-3 mb-4">
+                    <!-- Metric 1: Bags Owned -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="bg-white rounded-4 border border-light shadow-sm p-3.5 d-flex flex-column h-100 metric-card position-relative overflow-hidden">
+                            <div class="d-flex align-items-center gap-2 text-lux-gray mb-3 small fw-medium tracking-wide text-uppercase">
+                                <i class="fa-solid fa-bag-shopping text-lux-gold fs-6"></i>
+                                <span>Bags Owned</span>
+                            </div>
+                            <span class="text-lux-gray small-caps text-xxs opacity-75 mb-1">Luxury Bags Ordered</span>
+                            <h2 class="font-playfair fw-bold text-lux-black mb-0 display-5">12</h2>
+                        </div>
+                    </div>
+                    <!-- Metric 2: Loyalty Spend -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="bg-white rounded-4 border border-light shadow-sm p-3.5 d-flex flex-column h-100 metric-card position-relative overflow-hidden">
+                            <div class="d-flex align-items-center gap-2 text-lux-gray mb-3 small fw-medium tracking-wide text-uppercase">
+                                <i class="fa-solid fa-gem text-lux-gold fs-6"></i>
+                                <span>Loyalty Spend</span>
+                            </div>
+                            <span class="text-lux-gray small-caps text-xxs opacity-75 mb-1">Total Spent</span>
+                            <h2 class="font-playfair fw-bold text-lux-black mb-0 display-5">₹1,25,999</h2>
+                        </div>
+                    </div>
+                    <!-- Metric 3: Active Returns -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="bg-white rounded-4 border border-light shadow-sm p-3.5 d-flex flex-column h-100 metric-card position-relative overflow-hidden">
+                            <div class="d-flex align-items-center gap-2 text-lux-gray mb-3 small fw-medium tracking-wide text-uppercase">
+                                <i class="fa-solid fa-rotate-left text-lux-gold fs-6"></i>
+                                <span>Active Returns</span>
+                            </div>
+                            <span class="text-lux-gray small-caps text-xxs opacity-75 mb-1">Active Refund items</span>
+                            <h2 class="font-playfair fw-bold text-lux-black mb-0 display-5">01</h2>
+                        </div>
+                    </div>
+                    <!-- Metric 4: Orders Delivered -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="bg-white rounded-4 border border-light shadow-sm p-3.5 d-flex flex-column h-100 metric-card position-relative overflow-hidden">
+                            <div class="d-flex align-items-center gap-2 text-lux-gray mb-3 small fw-medium tracking-wide text-uppercase">
+                                <i class="fa-solid fa-truck-fast text-lux-gold fs-6"></i>
+                                <span>Delivered</span>
+                            </div>
+                            <span class="text-lux-gray small-caps text-xxs opacity-75 mb-1">Bags Delivered</span>
+                            <h2 class="font-playfair fw-bold text-lux-black mb-0 display-5">28</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MAIN SPLIT ROW: Details Panel (Left 8-cols, Right 4-cols) -->
+                <div class="row g-4">
+                    
+                    <!-- LEFT 8-COLS: Recent Orders & Wishlist Picks -->
+                    <div class="col-12 col-md-8 d-flex flex-column gap-4">
+                        
+                        <!-- Block: Recent Orders -->
+                        <div class="bg-white rounded-4 border border-light shadow-sm p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h3 class="font-playfair fw-bold fs-4 text-lux-black mb-0">Recent Orders</h3>
+                                <a href="#" class="text-lux-gold font-inter text-uppercase small tracking-wide fw-semibold text-decoration-none hover-lux-black">View All Orders</a>
+                            </div>
+
+                            <!-- List of order cards -->
+                            <div class="d-flex flex-column gap-3">
+                                <!-- Order Item 1 -->
+                                <div class="border border-light rounded-4 p-3 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 order-card-item transition-all duration-300">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="order-img-wrapper rounded-3 overflow-hidden border border-light">
+                                            <img src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=600&auto=format&fit=crop" alt="Versace Greca Goddess Mini" class="w-100 h-100 object-fit-cover">
+                                        </div>
+                                        <div class="font-inter">
+                                            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                                <h4 class="font-playfair text-lux-black fs-6 fw-bold mb-0">Versace Greca Goddess Mini</h4>
+                                                <span class="badge bg-warning-light text-warning text-uppercase tracking-wider text-xxs font-inter fw-bold">In Transit</span>
+                                            </div>
+                                            <p class="text-lux-gray text-xxs mb-1 opacity-75">ORDER ID: #LX-892214</p>
+                                            <span class="fw-bold text-lux-black">₹89,000</span>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex sm-flex-column gap-2 text-end">
+                                        <button class="btn btn-lux-dark btn-sm text-uppercase px-3 py-2 font-inter tracking-wide small text-xxs fw-semibold">Track Order</button>
+                                        <button class="btn btn-outline-secondary btn-sm text-uppercase px-3 py-2 font-inter tracking-wide small text-xxs fw-semibold">Details</button>
+                                    </div>
+                                </div>
+
+                                <!-- Order Item 2 -->
+                                <div class="border border-light rounded-4 p-3 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 order-card-item transition-all duration-300">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="order-img-wrapper rounded-3 overflow-hidden border border-light">
+                                            <img src="https://images.unsplash.com/photo-1591561954557-26941169b49e?q=80&w=600&auto=format&fit=crop" alt="Chanel Le Lift Pro Kit" class="w-100 h-100 object-fit-cover">
+                                        </div>
+                                        <div class="font-inter">
+                                            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                                <h4 class="font-playfair text-lux-black fs-6 fw-bold mb-0">Chanel Le Lift Pro Kit</h4>
+                                                <span class="badge bg-success-light text-success text-uppercase tracking-wider text-xxs font-inter fw-bold">Delivered</span>
+                                            </div>
+                                            <p class="text-lux-gray text-xxs mb-1 opacity-75">ORDER ID: #LX-484712</p>
+                                            <span class="fw-bold text-lux-black">₹36,250</span>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex sm-flex-column gap-2 text-end">
+                                        <button class="btn btn-lux-dark btn-sm text-uppercase px-3 py-2 font-inter tracking-wide small text-xxs fw-semibold hover-lux-gold-bg">Buy Again</button>
+                                        <button class="btn btn-outline-secondary btn-sm text-uppercase px-3 py-2 font-inter tracking-wide small text-xxs fw-semibold">Write Review</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Block: Your Wishlist Picks -->
+                        <div class="bg-white rounded-4 border border-light shadow-sm p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h3 class="font-playfair fw-bold fs-4 text-lux-black mb-0">Your Wishlist Picks</h3>
+                                <a href="#" class="text-lux-gold font-inter text-uppercase small tracking-wide fw-semibold text-decoration-none hover-lux-black">See Wishlist (06)</a>
+                            </div>
+
+                            <div class="row g-3 row-cols-1 row-cols-sm-2">
+                                <!-- Wishlist Item 1 -->
+                                <div class="col">
+                                    <div class="product-card bg-white rounded-4 overflow-hidden border border-light shadow-sm p-3 position-relative d-flex flex-column h-100">
+                                        <button class="wishlist-btn-dashboard position-absolute top-4 end-4 z-2 rounded-circle border-0 d-flex align-items-center justify-content-center active-red shadow-sm" title="Remove from wishlist">
+                                            <i class="fa-solid fa-heart"></i>
+                                        </button>
+                                        <div class="product-img-wrapper bg-light rounded-3 overflow-hidden position-relative mb-3 flex-grow-1">
+                                            <img src="https://images.unsplash.com/photo-1594223274512-ad4803739b7c?q=80&w=600&auto=format&fit=crop" alt="Python-styled Clutch" class="w-100 h-100 object-fit-cover transition-transform duration-500 hover-scale-110">
+                                        </div>
+                                        <span class="font-inter text-lux-gray small-caps text-uppercase tracking-wider opacity-75 text-xxs mb-1">Dior</span>
+                                        <h4 class="font-playfair text-lux-black fs-6 fw-bold mb-1">python-styled clutch</h4>
+                                        <span class="price font-inter fw-bold text-lux-black fs-6 mt-auto">₹72,000</span>
+                                    </div>
+                                </div>
+
+                                <!-- Wishlist Item 2 -->
+                                <div class="col">
+                                    <div class="product-card bg-white rounded-4 overflow-hidden border border-light shadow-sm p-3 position-relative d-flex flex-column h-100">
+                                        <button class="wishlist-btn-dashboard position-absolute top-4 end-4 z-2 rounded-circle border-0 d-flex align-items-center justify-content-center active-red shadow-sm" title="Remove from wishlist">
+                                            <i class="fa-solid fa-heart"></i>
+                                        </button>
+                                        <div class="product-img-wrapper bg-light rounded-3 overflow-hidden position-relative mb-3 flex-grow-1">
+                                            <img src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?q=80&w=600&auto=format&fit=crop" alt="Tonal Hobo Bag" class="w-100 h-100 object-fit-cover transition-transform duration-500 hover-scale-110">
+                                        </div>
+                                        <span class="font-inter text-lux-gray small-caps text-uppercase tracking-wider opacity-75 text-xxs mb-1">Celine</span>
+                                        <h4 class="font-playfair text-lux-black fs-6 fw-bold mb-1">tonal hobo</h4>
+                                        <span class="price font-inter fw-bold text-lux-black fs-6 mt-auto">₹84,500</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- RIGHT 4-COLS: Wallet Credits, Coupons, Saved Addresses, Recent Activity -->
+                    <div class="col-12 col-md-4 d-flex flex-column gap-4">
+                        
+                        <!-- Sub-Block: Luxelle Wallet -->
+                        <div class="bg-lux-dark-theme rounded-4 border-0 shadow-sm p-4 text-white position-relative overflow-hidden wallet-card">
+                            <span class="position-absolute top-0 end-0 p-3 opacity-15"><i class="fa-solid fa-wallet fs-2 text-lux-gold"></i></span>
+                            <div class="d-flex align-items-center gap-2 mb-4 font-inter text-uppercase small-caps opacity-95 text-lux-gold fw-semibold">
+                                <i class="fa-solid fa-circle-nodes fs-6"></i>
+                                <span>Luxelle Credits</span>
+                            </div>
+                            <span class="small font-inter opacity-75 text-uppercase tracking-wider text-xxs">Available Balance</span>
+                            <h3 class="display-6 font-playfair text-lux-gold fw-bold mb-4">₹5,200.00</h3>
+                            <button class="btn btn-lux-gold-outline w-100 py-2.5 text-uppercase fw-semibold tracking-wider hover-white-text">
+                                Top Up Wallet
+                            </button>
+                        </div>
+
+                        <!-- Sub-Block: Exclusive Coupons -->
+                        <div class="bg-white rounded-4 border border-light shadow-sm p-4">
+                            <h3 class="font-playfair fw-bold fs-5 text-lux-black mb-3">Exclusive Coupons</h3>
+                            
+                            <div class="d-flex flex-column gap-2">
+                                <!-- Coupon card 1 -->
+                                <div class="coupon-item rounded-3 border border-light p-3 d-flex align-items-center justify-content-between position-relative overflow-hidden transition-all duration-300">
+                                    <div class="font-inter">
+                                        <span class="badge bg-lux-beige text-lux-black fw-bold px-2 py-1 text-xxs font-monospace rounded mb-1 border border-light select-all">LX100</span>
+                                        <p class="text-lux-black text-xxs fw-medium mb-0 opacity-90">20% Off Your Next Luxury Purchase</p>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary p-1 border-0 hover-lux-gold" title="Copy coupon code">
+                                        <i class="fa-regular fa-copy fs-6"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Coupon card 2 -->
+                                <div class="coupon-item rounded-3 border border-light p-3 d-flex align-items-center justify-content-between position-relative overflow-hidden transition-all duration-300">
+                                    <div class="font-inter">
+                                        <span class="badge bg-lux-beige text-lux-black fw-bold px-2 py-1 text-xxs font-monospace rounded mb-1 border border-light select-all">PREMIUM50</span>
+                                        <p class="text-lux-black text-xxs fw-medium mb-0 opacity-90">₹5,000 Off on orders above ₹50,000</p>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary p-1 border-0 hover-lux-gold" title="Copy coupon code">
+                                        <i class="fa-regular fa-copy fs-6"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sub-Block: Saved Addresses -->
+                        <div class="bg-white rounded-4 border border-light shadow-sm p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h3 class="font-playfair fw-bold fs-5 text-lux-black mb-0">Saved Addresses</h3>
+                                <a href="#" class="text-lux-gold p-1 hover-scale-110" title="Add Address"><i class="fa-solid fa-circle-plus fs-5"></i></a>
+                            </div>
+
+                            <div class="d-flex flex-column gap-2">
+                                <!-- Address 1 -->
+                                <div class="address-item p-3 border border-light rounded-3 bg-light-soft position-relative">
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <i class="fa-solid fa-house text-lux-gold text-xxs"></i>
+                                        <span class="font-inter small fw-bold text-uppercase tracking-wide text-xxs text-lux-black">Home (Default)</span>
+                                    </div>
+                                    <p class="font-inter text-lux-black small text-xxs mb-0 lh-relaxed opacity-90">
+                                        Apartment 402, Signature Towers,<br>
+                                        BKC, Bandra West, Mumbai, 400051<br>
+                                        <span class="text-muted">Phone: +91 9876543210</span>
+                                    </p>
+                                </div>
+
+                                <!-- Address 2 -->
+                                <div class="address-item p-3 border border-light rounded-3 bg-white position-relative">
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <i class="fa-solid fa-briefcase text-muted text-xxs"></i>
+                                        <span class="font-inter small fw-bold text-uppercase tracking-wide text-xxs text-lux-black">Office</span>
+                                    </div>
+                                    <p class="font-inter text-lux-black small text-xxs mb-0 lh-relaxed opacity-90">
+                                        Level 18, BKC Towers, BKC,<br>
+                                        Bandra East, Mumbai, 400051
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sub-Block: Recent Activity Timeline -->
+                        <div class="bg-white rounded-4 border border-light shadow-sm p-4">
+                            <h3 class="font-playfair fw-bold fs-5 text-lux-black mb-4">Recent Activity</h3>
+                            
+                            <div class="position-relative activity-timeline ps-3 font-inter">
+                                <!-- Timeline Line -->
+                                <div class="timeline-line position-absolute start-0 top-1.5 bottom-1.5 border-start border-2 border-lux-beige-dark"></div>
+
+                                <!-- Timeline Item 1 -->
+                                <div class="timeline-item position-relative mb-4">
+                                    <!-- Indicator dot -->
+                                    <div class="timeline-dot position-absolute bg-warning border border-3 border-white rounded-circle"></div>
+                                    <div class="ps-2">
+                                        <h5 class="text-lux-black text-xxs fw-bold mb-1">OUT FOR DELIVERY</h5>
+                                        <p class="text-lux-black text-xxs mb-1 opacity-90 lh-relaxed">Your order #LX-892214 is scheduled to arrive by 8:00 PM today.</p>
+                                        <span class="text-muted text-xxs opacity-75">Today, 11:45 AM</span>
+                                    </div>
+                                </div>
+
+                                <!-- Timeline Item 2 -->
+                                <div class="timeline-item position-relative mb-4">
+                                    <!-- Indicator dot -->
+                                    <div class="timeline-dot position-absolute bg-success border border-3 border-white rounded-circle"></div>
+                                    <div class="ps-2">
+                                        <h5 class="text-lux-black text-xxs fw-bold mb-1">LOYALTY POINTS EARNED</h5>
+                                        <p class="text-lux-black text-xxs mb-1 opacity-90 lh-relaxed">You earned 1250 Luxelle Points for your recent purchase.</p>
+                                        <span class="text-muted text-xxs opacity-75">Yesterday, 03:20 PM</span>
+                                    </div>
+                                </div>
+
+                                <!-- Timeline Item 3 -->
+                                <div class="timeline-item position-relative">
+                                    <!-- Indicator dot -->
+                                    <div class="timeline-dot position-absolute bg-danger border border-3 border-white rounded-circle"></div>
+                                    <div class="ps-2">
+                                        <h5 class="text-lux-black text-xxs fw-bold mb-1">RETURN PROCESSED</h5>
+                                        <p class="text-lux-black text-xxs mb-1 opacity-90 lh-relaxed">Return for order #LX-458120 has been successfully refunded.</p>
+                                        <span class="text-muted text-xxs opacity-75">3 Days Ago</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- =========================================
+       Footer Section
+       ========================================= -->
+    <footer class="bg-white border-top border-light pt-5 px-4 font-inter">
+        <div class="container pt-4 pb-5">
+            <div class="row g-5">
+                <!-- Column 1: Info and Brand -->
+                <div class="col-12 col-md-4">
+                    <h3 class="font-playfair fw-bold fs-2 text-lux-black mb-3">LUXELLE</h3>
+                    <p class="text-lux-gray small fw-light mb-4 lh-relaxed max-w-sm">Experience the pinnacle of curated luxury; your personal gateway to the world's most exclusive fashion houses.</p>
+                    <div class="d-flex align-items-center gap-3 social-icons text-lux-black">
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-instagram fs-4"></i></a>
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-pinterest fs-4"></i></a>
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-facebook fs-4"></i></a>
+                    </div>
+                </div>
+
+                <!-- Column 2: Shop Links -->
+                <div class="col-6 col-md-2 offset-md-1">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Collections</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Ready-to-Wear</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Leather Goods</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Exotics</a></li>
+                    </ul>
+                </div>
+
+                <!-- Column 3: Company Links -->
+                <div class="col-6 col-md-2">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Customer Care</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Shipping & Returns</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Size Guide</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Personal Shopping</a></li>
+                    </ul>
+                </div>
+
+                <!-- Column 4: Customer Care -->
+                <div class="col-12 col-md-3">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Legal</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Privacy Policy</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Terms of Service</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Cookie Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Copyright and Bottom Line -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center pt-4 mt-5 border-top border-light text-lux-gray small fw-light">
+                <p class="mb-2 mb-md-0">&copy; 2026 Luxelle. All Rights Reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

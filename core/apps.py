@@ -1,3 +1,7 @@
+"""
+apps.py — Luxelle Ecommerce (app: core)
+"""
+
 from django.apps import AppConfig
 
 
