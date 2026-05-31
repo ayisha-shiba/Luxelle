@@ -231,29 +231,28 @@ def password_reset_session_required(view_func):
 
 # ─────────────────────────────────────────────
 # Admin Required
-# ─────────────────────────────────────────────
-
 def admin_required(view_func):
-    """
-    Guards admin panel views — replaces the @user_passes_test(is_admin)
-    pattern that was scattered across admin_views.py.
-
-    Requires: authenticated + is_superuser.
-    Non-superusers are redirected to the admin login page.
-
-    @never_cache included: admin pages must never be served from browser
-    cache — sensitive user data and management actions must always reflect
-    the live server state.
-
-    Usage:
-        @admin_required
-        def admin_dashboard_view(request): ...
+    """Guard admin panel views using custom admin session.
+    Checks for session flag `_is_admin` and validates the stored admin user ID.
+    If missing or user is not a superuser, redirects to admin login.
     """
     @wraps(view_func)
     @never_cache
     def wrapper(request, *args, **kwargs):
-        if not request.user.is_authenticated or not request.user.is_superuser:
+        admin_flag = request.session.get('_is_admin')
+        admin_user_id = request.session.get('_admin_user_id')
+        if not admin_flag or not admin_user_id:
             messages.error(request, "Admin access required. Please log in.")
-            return redirect("admin_login")
+            return redirect('admin_login')
+        try:
+            from .models import CustomUser
+            admin_user = CustomUser.objects.get(id=admin_user_id)
+            if not admin_user.is_superuser:
+                raise CustomUser.DoesNotExist
+        except CustomUser.DoesNotExist:
+            messages.error(request, "Admin access required. Please log in.")
+            return redirect('admin_login')
+        request.admin_user = admin_user
         return view_func(request, *args, **kwargs)
     return wrapper
+

@@ -9,7 +9,7 @@ from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
-OTP_EXPIRY_MINUTES   = 1
+OTP_EXPIRY_MINUTES   = 10  # increased from 1 minute to allow user time
 OTP_RESEND_COOLDOWN  = 60   # seconds — enforced server-side, not by frontend timer
 
 

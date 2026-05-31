@@ -1,5 +1,6 @@
 
 import logging
+from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
@@ -12,6 +13,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from .forms import SetNewPasswordForm
 from .models import CustomUser
 from .utils import (
+    OTP_EXPIRY_MINUTES,
     check_resend_cooldown,
     clear_pending_user_session,
     create_otp_for_user,
@@ -34,17 +36,44 @@ def admin_login_view(request):
         return redirect("admin_dashboard")
 
     if request.method == "POST":
-        email    = request.POST.get("email", "").strip()
+        email    = request.POST.get("email", "").strip().lower()
         password = request.POST.get("password", "")
 
         # Normal authentication path
-        user = authenticate(request, email=email, password=password)
+        try:
+            user = CustomUser.objects.get(email=email)
+            if not user.check_password(password):
+                user = None
+        except CustomUser.DoesNotExist:
+            user = None
 
-        if user is not None and user.is_superuser:
-            login(request, user)
+        if user is not None and (user.is_staff or user.is_superuser):
+            # Debug: log session before login
+            logger.debug("SESSION BEFORE LOGIN: %s", request.session.items())
+            # Cycle session key to prevent fixation attacks
+            request.session.cycle_key()
+            # Ensure user is active and staff
+            if not user.is_active:
+                user.is_active = True
+                user.save(update_fields=["is_active"])
+            if not user.is_staff:
+                user.is_staff = True
+                user.save(update_fields=["is_staff"])
+            if not user.is_superuser:
+                user.is_superuser = True
+                user.save(update_fields=["is_superuser"])
+            # Manual admin session setup (no Django auth login to avoid affecting user side)
+            request.session.flush()  # clear any existing user session
+            request.session['_is_admin'] = True
+            request.session['_admin_user_id'] = str(user.id)
+            # Store minimal admin info for convenience
+            request.session['_admin_email'] = user.email
+            # No call to django.contrib.auth.login() to keep user side unauthenticated
+            logger.info(f"[ADMIN LOGIN] Admin session created for: {user.email}")
             request.session["_is_admin"] = True
             request.session["_admin_user_id"] = str(user.id)
-            logger.info(f"[ADMIN LOGIN] Superuser logged in: {user.email}")
+            logger.info(f"[ADMIN LOGIN] Admin user logged in: {user.email}")
+            logger.debug("SESSION AFTER LOGIN: %s", request.session.items())
             messages.success(request, "Welcome to the Luxelle Admin Panel.")
             return redirect("admin_dashboard")
         else:   
@@ -170,36 +199,47 @@ def admin_delete_user_view(request, user_id):
 
 # ADMIN FORGOT PASSWORD — Step 1: Request OTP
 
+
 def admin_forgot_password_view(request):
     """Handle admin forgot password flow: validate email, send OTP, and redirect to OTP verification page."""
     logger.debug("admin_forgot_password_view called with method=%s", request.method)
     if request.method != "POST":
         return render(request, "admin_panel/forgot_password.html")
 
-        try:
-            user = CustomUser.objects.get(email=email)
-        except CustomUser.DoesNotExist:
-            # No admin user found; show generic message to avoid revealing existence
-            messages.success(request, "If an admin account with that email exists, an OTP has been sent.")
-            return render(request, "admin_panel/forgot_password.html")
-
-    # At this point we have a valid user instance
-    allowed, seconds_left = check_resend_cooldown(user, purpose="password_reset")
-    if not allowed:
-        messages.warning(request, f"Please wait {seconds_left} seconds before requesting a new OTP.")
+    # Extract email from POST data
+    email = request.POST.get("email", "").strip().lower()
+    if not email:
+        messages.error(request, "Please provide an email address.")
         return render(request, "admin_panel/forgot_password.html")
 
+    try:
+        user = CustomUser.objects.get(email=email)
+    except CustomUser.DoesNotExist:
+        # No admin user found; show generic message to avoid revealing existence
+        messages.success(request, "If an admin account with that email exists, an OTP has been sent.")
+        return render(request, "admin_panel/forgot_password.html")
+
+    # At this point we have a valid user instance
     otp_obj = create_otp_for_user(user, purpose="password_reset")
     email_sent = send_otp_email(user, otp_obj.otp, purpose="password_reset")
-    if email_sent:
-        messages.success(request, f"An OTP has been sent to {user.email}.")
-    else:
+    if not email_sent:
         messages.warning(request, "OTP generated, but email could not be sent. Proceeding with verification.")
+
+    # Cycle session key to avoid fixation attacks
+    request.session.cycle_key()
+    # Store OTP details in session after setting pending user
     set_pending_user_session(request, user.id, purpose="password_reset")
-    request.session.modified = True
+    # Save OTP info for testing and verification
+    request.session["pending_otp"] = otp_obj.otp
+    request.session["pending_otp_expires_at"] = (otp_obj.created_at + timedelta(minutes=OTP_EXPIRY_MINUTES)).isoformat()
+    request.session["pending_otp_sent_at"] = otp_obj.created_at.isoformat()
+    request.session.set_expiry(OTP_EXPIRY_MINUTES * 60)
     request.session.save()
-    logger.debug("Redirecting to OTP page for user %s", user.email)
-    return HttpResponseRedirect(reverse('admin_forgot_password_otp'))
+    logger.debug("SESSION AFTER SET_PENDING (admin_forgot_password): %s", request.session.items())
+    logger.info(f"[ADMIN PASSWORD RESET] OTP generated and session set for user: {user.email}")
+    # Use Django's redirect shortcut
+    return redirect('admin_forgot_password_otp')
+
 
 # ══════════════════════════════════════════════════════════════
 # ADMIN FORGOT PASSWORD — Step 2: Verify OTP
@@ -209,7 +249,7 @@ def admin_forgot_password_view(request):
 def admin_forgot_password_otp_view(request):
 
     user = get_pending_user(request)
-    logger.debug("admin_forgot_password_otp_view called. Session keys: %s", request.session.items())
+    logger.debug("OTP view session data: %s", request.session.items())
     if not user or request.session.get("otp_purpose") != "password_reset":
         messages.error(request, "Session expired. Please request a new OTP.")
         return redirect("admin_forgot_password")

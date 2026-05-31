@@ -109,6 +109,11 @@ def register_view(request):
                 request.session["pending_otp_expires_at"] = expires_at.isoformat()
                 request.session["pending_otp_sent_at"] = timezone.now().isoformat()
                 request.session.set_expiry(OTP_EXPIRY_MINUTES * 60)
+                logger.debug("SESSION BEFORE SET_PENDING (registration): %s", request.session.items())
+                set_pending_user_session(request, None, purpose="registration")
+                request.session.save()
+                logger.debug("SESSION AFTER SET_PENDING (registration): %s", request.session.items())
+                messages.success(request, f"OTP sent to {registration_data['email']}.")
                 return redirect("verify_otp")
             else:
                 messages.error(request, "Failed to send verification email. Please try again.")
@@ -247,11 +252,15 @@ def resend_otp_view(request):
 
     email_sent = send_otp_email(_TempUser(), otp_code, purpose="registration")
     if email_sent:
+        logger.debug("SESSION BEFORE RESEND (registration): %s", request.session.items())
         request.session["pending_otp"] = otp_code
         request.session["pending_otp_expires_at"] = expires_at.isoformat()
         request.session["pending_otp_sent_at"] = timezone.now().isoformat()
         request.session.set_expiry(OTP_EXPIRY_MINUTES * 60)
+        request.session.save()
+        logger.debug("SESSION AFTER RESEND (registration): %s", request.session.items())
         messages.success(request, f"A new OTP has been sent to {registration_data['email']}.")
+        return redirect("verify_otp")
     else:
         messages.error(request, "Failed to resend OTP. Please try again.")
     request.session.modified = True
@@ -271,37 +280,38 @@ def login_view(request):
             email    = form.cleaned_data["email"]
             password = form.cleaned_data["password"]
 
+            # Authenticate user
             user = authenticate(request, username=email, password=password)
 
+            # Ensure any admin session flags are removed before normal user login
+            if request.session.get('_is_admin'):
+                request.session.pop('_is_admin', None)
+                request.session.pop('_admin_user_id', None)
+                request.session.pop('_admin_email', None)
+                logger.debug('Cleared admin session flags before user login')
+
             if user is None:
+                # Check if the credentials belong to an admin account
                 try:
                     existing = CustomUser.objects.get(email=email)
-                    if not existing.is_active and not existing.is_verified:
-                        otp_obj = create_otp_for_user(existing, purpose="registration")
-                        send_otp_email(existing, otp_obj.otp, purpose="registration")
-
-                        request.session.flush()
-                        set_pending_user_session(request, existing.pk, purpose="registration")
-                        messages.warning(
-                            request,
-                            "Your email is not verified. A new OTP has been sent.",
-                        )
-                        return redirect("verify_otp")
-                    elif not existing.is_active:
-                        messages.error(request, "Your account is suspended. Please contact support.")
+                    if existing.is_superuser:
+                        messages.error(request, "Invalid email or password.")
                         return render(request, "login.html", {"form": form})
                 except CustomUser.DoesNotExist:
                     pass
-
                 messages.error(request, "Invalid email or password.")
             else:
-                clear_pending_user_session(request)
-                request.session.cycle_key()
-                login(request, user)
-                logger.info(f"[LOGIN] User logged in: {user.email}")
-                messages.success(request, f"Welcome back, {user.first_name or user.email}!")
-                next_url = request.GET.get("next", "home")
-                return redirect(next_url)
+                # Prevent admin accounts from logging in via the user portal
+                if user.is_superuser:
+                    messages.error(request, "Invalid email or password.")
+                else:
+                    clear_pending_user_session(request)
+                    request.session.cycle_key()
+                    login(request, user)
+                    logger.info(f"[LOGIN] User logged in: {user.email}")
+                    messages.success(request, f"Welcome back, {user.first_name or user.email}!")
+                    next_url = request.GET.get("next", "home")
+                    return redirect(next_url)
 
     return render(request, "login.html", {"form": form})
 
@@ -345,9 +355,15 @@ def forgot_password_view(request):
             email_sent = send_otp_email(user, otp_obj.otp, purpose="password_reset")
 
             if email_sent:
-                set_pending_user_session(request, user.pk, purpose="password_reset")
-                messages.success(request, f"OTP sent to {user.email}.")
-                return redirect("forgot_password_otp")
+                logger.debug("SESSION BEFORE SET_PENDING (forgot_password): %s", request.session.items())
+                logger.debug("SESSION BEFORE SET_PENDING (admin_forgot_password): %s", request.session.items())
+                logger.debug("SESSION BEFORE SET_PENDING (admin_forgot_password): %s", request.session.items())
+                logger.debug("SESSION BEFORE SET_PENDING (admin_forgot_password): %s", request.session.items())
+                set_pending_user_session(request, user.id, purpose="password_reset")
+                request.session.save()
+                logger.debug("SESSION AFTER SET_PENDING (admin_forgot_password): %s", request.session.items())
+                messages.success(request, f"An OTP has been sent to {user.email}.")
+                return redirect("admin_forgot_password_otp")
             else:
                 messages.error(request, "Failed to send OTP email. Please try again.")
 
@@ -361,11 +377,13 @@ def forgot_password_view(request):
 
 def forgot_password_otp_view(request):
     """Verify the password-reset OTP (server-side expiry check)."""
+    logger.debug("SESSION BEFORE OTP VERIFY (admin_forgot_password_otp): %s", request.session.items())
+    logger.debug("SESSION BEFORE OTP VERIFY (admin_forgot_password_otp): %s", request.session.items())
     user = get_pending_user(request)
     if not user or request.session.get("otp_purpose") != "password_reset":
-        messages.error(request, "Session expired. Please start again.")
-        return redirect("forgot_password")
-
+        messages.error(request, "Session expired. Please request a new OTP.")
+        return redirect("admin_forgot_password")
+    logger.debug("SESSION AFTER OTP VERIFY (admin_forgot_password_otp): %s", request.session.items())
     form = OTPVerificationForm(request.POST or None)
 
     if request.method == "POST":
@@ -397,7 +415,11 @@ def resend_forgot_password_otp_view(request):
         messages.warning(request, f"Please wait {seconds_left} seconds before requesting a new OTP.")
         return redirect("forgot_password_otp")
 
-    otp_obj    = create_otp_for_user(user, purpose="password_reset")
+    logger.debug("SESSION BEFORE RESEND (forgot_password): %s", request.session.items())
+    otp_obj = create_otp_for_user(user, purpose="password_reset")
+    request.session["otp_purpose"] = "password_reset"
+    request.session.save()
+    logger.debug("SESSION AFTER RESEND (forgot_password): %s", request.session.items())
     email_sent = send_otp_email(user, otp_obj.otp, purpose="password_reset")
 
     if email_sent:
@@ -541,8 +563,11 @@ def change_email_view(request):
             temp_user = SimpleNamespace(email=new_email, first_name=request.user.first_name)
             otp_obj = create_otp_for_user(request.user, purpose="email_change")
             send_otp_email(temp_user, otp_obj.otp, purpose="email_change")
+            logger.debug("SESSION BEFORE SET_PENDING (change_email): %s", request.session.items())
             set_pending_user_session(request, request.user.pk, purpose="email_change")
             request.session["pending_new_email"] = new_email
+            request.session.save()
+            logger.debug("SESSION AFTER SET_PENDING (change_email): %s", request.session.items())
             messages.success(
                 request,
                 f"OTP sent to {new_email}. Verify to change to {new_email}.",
@@ -571,13 +596,16 @@ def verify_email_otp_view(request):
         otp_input = form.cleaned_data["otp"]
         valid, error_msg = verify_otp(user, otp_input, purpose="email_change")
 
+        logger.debug("SESSION BEFORE VERIFY EMAIL OTP: %s", request.session.items())
         if valid:
             user.email = new_email
             user.save(update_fields=["email"])
             login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-            request.session.cycle_key()
+            update_session_auth_hash(request, user)  # ensure session auth hash refreshed
             clear_pending_user_session(request)
             request.session.pop("pending_new_email", None)
+            request.session.save()
+            logger.debug("SESSION AFTER VERIFY EMAIL OTP: %s", request.session.items())
             messages.success(request, "Your email address has been updated.")
             return redirect("profile")
         else:
@@ -615,6 +643,10 @@ def delete_account_view(request):
     """Permanently delete the authenticated user's account after password confirmation."""
     error = None
     if request.method == "POST":
+        # Prevent admin (superuser) deletion via normal user interface
+        if request.user.is_superuser:
+            messages.error(request, "Admin accounts cannot be deleted from this page.")
+            return redirect("profile")
         password = request.POST.get("password", "")
         if not request.user.check_password(password):
             error = "Password incorrect. Account not deleted."

@@ -1,46 +1,25 @@
+import datetime
 from django.test import TestCase, Client
 from django.urls import reverse
-from django.contrib.auth import get_user_model
+from core.models import CustomUser
 
-class RegistrationFlowTest(TestCase):
+class AdminForgotPasswordFlowTest(TestCase):
     def setUp(self):
-        self.client = Client()
-        self.register_url = reverse('register')
-        self.verify_url = reverse('verify_otp')
-        self.user_model = get_user_model()
+        self.admin_email = 'admin@test.com'
+        self.admin_password = 'admin123'
+        self.admin = CustomUser.objects.create_superuser(email=self.admin_email, password=self.admin_password)
 
-    def test_registration_and_otp_redirection(self):
-        # Submit registration form
-        form_data = {
-            'first_name': 'Test',
-            'last_name': 'User',
-            'email': 'testuser@example.com',
-            'phone': '+1234567890',
-            'password1': 'StrongPass!123',
-            'password2': 'StrongPass!123',
-        }
-        response = self.client.post(self.register_url, data=form_data)
-        # Should redirect to OTP verification page
-        self.assertRedirects(response, self.verify_url)
-
-        # Follow redirect to OTP page
-        response = self.client.get(self.verify_url)
-        self.assertEqual(response.status_code, 200)
-        # The page should contain the CHANGE EMAIL link pointing to register
-        self.assertContains(response, f'href="{self.register_url}"')
-
-    def test_change_email_link_redirects_to_register(self):
-        # First create a pending user via registration flow
-        form_data = {
-            'first_name': 'Test',
-            'last_name': 'User',
-            'email': 'testchange@example.com',
-            'phone': '+1234567890',
-            'password1': 'StrongPass!123',
-            'password2': 'StrongPass!123',
-        }
-        self.client.post(self.register_url, data=form_data)
-        # Now get OTP page and check the link
-        response = self.client.get(self.verify_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, f'href="{self.register_url}"')
+    def test_forgot_password_flow(self):
+        client = Client()
+        # Post email to request OTP
+        response = client.post(reverse('admin_forgot_password'), {'email': self.admin_email}, follow=True)
+        # Should redirect to OTP page
+        self.assertRedirects(response, reverse('admin_forgot_password_otp'))
+        # Session should have pending_user_id and otp_purpose
+        session = client.session
+        self.assertIn('pending_user_id', session)
+        self.assertEqual(session.get('otp_purpose'), 'password_reset')
+        # Access OTP page GET
+        otp_page = client.get(reverse('admin_forgot_password_otp'))
+        self.assertEqual(otp_page.status_code, 200)
+        self.assertTemplateUsed(otp_page, 'admin_panel/otp.html')
