@@ -1,0 +1,287 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle | Address Management</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    <style>
+        body { background-color: #F5F2EB !important; font-family: 'Inter', sans-serif; color: #1A1A1A; }
+        header.navbar { background-color: #fff !important; border-bottom: 1px solid #e2dfd9 !important; }
+        .page-title { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700; color: #1A1A1A; }
+        .lux-line { width: 40px; height: 2px; background: #C9A26A; margin-bottom: 28px; }
+        .card-lux { background: #fff; border: 1px solid #e2dfd9; border-radius: 8px; padding: 24px; }
+        .address-card { background: #fff; border: 1px solid #e2dfd9; border-radius: 8px; padding: 20px; height: 100%; display: flex; flex-direction: column; justify-content: space-between; transition: border-color 0.3s; }
+        .address-card.is-default { border-color: #C9A26A; }
+        .address-card:hover { border-color: #C9A26A; }
+        .badge-default { background: rgba(201,162,106,0.15); color: #b08d5b; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; border: 1px solid #C9A26A; }
+        .addr-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #888; margin-bottom: 2px; }
+        .addr-value { font-size: 0.88rem; color: #1A1A1A; margin-bottom: 14px; }
+        .form-label-lux { font-size: 0.7rem; font-weight: 600; color: #b08d5b; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; display: block; }
+        .form-input-lux { background: #fff !important; border: 1px solid #e2dfd9 !important; border-radius: 4px !important; color: #1A1A1A !important; font-size: 0.85rem !important; padding: 12px 14px !important; width: 100%; transition: border-color 0.3s; }
+        .form-input-lux:focus { border-color: #C9A26A !important; box-shadow: 0 0 0 3px rgba(201,162,106,0.15) !important; outline: none; }
+        .form-input-lux.is-invalid { border-color: #dc3545 !important; }
+        .field-error { color: #dc3545; font-size: 0.75rem; margin-top: 4px; }
+        .btn-gold { background: #C9A26A; color: #000; border: 1px solid #C9A26A; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 12px 24px; border-radius: 4px; transition: all 0.3s; cursor: pointer; }
+        .btn-gold:hover { background: #b08d5b; border-color: #b08d5b; color: #fff; }
+        .btn-outline-lux { background: transparent; color: #666; border: 1px solid #e2dfd9; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 12px 24px; border-radius: 4px; transition: all 0.3s; text-decoration: none; cursor: pointer; }
+        .btn-outline-lux:hover { border-color: #999; color: #1A1A1A; }
+        .btn-icon { background: transparent; border: 1px solid #e2dfd9; border-radius: 4px; padding: 6px 12px; font-size: 0.75rem; color: #666; cursor: pointer; transition: all 0.3s; }
+        .btn-icon:hover { border-color: #C9A26A; color: #C9A26A; }
+        .btn-icon.danger:hover { border-color: #dc3545; color: #dc3545; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #999; }
+        .modal-content { border-radius: 8px !important; border: none !important; }
+        .modal-header-lux { border-bottom: 1px solid #e2dfd9; padding: 20px 24px; }
+        .modal-body-lux { padding: 24px; }
+        .modal-footer-lux { padding: 16px 24px; border-top: 1px solid #e2dfd9; }
+    </style>
+</head>
+<body>
+<header class="navbar navbar-expand-lg sticky-top py-3 px-4">
+    <div class="container-fluid">
+        <a class="navbar-brand font-playfair fs-2 fw-bold text-lux-black m-0" href="{% url 'home' %}">LUXELLE</a>
+        <div class="d-flex align-items-center gap-3">
+            <a href="{% url 'profile' %}" class="btn btn-outline-secondary btn-sm rounded-1 text-uppercase px-3">
+                <i class="fa-solid fa-arrow-left me-1"></i> Dashboard
+            </a>
+        </div>
+    </div>
+</header>
+
+<main class="container py-5">
+
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} alert-dismissible fade show mb-4 font-inter small" role="alert">
+                {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="mb-4">
+        <h1 class="page-title">Address Book</h1>
+        <div class="lux-line"></div>
+    </div>
+
+    <div class="row g-4">
+
+        <!-- LEFT: Add Address Form -->
+        <div class="col-12 col-lg-5">
+            <div class="card-lux">
+                <h5 class="font-playfair fw-bold fs-5 mb-4" style="color:#1A1A1A;">
+                    {% if editing %}Edit Address{% else %}Add New Address{% endif %}
+                </h5>
+
+                <form method="POST" action="{% if editing %}{% url 'address_edit' address.id %}{% else %}{% url 'addresses' %}{% endif %}" novalidate>
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger font-inter small py-2 mb-3">
+                        <ul class="mb-0">
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <!-- Full Name -->
+                    <div class="mb-3">
+                        <label class="form-label-lux">Full Name *</label>
+                        <input type="text" name="full_name" class="form-input-lux {% if form.full_name.errors %}is-invalid{% endif %}"
+                               value="{{ form.full_name.value|default:'' }}" placeholder="Enter full name" minlength="2" required>
+                        {% if form.full_name.errors %}<div class="field-error">{% for e in form.full_name.errors %}{{ e }}{% endfor %}</div>{% endif %}
+                    </div>
+
+                    <!-- Phone -->
+                    <div class="mb-3">
+                        <label class="form-label-lux">Phone Number *</label>
+                        <input type="text" name="phone" class="form-input-lux {% if form.phone.errors %}is-invalid{% endif %}"
+                               value="{{ form.phone.value|default:'' }}" placeholder="10-digit phone number" pattern="[0-9\+\s\-]{10,14}" title="Enter a valid 10-digit phone number" required>
+                        {% if form.phone.errors %}<div class="field-error">{% for e in form.phone.errors %}{{ e }}{% endfor %}</div>{% endif %}
+                    </div>
+
+                    <!-- Address Line 1 -->
+                    <div class="mb-3">
+                        <label class="form-label-lux">Street Address *</label>
+                        <input type="text" name="address_line1" class="form-input-lux {% if form.address_line1.errors %}is-invalid{% endif %}"
+                               value="{{ form.address_line1.value|default:'' }}" placeholder="House No., Street, Area" required>
+                        {% if form.address_line1.errors %}<div class="field-error">{% for e in form.address_line1.errors %}{{ e }}{% endfor %}</div>{% endif %}
+                    </div>
+
+                    <!-- Address Line 2 -->
+                    <div class="mb-3">
+                        <label class="form-label-lux">Apartment / Landmark</label>
+                        <input type="text" name="address_line2" class="form-input-lux"
+                               value="{{ form.address_line2.value|default:'' }}" placeholder="Optional">
+                    </div>
+
+                    <!-- City + State -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label-lux">City *</label>
+                            <input type="text" name="city" class="form-input-lux {% if form.city.errors %}is-invalid{% endif %}"
+                                   value="{{ form.city.value|default:'' }}" placeholder="City" required>
+                            {% if form.city.errors %}<div class="field-error">{% for e in form.city.errors %}{{ e }}{% endfor %}</div>{% endif %}
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label-lux">State *</label>
+                            <input type="text" name="state" class="form-input-lux {% if form.state.errors %}is-invalid{% endif %}"
+                                   value="{{ form.state.value|default:'' }}" placeholder="State" required>
+                            {% if form.state.errors %}<div class="field-error">{% for e in form.state.errors %}{{ e }}{% endfor %}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Postal Code + Country -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label-lux">Postal Code *</label>
+                            <input type="text" name="postal_code" class="form-input-lux {% if form.postal_code.errors %}is-invalid{% endif %}"
+                                   value="{{ form.postal_code.value|default:'' }}" placeholder="6-digit PIN" required>
+                            {% if form.postal_code.errors %}<div class="field-error">{% for e in form.postal_code.errors %}{{ e }}{% endfor %}</div>{% endif %}
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label-lux">Country *</label>
+                            <input type="text" name="country" class="form-input-lux {% if form.country.errors %}is-invalid{% endif %}"
+                                   value="{{ form.country.value|default:'India' }}" placeholder="Country" required>
+                            {% if form.country.errors %}<div class="field-error">{% for e in form.country.errors %}{{ e }}{% endfor %}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Address Type + Default -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-6">
+                            <label class="form-label-lux">Address Type</label>
+                            <select name="address_type" class="form-input-lux" style="appearance:auto;">
+                                <option value="home" {% if form.address_type.value == 'home' %}selected{% endif %}>Home</option>
+                                <option value="work" {% if form.address_type.value == 'work' %}selected{% endif %}>Work</option>
+                                <option value="other" {% if form.address_type.value == 'other' %}selected{% endif %}>Other</option>
+                            </select>
+                        </div>
+                        <div class="col-6 d-flex align-items-end">
+                            <label class="d-flex align-items-center gap-2 mb-0" style="cursor:pointer;">
+                                <input type="checkbox" name="is_default" class="form-check-input" style="width:18px;height:18px;"
+                                       {% if form.is_default.value %}checked{% endif %}>
+                                <span class="form-label-lux mb-0">Set as Default</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-3">
+                        <button type="submit" class="btn-gold flex-fill">
+                            {% if editing %}UPDATE ADDRESS{% else %}SAVE ADDRESS{% endif %}
+                        </button>
+                        {% if editing %}
+                            <a href="{% url 'addresses' %}" class="btn-outline-lux flex-fill text-center">CANCEL</a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- RIGHT: Saved Addresses List -->
+        <div class="col-12 col-lg-7">
+            <div class="card-lux">
+                <h5 class="font-playfair fw-bold fs-5 mb-4" style="color:#1A1A1A;">
+                    Saved Addresses
+                    <span class="badge rounded-pill ms-2" style="background:#f5f2eb;color:#b08d5b;font-size:0.75rem;border:1px solid #e2dfd9;">
+                        {{ addresses.count }}
+                    </span>
+                </h5>
+
+                {% if addresses %}
+                    <div class="row g-3">
+                        {% for addr in addresses %}
+                        <div class="col-12 col-md-6">
+                            <div class="address-card {% if addr.is_default %}is-default{% endif %}">
+                                <div>
+                                    <!-- Header -->
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="fa-solid {% if addr.address_type == 'home' %}fa-house{% elif addr.address_type == 'work' %}fa-briefcase{% else %}fa-location-dot{% endif %}" style="color:#C9A26A;font-size:0.9rem;"></i>
+                                            <span style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1A1A1A;">
+                                                {{ addr.get_address_type_display }}
+                                            </span>
+                                        </div>
+                                        {% if addr.is_default %}
+                                            <span class="badge-default">Default</span>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Details -->
+                                    <div class="addr-label">Name</div>
+                                    <div class="addr-value">{{ addr.full_name }}</div>
+
+                                    <div class="addr-label">Address</div>
+                                    <div class="addr-value">
+                                        {{ addr.address_line1 }}{% if addr.address_line2 %}, {{ addr.address_line2 }}{% endif %}<br>
+                                        {{ addr.city }}, {{ addr.state }} — {{ addr.postal_code }}<br>
+                                        {{ addr.country }}
+                                    </div>
+
+                                    <div class="addr-label">Phone</div>
+                                    <div class="addr-value mb-0">{{ addr.phone }}</div>
+                                </div>
+
+                                <!-- Actions -->
+                                <div class="d-flex gap-2 mt-3 pt-3" style="border-top:1px solid #f0ede8;">
+                                    <a href="{% url 'address_edit' addr.id %}?next=addresses" class="btn-icon flex-fill text-center text-decoration-none">
+                                        <i class="fa-solid fa-pen me-1"></i> Edit
+                                    </a>
+                                    {% if not addr.is_default %}
+                                        <form method="POST" action="{% url 'address_set_default' addr.id %}" class="flex-fill">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn-icon w-100">
+                                                <i class="fa-regular fa-star me-1"></i> Default
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                <button type="button" class="btn-icon danger w-100" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal{{ addr.id }}">
+                    <i class="fa-solid fa-trash me-1"></i> Delete
+                </button>
+                                </div>
+                            </div>
+                <div class="modal fade" id="confirmDeleteModal{{ addr.id }}" tabindex="-1" aria-labelledby="confirmDeleteLabel{{ addr.id }}" aria-hidden="true">
+                  <div class="modal-dialog">
+                    <div class="modal-content">
+                      <div class="modal-header-lux">
+                        <h5 class="modal-title" id="confirmDeleteLabel{{ addr.id }}">Confirm Deletion</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body-lux">
+                        Are you sure you want to delete this address?
+                      </div>
+                      <div class="modal-footer-lux">
+                        <button type="button" class="btn btn-outline-lux" data-bs-dismiss="modal">Cancel</button>
+                        <form method="POST" action="{% url 'address_delete' addr.id %}" class="d-inline">
+                          {% csrf_token %}
+                          <button type="submit" class="btn btn-danger">Delete</button>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fa-solid fa-location-dot fs-1 mb-3" style="color:#e2dfd9;"></i>
+                        <p class="font-inter" style="color:#999;">No addresses saved yet. Add your first address.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,640 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle Admin — OTP Verification</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <style>
+        :root {
+            --admin-dark-bg: #0b0b0b;
+            --admin-charcoal: #151515;
+            --admin-light-charcoal: #222222;
+            --admin-gold: #c5a059;
+            --admin-bright-gold: #e5c17d;
+            --admin-white: #ffffff;
+            --admin-gray: #888888;
+        }
+
+        body {
+            background-color: var(--admin-dark-bg);
+            color: var(--admin-white);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .auth-container {
+            width: 100vw;
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* ── Left Editorial Column ── */
+        .editorial-col {
+            flex: 1.1;
+            background-color: #050505;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 4.5rem;
+            overflow: hidden;
+        }
+
+        .editorial-bg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image: url('{% static "image/admin_hero_bag.png" %}');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.65;
+            z-index: 1;
+            transform: scale(1.02);
+            transition: transform 10s ease;
+        }
+
+        .editorial-col:hover .editorial-bg { transform: scale(1.05); }
+
+        .editorial-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(11,11,11,0.4) 0%, rgba(11,11,11,0.8) 100%);
+            z-index: 2;
+        }
+
+        .editorial-header { position: relative; z-index: 3; }
+
+        .admin-brand {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+            font-size: 1.85rem;
+            letter-spacing: 0.25em;
+            color: var(--admin-gold);
+            text-shadow: 0 0 15px rgba(197,160,89,0.2);
+            margin: 0;
+        }
+
+        .editorial-center {
+            position: relative;
+            z-index: 3;
+            margin: auto 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            max-width: 380px;
+        }
+
+        .glass-widget {
+            background: rgba(21,21,21,0.65);
+            backdrop-filter: blur(16px) saturate(120%);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-left: 3px solid var(--admin-gold);
+            padding: 1.25rem 1.5rem;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+            animation: floatWidget 4s ease-in-out infinite alternate;
+        }
+
+        .glass-widget-2 { animation-delay: 2s; }
+
+        @keyframes floatWidget {
+            0%   { transform: translateY(0px) scale(1); }
+            100% { transform: translateY(-6px) scale(1.01); }
+        }
+
+        .widget-icon-box {
+            width: 42px; height: 42px;
+            border-radius: 8px;
+            background: rgba(197,160,89,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--admin-gold);
+            font-size: 1.2rem;
+            border: 1px solid rgba(197,160,89,0.25);
+        }
+
+        .widget-info { display: flex; flex-direction: column; }
+
+        .widget-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--admin-gray);
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .widget-val {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--admin-white);
+            margin: 0;
+        }
+
+        .editorial-footer { position: relative; z-index: 3; max-width: 440px; }
+
+        .editorial-footer p {
+            font-size: 0.72rem;
+            letter-spacing: 0.18em;
+            line-height: 1.7;
+            text-transform: uppercase;
+            color: var(--admin-gray);
+            font-weight: 500;
+            margin: 0;
+        }
+
+        /* ── Right Form Column ── */
+        .form-col {
+            flex: 0.9;
+            background-color: var(--admin-dark-bg);
+            padding: 5rem 6.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border-left: 1px solid rgba(255,255,255,0.03);
+            box-shadow: -20px 0 40px rgba(0,0,0,0.4);
+            position: relative;
+            z-index: 5;
+        }
+
+        .form-header-sec { margin-bottom: 2.5rem; }
+
+        .form-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: var(--admin-white);
+            margin-bottom: 0.75rem;
+        }
+
+        .form-subtitle {
+            font-size: 0.88rem;
+            color: var(--admin-gray);
+            font-weight: 300;
+            letter-spacing: 0.02em;
+        }
+
+        .admin-input-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--admin-gold);
+            margin-bottom: 0.75rem;
+            display: block;
+        }
+
+        /* ── OTP Code Boxes ── */
+        .otp-row {
+            display: flex;
+            gap: 0.85rem;
+            margin-bottom: 2rem;
+        }
+
+        .otp-input {
+            width: 60px; height: 68px;
+            background-color: var(--admin-charcoal);
+            border: 1.5px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            text-align: center;
+            font-family: 'Playfair Display', serif;
+            font-size: 1.65rem;
+            font-weight: 700;
+            color: var(--admin-gold);
+            caret-color: var(--admin-gold);
+            transition: all 0.3s ease;
+        }
+
+        .otp-input:focus {
+            outline: none;
+            border-color: var(--admin-gold);
+            background-color: var(--admin-light-charcoal);
+            box-shadow: 0 0 20px rgba(197,160,89,0.15), inset 0 0 12px rgba(197,160,89,0.05);
+            transform: translateY(-2px);
+        }
+
+        .otp-input.filled {
+            border-color: var(--admin-gold);
+            background-color: rgba(197,160,89,0.06);
+        }
+
+        /* Timer & Resend */
+        .timer-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2.5rem;
+        }
+
+        .timer-text {
+            font-size: 0.78rem;
+            color: var(--admin-gray);
+            font-weight: 400;
+        }
+
+        .timer-text span {
+            color: var(--admin-gold);
+            font-weight: 700;
+            font-family: 'Playfair Display', serif;
+            font-size: 1rem;
+        }
+
+        .resend-link {
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--admin-gray);
+            text-decoration: none;
+            cursor: not-allowed;
+            opacity: 0.5;
+            transition: all 0.3s ease;
+        }
+
+        .resend-link.active {
+            color: var(--admin-gold);
+            cursor: pointer;
+            opacity: 1;
+        }
+
+        .resend-link.active:hover {
+            color: var(--admin-bright-gold);
+            text-decoration: underline;
+        }
+
+        /* Buttons */
+        .btn-admin-solid {
+            width: 100%;
+            background-color: var(--admin-gold);
+            color: #0b0b0b;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            padding: 1.2rem;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 8px 25px rgba(197,160,89,0.2);
+            transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+        }
+
+        .btn-admin-solid:hover {
+            background-color: var(--admin-bright-gold);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(197,160,89,0.35);
+        }
+
+        .btn-admin-outline {
+            width: 100%;
+            background-color: transparent;
+            color: var(--admin-white);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            padding: 1.1rem;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px;
+            transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+            margin-top: 1rem;
+        }
+
+        .btn-admin-outline:hover {
+            border-color: var(--admin-gold);
+            color: var(--admin-gold);
+            background-color: rgba(197,160,89,0.03);
+            transform: translateY(-1px);
+        }
+
+        /* Email Highlight Badge */
+        .email-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            background: rgba(197,160,89,0.08);
+            border: 1px solid rgba(197,160,89,0.2);
+            border-radius: 8px;
+            padding: 0.65rem 1.25rem;
+            margin-bottom: 2.25rem;
+        }
+
+        .email-badge i {
+            color: var(--admin-gold);
+            font-size: 0.85rem;
+        }
+
+        .email-badge span {
+            font-size: 0.82rem;
+            color: var(--admin-bright-gold);
+            font-weight: 500;
+            letter-spacing: 0.04em;
+        }
+
+        /* Secure Widget */
+        .secure-widget {
+            background: rgba(197,160,89,0.04);
+            border: 1px solid rgba(197,160,89,0.15);
+            border-radius: 10px;
+            padding: 1.15rem 1.4rem;
+            display: flex;
+            gap: 1.1rem;
+            align-items: flex-start;
+            margin-top: 3rem;
+        }
+
+        .secure-icon { color: var(--admin-gold); font-size: 1.25rem; margin-top: 2px; }
+
+        .secure-text { display: flex; flex-direction: column; gap: 4px; }
+
+        .secure-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--admin-gold);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .secure-desc {
+            font-size: 0.72rem;
+            color: var(--admin-gray);
+            line-height: 1.5;
+            font-weight: 300;
+            margin: 0;
+        }
+
+        .footer-utility-links {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            font-weight: 500;
+            color: var(--admin-gray);
+            margin-top: 4rem;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            padding-top: 1.5rem;
+        }
+
+        .footer-utility-links a {
+            color: var(--admin-gray);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-utility-links a:hover { color: var(--admin-gold); }
+
+        .footer-copy {
+            font-size: 0.65rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            font-weight: 400;
+            color: rgba(255,255,255,0.25);
+            text-align: center;
+            margin-top: 1.25rem;
+        }
+
+        @media (max-width: 1024px) {
+            .editorial-col { display: none; }
+            .form-col { flex: 1; padding: 4.5rem 3rem; }
+            .otp-input { width: 52px; height: 58px; font-size: 1.4rem; }
+        }
+
+        /* Alert Styling */
+        .alert {
+            background-color: rgba(21, 21, 21, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1.25rem;
+            font-size: 0.88rem;
+            margin-bottom: 1.75rem;
+        }
+
+        .alert-success {
+            border-color: rgba(39, 174, 96, 0.3);
+            background-color: rgba(39, 174, 96, 0.08);
+            color: #27ae60;
+        }
+
+        .alert-error {
+            border-color: rgba(231, 76, 60, 0.3);
+            background-color: rgba(231, 76, 60, 0.08);
+            color: #e74c3c;
+        }
+
+        .btn-close {
+            filter: brightness(0.8);
+        }
+
+        .btn-close:hover {
+            filter: brightness(1.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="auth-container">
+        <!-- Left Column -->
+        <div class="editorial-col">
+            <div class="editorial-bg"></div>
+            <div class="editorial-overlay"></div>
+
+            <div class="editorial-header">
+                <h2 class="admin-brand">LUXELLE ADMIN</h2>
+            </div>
+
+            <div class="editorial-center">
+                <div class="glass-widget">
+                    <div class="widget-icon-box">
+                        <i class="fa-solid fa-bag-shopping"></i>
+                    </div>
+                    <div class="widget-info">
+                        <span class="widget-label">Active Orders</span>
+                        <h4 class="widget-val">1,248</h4>
+                    </div>
+                </div>
+                <div class="glass-widget glass-widget-2">
+                    <div class="widget-icon-box">
+                        <i class="fa-solid fa-credit-card"></i>
+                    </div>
+                    <div class="widget-info">
+                        <span class="widget-label">Daily Revenue</span>
+                        <h4 class="widget-val">₹12.5L</h4>
+                    </div>
+                </div>
+            </div>
+
+            <div class="editorial-footer">
+                <p>Executive Control Interface for Global Operations and Luxury Inventory Management.</p>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="form-col">
+            <div>
+                <div class="form-header-sec">
+                    <h1 class="form-title">Otp Verification</h1>
+                    <p class="form-subtitle">A 6-digit secure code has been dispatched to your registered admin workspace.</p>
+                </div>
+
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <!-- Email display badge -->
+                <div class="email-badge">
+                    <i class="fa-regular fa-envelope"></i>
+                    <span>{{ email }}</span>
+                </div>
+
+                <form method="POST" action="{% url 'admin_forgot_password_otp' %}">
+                    {% csrf_token %}
+
+                    <label class="admin-input-label">Enter Verification Code</label>
+                    <div class="otp-row">
+                        <input type="hidden" name="otp" id="hiddenOtp">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" autofocus>
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                        <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
+                    </div>
+
+                    <!-- Timer row -->
+                    <div class="timer-row">
+                        <span class="timer-text">Resend code in <span id="countdown">59</span>s</span>
+                        <a href="#" class="resend-link" id="resendBtn">Resend Code</a>
+                    </div>
+
+                    <button type="submit" class="btn-admin-solid">Verify &amp; Continue &nbsp;→</button>
+                    <a href="{% url 'admin_forgot_password' %}" class="btn btn-admin-outline text-decoration-none d-block text-center">Back to Recovery</a>
+                </form>
+
+                <div class="secure-widget">
+                    <i class="fa-solid fa-shield-halved secure-icon"></i>
+                    <div class="secure-text">
+                        <span class="secure-title">Time-Sensitive Code</span>
+                        <p class="secure-desc">This verification code expires in 10 minutes. Do not share this code with anyone. All verification attempts are logged and monitored.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="footer-utility-links">
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Security Protocol</a>
+                    <a href="#">Support</a>
+                </div>
+                <div class="footer-copy">© 2026 Luxelle Luxury Group. Confidential.</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ── OTP auto-advance & backspace logic ──
+        const otpInputs = document.querySelectorAll('.otp-input');
+        otpInputs.forEach((input, idx) => {
+            input.addEventListener('input', (e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '');
+                e.target.value = val;
+                if (val && idx < otpInputs.length - 1) {
+                    otpInputs[idx + 1].focus();
+                }
+                e.target.classList.toggle('filled', val.length > 0);
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !input.value && idx > 0) {
+                    otpInputs[idx - 1].focus();
+                    otpInputs[idx - 1].value = '';
+                    otpInputs[idx - 1].classList.remove('filled');
+                }
+            });
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const paste = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
+                paste.split('').forEach((ch, i) => {
+                    if (otpInputs[idx + i]) {
+                        otpInputs[idx + i].value = ch;
+                        otpInputs[idx + i].classList.add('filled');
+                    }
+                });
+                const next = Math.min(idx + paste.length, otpInputs.length - 1);
+                otpInputs[next].focus();
+            });
+        });
+
+        // ── Countdown timer ──
+        let seconds = 59;
+        const countdownEl = document.getElementById('countdown');
+        const resendBtn  = document.getElementById('resendBtn');
+        const tick = setInterval(() => {
+            seconds--;
+            countdownEl.textContent = seconds;
+            if (seconds <= 0) {
+                clearInterval(tick);
+                countdownEl.parentElement.style.display = 'none';
+                resendBtn.classList.add('active');
+            }
+        }, 1000);
+
+        resendBtn.addEventListener('click', (e) => {
+            if (!resendBtn.classList.contains('active')) { e.preventDefault(); return; }
+            e.preventDefault();
+            seconds = 59;
+            countdownEl.textContent = seconds;
+            countdownEl.parentElement.style.display = '';
+            resendBtn.classList.remove('active');
+            const newTick = setInterval(() => {
+                seconds--;
+                countdownEl.textContent = seconds;
+                if (seconds <= 0) {
+                    clearInterval(newTick);
+                    countdownEl.parentElement.style.display = 'none';
+                    resendBtn.classList.add('active');
+                }
+            }, 1000);
+            otpInputs.forEach(i => { i.value = ''; i.classList.remove('filled'); });
+            document.getElementById('hiddenOtp').value = '';
+            otpInputs[0].focus();
+        });
+
+        // Update hidden OTP input before submit
+        document.querySelector('form').addEventListener('submit', function(e) {
+            let fullOtp = '';
+            otpInputs.forEach(i => fullOtp += i.value);
+            document.getElementById('hiddenOtp').value = fullOtp;
+            if(fullOtp.length !== 6) {
+                e.preventDefault();
+                alert('Please enter all 6 digits of the verification code.');
+            }
+        });
+    </script>
+</body>
+</html>

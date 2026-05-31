@@ -1,0 +1,376 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle Admin — User Profile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/admin_common.css' %}" rel="stylesheet">
+    <style>
+        :root{--bg:#0b0b0b;--sidebar:#0f0f0f;--card:#151515;--card2:#1a1a1a;--gold:#c5a059;--gold-b:#e5c17d;--white:#fff;--gray:#888;--gray2:#555;--border:rgba(255,255,255,.06);--green:#27ae60;--red:#e74c3c;--blue:#3498db}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{background:var(--bg);color:var(--white);font-family:'Inter',sans-serif;display:flex;min-height:100vh;overflow-x:hidden}
+        .sidebar{width:260px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100}
+        .sidebar-brand{padding:2rem 1.75rem;border-bottom:1px solid var(--border)}
+        .sidebar-brand h2{font-family:'Playfair Display',serif;font-size:1.4rem;letter-spacing:.2em;color:var(--gold);font-weight:700;margin:0}
+        .sidebar-brand span{font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gray);display:block;margin-top:4px}
+        .sidebar-nav{flex:1;padding:1.5rem 0;overflow-y:auto}
+        .nav-section{padding:0 1.75rem;margin-bottom:1.5rem}
+        .nav-section-title{font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gray2);font-weight:600;margin-bottom:.75rem}
+        .nav-item{display:flex;align-items:center;gap:.85rem;padding:.75rem 1.75rem;color:var(--gray);font-size:.82rem;font-weight:500;text-decoration:none;border-left:3px solid transparent;transition:all .25s ease;cursor:pointer}
+        .nav-item:hover{color:var(--white);background:rgba(255,255,255,.02);border-left-color:rgba(197,160,89,.3)}
+        .nav-item.active{color:var(--gold);background:rgba(197,160,89,.06);border-left-color:var(--gold)}
+        .nav-item i{width:20px;text-align:center;font-size:.9rem}
+        .sidebar-footer{padding:1.5rem 1.75rem;border-top:1px solid var(--border)}
+        .admin-profile{display:flex;align-items:center;gap:.85rem}
+        .admin-avatar{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--gold),#8b6914);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;color:#0b0b0b}
+        .admin-name{font-size:.82rem;font-weight:600;color:var(--white)}
+        .admin-role{font-size:.62rem;color:var(--gray);letter-spacing:.1em;text-transform:uppercase}
+        .main{margin-left:260px;flex:1;padding:2.5rem 3rem;min-height:100vh}
+        .top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:2.5rem}
+        .page-title{font-family:'Playfair Display',serif;font-size:1.85rem;font-weight:600;color:var(--white)}
+        .top-actions{display:flex;align-items:center;gap:1rem}
+        .top-btn{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.65rem 1rem;color:var(--gray);font-size:.8rem;display:flex;align-items:center;gap:.5rem;cursor:pointer;transition:all .25s ease;text-decoration:none}
+        .top-btn:hover{border-color:var(--gold);color:var(--gold)}
+
+        /* Profile Header */
+        .profile-header{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:2.5rem;display:flex;align-items:center;gap:2.5rem;margin-bottom:2rem;position:relative;overflow:hidden}
+        .profile-header::before{content:'';position:absolute;top:0;left:0;width:100%;height:4px;background:linear-gradient(90deg,var(--gold),var(--gold-b),var(--gold))}
+        .profile-avatar{width:100px;height:100px;border-radius:16px;background:linear-gradient(135deg,var(--gold),#8b6914);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:700;color:#0b0b0b;flex-shrink:0}
+        .profile-info{flex:1}
+        .profile-name{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:600;color:var(--white);margin-bottom:4px}
+        .profile-email{font-size:.85rem;color:var(--gray);margin-bottom:.75rem}
+        .profile-meta{display:flex;gap:2rem;flex-wrap:wrap}
+        .meta-item{display:flex;align-items:center;gap:.5rem;font-size:.75rem;color:var(--gray)}
+        .meta-item i{color:var(--gold);font-size:.7rem}
+        .profile-badges{display:flex;gap:.5rem;position:absolute;top:2rem;right:2rem}
+        .p-badge{font-size:.6rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:5px 12px;border-radius:6px}
+        .p-badge-vip{color:#9b59b6;background:rgba(155,89,182,.1)}
+        .p-badge-active{color:var(--green);background:rgba(39,174,96,.1)}
+
+        /* Content Grid */
+        .content-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:2rem}
+        .panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.75rem}
+        .panel-title{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;color:var(--white);margin-bottom:1.25rem;display:flex;align-items:center;gap:.6rem}
+        .panel-title i{color:var(--gold);font-size:.85rem}
+        .info-row{display:flex;justify-content:space-between;align-items:center;padding:.7rem 0;border-bottom:1px solid var(--border)}
+        .info-row:last-child{border:none}
+        .info-label{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gray);font-weight:600}
+        .info-value{font-size:.85rem;color:var(--white);font-weight:500}
+
+        /* Stat Cards */
+        .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem}
+        .mini-stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem;text-align:center}
+        .mini-stat-val{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--gold);margin-bottom:4px}
+        .mini-stat-label{font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gray);font-weight:600}
+
+        /* Orders Table */
+        .orders-table{width:100%;border-collapse:separate;border-spacing:0}
+        .orders-table th{font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gray);font-weight:600;padding:.75rem .85rem;text-align:left;border-bottom:1px solid var(--border)}
+        .orders-table td{padding:.75rem .85rem;font-size:.8rem;color:var(--white);border-bottom:1px solid var(--border)}
+        .orders-table tr:hover td{background:rgba(255,255,255,.015)}
+        .order-id{color:var(--gold);font-weight:600;font-size:.75rem}
+        .status-badge{font-size:.58rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:5px;display:inline-block}
+        .status-delivered{color:var(--green);background:rgba(39,174,96,.1)}
+        .status-pending{color:#f39c12;background:rgba(243,156,18,.1)}
+        .status-shipped{color:var(--blue);background:rgba(52,152,219,.1)}
+
+        /* Address Cards */
+        .addr-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+        .addr-card{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:1.15rem}
+        .addr-type{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:.5rem}
+        .addr-text{font-size:.78rem;color:var(--gray);line-height:1.6}
+
+        /* Delete Modal */
+        .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:999;display:none;align-items:center;justify-content:center}
+        .modal-overlay.show{display:flex}
+        .modal-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:2.5rem;width:420px;max-width:90vw;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,.6);animation:modalIn .3s ease}
+        @keyframes modalIn{from{opacity:0;transform:scale(.92) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+        .modal-icon{width:60px;height:60px;border-radius:50%;margin:0 auto 1.5rem;display:flex;align-items:center;justify-content:center;font-size:1.5rem;background:rgba(231,76,60,.1);color:var(--red);border:1px solid rgba(231,76,60,.2)}
+        .modal-title{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:600;color:var(--white);margin-bottom:.5rem}
+        .modal-desc{font-size:.82rem;color:var(--gray);line-height:1.6;margin-bottom:2rem}
+        .modal-actions{display:flex;gap:.85rem;justify-content:center}
+        .mbtn{padding:.85rem 1.75rem;border-radius:8px;font-size:.72rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;border:none;cursor:pointer;transition:all .25s ease}
+        .mbtn-cancel{background:var(--card2);color:var(--white);border:1px solid var(--border)}
+        .mbtn-cancel:hover{border-color:var(--gold);color:var(--gold)}
+        .mbtn-danger{background:var(--red);color:var(--white)}
+        .mbtn-danger:hover{background:#c0392b;transform:translateY(-1px)}
+
+        @media(max-width:1200px){.content-grid{grid-template-columns:1fr}.stat-row{grid-template-columns:repeat(3,1fr)}}
+        @media(max-width:768px){.sidebar{display:none}.main{margin-left:0;padding:1.5rem}.stat-row{grid-template-columns:1fr}.addr-grid{grid-template-columns:1fr}.profile-header{flex-direction:column;text-align:center}.profile-badges{position:static;justify-content:center;margin-top:.75rem}}
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-brand"><h2>LUXELLE</h2><span>Admin Control Panel</span></div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Main</div>
+                <a href="{% url 'admin_dashboard' %}" class="nav-item"><i class="fa-solid fa-grid-2"></i> Dashboard</a>
+                <a href="{% url 'admin_users' %}" class="nav-item active"><i class="fa-solid fa-users"></i> User Management</a>
+                <a class="nav-item"><i class="fa-solid fa-bag-shopping"></i> Orders</a>
+                <a class="nav-item"><i class="fa-solid fa-boxes-stacked"></i> Products</a>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">Analytics</div>
+                <a class="nav-item"><i class="fa-solid fa-chart-line"></i> Revenue</a>
+                <a class="nav-item"><i class="fa-solid fa-bullseye"></i> Marketing</a>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">Settings</div>
+                <a class="nav-item"><i class="fa-solid fa-gear"></i> Configuration</a>
+                <a class="nav-item"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="admin-profile">
+                <div class="admin-avatar">AS</div>
+                <div><div class="admin-name">Ayisha Shiba</div><div class="admin-role">Super Admin</div></div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="top-bar">
+            <div>
+                <h1 class="page-title">User Profile</h1>
+                <p style="font-size:.78rem;color:var(--gray);margin-top:4px"><a href="{% url 'admin_users' %}" style="color:var(--gold);text-decoration:none">Users</a> &nbsp;/&nbsp; Priya Mehta</p>
+            </div>
+            <div class="top-actions">
+                <a href="{% url 'admin_users' %}" class="top-btn"><i class="fa-solid fa-arrow-left"></i> Back</a>
+                <button class="top-btn" style="background:var(--gold);color:#0b0b0b;border-color:var(--gold);font-weight:600" onclick="openEditModal()"><i class="fa-solid fa-pen"></i> Edit User</button>
+                <button class="top-btn" style="color:var(--red);border-color:rgba(231,76,60,.3)" onclick="showDeleteModal()"><i class="fa-solid fa-trash"></i> Delete</button>
+            </div>
+        </div>
+
+        <!-- Profile Header Card -->
+        <div class="profile-header">
+            <div class="profile-avatar">PM</div>
+            <div class="profile-info">
+                <h2 class="profile-name">Priya Mehta</h2>
+                <p class="profile-email">priya.mehta@gmail.com</p>
+                <div class="profile-meta">
+                    <div class="meta-item"><i class="fa-solid fa-phone"></i> +91 98765 43210</div>
+                    <div class="meta-item"><i class="fa-solid fa-calendar"></i> Member since Jan 2024</div>
+                    <div class="meta-item"><i class="fa-solid fa-location-dot"></i> Mumbai, India</div>
+                </div>
+            </div>
+            <div class="profile-badges">
+                <span class="p-badge p-badge-vip">VIP Member</span>
+                <span class="p-badge p-badge-active">Active</span>
+            </div>
+        </div>
+
+        <!-- Mini Stats -->
+        <div class="stat-row">
+            <div class="mini-stat"><div class="mini-stat-val">34</div><div class="mini-stat-label">Total Orders</div></div>
+            <div class="mini-stat"><div class="mini-stat-val">₹4,82,500</div><div class="mini-stat-label">Total Spent</div></div>
+            <div class="mini-stat"><div class="mini-stat-val">12</div><div class="mini-stat-label">Wishlist Items</div></div>
+        </div>
+
+        <!-- Info Grid -->
+        <div class="content-grid">
+            <div class="panel">
+                <div class="panel-title"><i class="fa-solid fa-user"></i> Personal Information</div>
+                <div class="info-row"><span class="info-label">Full Name</span><span class="info-value">Priya Mehta</span></div>
+                <div class="info-row"><span class="info-label">Email</span><span class="info-value">priya.mehta@gmail.com</span></div>
+                <div class="info-row"><span class="info-label">Phone</span><span class="info-value">+91 98765 43210</span></div>
+                <div class="info-row"><span class="info-label">Gender</span><span class="info-value">Female</span></div>
+                <div class="info-row"><span class="info-label">Date of Birth</span><span class="info-value">March 15, 1995</span></div>
+            </div>
+            <div class="panel">
+                <div class="panel-title"><i class="fa-solid fa-location-dot"></i> Saved Addresses</div>
+                <div class="addr-grid">
+                    <div class="addr-card">
+                        <div class="addr-type">Home</div>
+                        <div class="addr-text">42 Marine Drive, Flat 12B<br>Churchgate, Mumbai<br>Maharashtra — 400020</div>
+                    </div>
+                    <div class="addr-card">
+                        <div class="addr-type">Office</div>
+                        <div class="addr-text">WeWork BKC, Floor 8<br>Bandra Kurla Complex<br>Mumbai — 400051</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Orders -->
+        <div class="panel" style="margin-bottom:2rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+                <div class="panel-title" style="margin:0"><i class="fa-solid fa-bag-shopping"></i> Order History</div>
+                <span style="font-size:.7rem;color:var(--gold);font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer">Export →</span>
+            </div>
+            <table class="orders-table">
+                <thead><tr><th>Order ID</th><th>Product</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+                <tbody>
+                    <tr><td class="order-id">#LX-4821</td><td>Classic Flap Bag</td><td>₹84,500</td><td><span class="status-badge status-delivered">Delivered</span></td><td>May 19, 2026</td></tr>
+                    <tr><td class="order-id">#LX-4756</td><td>Gold Evening Clutch</td><td>₹38,900</td><td><span class="status-badge status-delivered">Delivered</span></td><td>Apr 28, 2026</td></tr>
+                    <tr><td class="order-id">#LX-4691</td><td>Leather Tote XL</td><td>₹1,12,000</td><td><span class="status-badge status-shipped">Shipped</span></td><td>Apr 10, 2026</td></tr>
+                    <tr><td class="order-id">#LX-4580</td><td>Mini Crossbody</td><td>₹28,750</td><td><span class="status-badge status-delivered">Delivered</span></td><td>Mar 22, 2026</td></tr>
+                    <tr><td class="order-id">#LX-4412</td><td>Weekend Duffle</td><td>₹65,000</td><td><span class="status-badge status-pending">Processing</span></td><td>Feb 14, 2026</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Edit User Modal -->
+    <div class="modal-overlay" id="userModal">
+        <div class="modal-box" style="width:520px;text-align:left">
+            <h3 class="modal-title">Edit User Details</h3>
+            <p class="modal-desc" style="margin-bottom:1.5rem">Update the details for the customer account.</p>
+            <form id="userForm" onsubmit="saveUser(event)">
+                <div class="fm-row">
+                    <div class="fm-group">
+                        <label class="fm-label">Full Name</label>
+                        <input class="fm-input" id="fName" required value="Priya Mehta">
+                    </div>
+                    <div class="fm-group">
+                        <label class="fm-label">Email</label>
+                        <input class="fm-input" id="fEmail" type="email" required value="priya.mehta@gmail.com">
+                    </div>
+                </div>
+                <div class="fm-row">
+                    <div class="fm-group">
+                        <label class="fm-label">Phone</label>
+                        <input class="fm-input" id="fPhone" value="+91 98765 43210">
+                    </div>
+                    <div class="fm-group">
+                        <label class="fm-label">Role</label>
+                        <select class="fm-input" id="fRole">
+                            <option selected>VIP</option>
+                            <option>Customer</option>
+                            <option>Admin</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="fm-row">
+                    <div class="fm-group">
+                        <label class="fm-label">Status</label>
+                        <select class="fm-input" id="fStatus">
+                            <option selected>Active</option>
+                            <option>Inactive</option>
+                            <option>Banned</option>
+                        </select>
+                    </div>
+                    <div class="fm-group">
+                        <label class="fm-label">Gender</label>
+                        <select class="fm-input" id="fGender">
+                            <option selected>Female</option>
+                            <option>Male</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="fm-row">
+                    <div class="fm-group" style="grid-column: span 2;">
+                        <label class="fm-label">Date of Birth</label>
+                        <input class="fm-input" id="fDob" value="March 15, 1995">
+                    </div>
+                </div>
+                <div class="modal-actions" style="margin-top:1.5rem">
+                    <button type="button" class="mbtn mbtn-cancel" onclick="closeModal('userModal')">Cancel</button>
+                    <button type="submit" class="mbtn mbtn-gold">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-box">
+            <div class="modal-icon"><i class="fa-solid fa-trash-can"></i></div>
+            <h3 class="modal-title">Delete This User?</h3>
+            <p class="modal-desc">This will permanently remove <strong id="delName">Priya Mehta</strong>'s account, order history, wishlist, saved addresses, and all associated data. This cannot be undone.</p>
+            <div class="modal-actions">
+                <button class="mbtn mbtn-cancel" onclick="closeModal('deleteModal')">Cancel</button>
+                <button class="mbtn mbtn-danger" onclick="confirmDelete()">Delete Permanently</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast-msg"></div>
+
+    <script>
+        // Modal helpers
+        function openModal(id){document.getElementById(id).classList.add('show')}
+        function closeModal(id){document.getElementById(id).classList.remove('show')}
+        
+        function openEditModal() {
+            openModal('userModal');
+        }
+
+        function showDeleteModal(){
+            openModal('deleteModal');
+        }
+
+        function saveUser(e) {
+            e.preventDefault();
+            const name = document.getElementById('fName').value;
+            const email = document.getElementById('fEmail').value;
+            const phone = document.getElementById('fPhone').value;
+            const role = document.getElementById('fRole').value;
+            const status = document.getElementById('fStatus').value;
+            const gender = document.getElementById('fGender').value;
+            const dob = document.getElementById('fDob').value;
+
+            // Dynamically update DOM details
+            document.querySelector('.profile-name').textContent = name;
+            document.querySelector('.profile-email').textContent = email;
+            document.getElementById('delName').textContent = name;
+            
+            // Meta list update
+            const metaItems = document.querySelectorAll('.meta-item');
+            metaItems[0].innerHTML = `<i class="fa-solid fa-phone"></i> ${phone}`;
+            
+            // Badges update
+            const badgesContainer = document.querySelector('.profile-badges');
+            badgesContainer.innerHTML = `
+                <span class="p-badge ${role === 'VIP' ? 'p-badge-vip' : 'role-user'}" style="color:${role==='VIP'?'#9b59b6':'var(--blue)'};background:${role==='VIP'?'rgba(155,89,182,.1)':'rgba(52,152,219,.1)'}">${role} Member</span>
+                <span class="p-badge p-badge-active" style="color:${status==='Active'?'var(--green)':'var(--red)'};background:${status==='Active'?'rgba(39,174,96,.1)':'rgba(231,76,60,.1)'}">${status}</span>
+            `;
+
+            // Personal Info Panel update
+            const infoValues = document.querySelectorAll('.info-value');
+            infoValues[0].textContent = name;
+            infoValues[1].textContent = email;
+            infoValues[2].textContent = phone;
+            infoValues[3].textContent = gender;
+            infoValues[4].textContent = dob;
+
+            // initials in thumb
+            const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase();
+            document.querySelector('.profile-avatar').textContent = initials;
+
+            closeModal('userModal');
+            showToast('User profile updated successfully!');
+        }
+
+        function confirmDelete() {
+            showToast('User has been permanently deleted.', 'red');
+            closeModal('deleteModal');
+            setTimeout(() => {
+                window.location.href = "{% url 'admin_users' %}";
+            }, 1500);
+        }
+
+        function showToast(msg,color){
+            const t=document.getElementById('toast');
+            t.textContent=msg;
+            t.style.borderLeftColor=color==='red'?'#e74c3c':'#c5a059';
+            t.classList.add('show');
+            setTimeout(()=>t.classList.remove('show'),3000);
+        }
+
+        document.querySelectorAll('.modal-overlay').forEach(m=>{
+            m.addEventListener('click',e=>{
+                if(e.target===m) closeModal(m.id);
+            });
+        });
+    </script>
+</body>
+</html>

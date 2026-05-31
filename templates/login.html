@@ -1,0 +1,157 @@
+{% load static %}
+{% load socialaccount %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle | Sign In</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <!-- Custom CSS -->
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+</head>
+<body>
+    <div class="login-wrapper fade-in-section">
+        <div class="container-fluid p-0">
+            <div class="row g-0 vh-100 align-items-center justify-content-center">
+                <!-- Left Banner Section -->
+                <div class="col-12 col-lg-6 d-none d-lg-block banner-section h-100 position-relative overflow-hidden">
+                    <div class="banner-overlay"></div>
+                    <img src="{% static 'image/Imagined Fashion, Crafted with Ai.jpg' %}" alt="Luxelle Handbag" class="banner-image floating-anim">
+                    <div class="banner-text position-absolute bottom-0 start-0 p-5 w-100 text-white z-2">
+                        <h2 class="display-5 font-playfair mb-3">Discover True Elegance</h2>
+                        <p class="lead font-inter fw-light opacity-75">Curated luxury handbags for the modern sophisticate.</p>
+                    </div>
+                </div>
+
+                <!-- Right Form Section -->
+                <div class="col-12 col-lg-6 form-section d-flex justify-content-center align-items-center h-100">
+                    <div class="login-card w-100 p-4 p-md-5 mx-auto">
+                        <div class="text-center mb-5">
+                            <h1 class="brand-logo font-playfair mb-2">Luxelle</h1>
+                            <p class="text-muted font-inter">Welcome back. Please enter your details.</p>
+                        </div>
+
+{% if form.non_field_errors %}
+    <div class="alert alert-danger">
+        <ul class="mb-0">
+            {% for error in form.non_field_errors %}
+                <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}
+{% if messages %} {% for message in messages %}<div class="alert alert-{{ message.tags }}">{{ message }}</div>{% endfor %} {% endif %}
+<form id="loginForm" method="POST" action="{% url 'login' %}" class="font-inter">
+    {% csrf_token %}
+    <!-- Email Input -->
+    <div class="form-floating mb-4 custom-input-group">
+        <input type="email" name="email" class="form-control custom-input {% if form.email.errors %}is-invalid{% endif %}" id="emailInput" placeholder="name@example.com" value="{{ form.email.value|default_if_none:'' }}" required>
+        <label for="emailInput">Email address</label>
+        {% if form.email.errors %}
+            <div class="invalid-feedback d-block text-danger small mt-1">{{ form.email.errors.0 }}</div>
+        {% endif %}
+    </div>
+    <!-- Password Input -->
+    <div class="form-floating mb-4 custom-input-group position-relative">
+        <input type="password" name="password" class="form-control custom-input {% if form.password.errors %}is-invalid{% endif %}" id="passwordInput" placeholder="Password" required>
+        <label for="passwordInput">Password</label>
+        <span class="position-absolute end-0 top-50 translate-middle-y pe-3 text-muted" style="cursor:pointer;z-index:5;" onclick="togglePasswordVisibility(this)">
+            <i class="fa-regular fa-eye"></i>
+        </span>
+        {% if form.password.errors %}
+            <div class="invalid-feedback d-block text-danger small mt-1">{{ form.password.errors.0 }}</div>
+        {% endif %}
+    </div>
+
+                            <!-- Options Row -->
+                            <div class="d-flex justify-content-between align-items-center mb-4 text-sm">
+                                <div class="form-check custom-checkbox">
+                                    <input class="form-check-input" type="checkbox" value="" id="rememberMe">
+                                    <label class="form-check-label text-muted" for="rememberMe">
+                                        Remember me
+                                    </label>
+                                </div>
+                                <a href="{% url 'forgot_password' %}" class="forgot-link text-decoration-none">Forgot password?</a>
+                            </div>
+
+                            <!-- Buttons -->
+                            <button type="submit" class="btn btn-primary w-100 py-3 mb-3 luxury-btn">Sign In</button>
+                            
+                            <div class="divider d-flex align-items-center mb-3">
+                                <span class="line flex-grow-1"></span>
+                                <span class="px-3 text-muted small">or continue with</span>
+                                <span class="line flex-grow-1"></span>
+                            </div>
+
+                            {% provider_login_url 'google' process='login' as google_login_url %}
+                            <a href="{{ google_login_url|default:'/accounts/google/login/?process=login' }}" class="google-btn w-100 py-3 mb-4 d-flex align-items-center justify-content-center gap-3" title="Continue with Google" aria-label="Continue with Google sign in">
+                                <span class="google-icon d-flex align-items-center justify-content-center" aria-hidden="true">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" role="img" focusable="false">
+                                        <path fill="#4285F4" d="M23.745 12.27c0-.79-.07-1.54-.19-2.27h-11.3v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82Z"/>
+                                        <path fill="#34A853" d="M12.255 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96h-3.98v3.09C3.515 21.3 7.565 24 12.255 24Z"/>
+                                        <path fill="#FBBC05" d="M5.525 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62h-3.98a11.86 11.86 0 0 0 0 10.76l3.98-3.09Z"/>
+                                        <path fill="#EA4335" d="M12.255 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C18.205 1.19 15.495 0 12.255 0 7.565 0 3.515 2.7 1.545 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96Z"/>
+                                    </svg>
+                                </span>
+                                <span class="btn-text">Continue with Google</span>
+                            </a>
+
+                            <p class="text-center text-muted mb-0">
+                                Don't have an account? <a href="{% url 'register' %}" class="register-link text-decoration-none fw-medium">Create an account</a>
+                            </p>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{% static 'js/scripts.js' %}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const googleButton = document.querySelector('.google-btn');
+            const loginButton = document.querySelector('.luxury-btn[type="submit"]');
+            const loginForm = document.querySelector('#loginForm');
+
+            if (googleButton) {
+                googleButton.addEventListener('click', function () {
+                    googleButton.classList.add('loading');
+                });
+            }
+
+            if (loginForm && loginButton) {
+                loginForm.addEventListener('submit', function () {
+                    loginButton.classList.add('loading');
+                });
+            }
+        });
+
+        // Password visibility toggler
+        function togglePasswordVisibility(btn) {
+            const wrapper = btn.closest('.form-floating');
+            const input = wrapper.querySelector('input');
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-regular', 'fa-eye');
+                icon.classList.add('fa-solid', 'fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-solid', 'fa-eye-slash');
+                icon.classList.add('fa-regular', 'fa-eye');
+            }
+        }
+    </script>
+</body>
+</html>

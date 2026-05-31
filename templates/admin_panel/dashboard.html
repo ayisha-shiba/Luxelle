@@ -1,0 +1,991 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle Admin — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #0b0b0b;
+            --sidebar: #0f0f0f;
+            --card: #151515;
+            --card2: #1a1a1a;
+            --gold: #c5a059;
+            --gold-b: #e5c17d;
+            --white: #fff;
+            --gray: #888;
+            --gray2: #555;
+            --border: rgba(255, 255, 255, 0.06);
+            --green: #27ae60;
+            --red: #e74c3c;
+            --blue: #3498db;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--white);
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ────── SIDEBAR ────── */
+        .sidebar {
+            width: 260px;
+            background: var(--sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            z-index: 100;
+        }
+
+        .sidebar-brand {
+            padding: 2rem 1.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-brand h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.4rem;
+            letter-spacing: 0.2em;
+            color: var(--gold);
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .sidebar-brand span {
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--gray2);
+            display: block;
+            margin-top: 4px;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 1.5rem 0;
+            overflow-y: auto;
+        }
+
+        .nav-section {
+            padding: 0 1.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .nav-section-title {
+            font-size: 0.6rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--gray2);
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            padding: 0.75rem 1.75rem;
+            color: var(--gray);
+            font-size: 0.82rem;
+            font-weight: 500;
+            text-decoration: none;
+            border-left: 3px solid transparent;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .nav-item:hover {
+            color: var(--white);
+            background: rgba(255, 255, 255, 0.02);
+            border-left-color: rgba(197, 160, 89, 0.3);
+        }
+
+        .nav-item.active {
+            color: var(--gold);
+            background: rgba(197, 160, 89, 0.06);
+            border-left-color: var(--gold);
+        }
+
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .sidebar-footer {
+            padding: 1.5rem 1.75rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .admin-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+        }
+
+        .admin-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--gold), #8b6914);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: #0b0b0b;
+        }
+
+        .admin-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--white);
+        }
+
+        .admin-role {
+            font-size: 0.62rem;
+            color: var(--gray);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        /* ────── MAIN ────── */
+        .main {
+            margin-left: 260px;
+            flex: 1;
+            padding: 2.5rem 3rem;
+            min-height: 100vh;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3rem;
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: var(--white);
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            font-size: 0.78rem;
+            color: var(--gray);
+            margin-top: 4px;
+            letter-spacing: 0.05em;
+        }
+
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .top-btn {
+            background: rgba(21, 21, 21, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.75rem 1.25rem;
+            color: var(--gray);
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-weight: 500;
+        }
+
+        .top-btn:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+            background: rgba(197, 160, 89, 0.05);
+        }
+
+        .top-btn-gold {
+            background: linear-gradient(135deg, var(--gold), #d4a970);
+            color: #0b0b0b;
+            border-color: var(--gold);
+            font-weight: 600;
+        }
+
+        .top-btn-gold:hover {
+            background: linear-gradient(135deg, var(--gold-b), #e5c17d);
+            box-shadow: 0 8px 20px rgba(197, 160, 89, 0.25);
+            transform: translateY(-2px);
+        }
+
+        /* ────── STAT CARDS ────── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, rgba(21, 21, 21, 0.9), rgba(26, 26, 26, 0.7));
+            border: 1px solid rgba(197, 160, 89, 0.1);
+            border-radius: 16px;
+            padding: 1.75rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(197, 160, 89, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .stat-card:hover {
+            border-color: rgba(197, 160, 89, 0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(197, 160, 89, 0.1);
+        }
+
+        .stat-icon {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: rgba(197, 160, 89, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--gold);
+            font-size: 1.25rem;
+            border: 1px solid rgba(197, 160, 89, 0.2);
+            z-index: 1;
+        }
+
+        .stat-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--gray);
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .stat-value {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-change {
+            font-size: 0.7rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            letter-spacing: 0.1em;
+        }
+
+        .stat-up {
+            color: var(--green);
+            background: rgba(39, 174, 96, 0.12);
+        }
+
+        .stat-down {
+            color: var(--red);
+            background: rgba(231, 76, 60, 0.12);
+        }
+
+        /* ────── PANELS ────── */
+        .chart-section {
+            display: grid;
+            grid-template-columns: 1.8fr 1.2fr;
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .panel {
+            background: linear-gradient(135deg, rgba(21, 21, 21, 0.85), rgba(26, 26, 26, 0.6));
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--white);
+            margin-bottom: 0.5rem;
+        }
+
+        .panel-subtitle {
+            font-size: 0.7rem;
+            color: var(--gray);
+            margin-bottom: 1.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        /* ────── CATEGORIES ────── */
+        .cat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .cat-item {
+            background: rgba(30, 30, 30, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .cat-item:hover {
+            border-color: rgba(197, 160, 89, 0.25);
+            transform: translateY(-3px);
+            background: rgba(197, 160, 89, 0.05);
+        }
+
+        .cat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .cat-name {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--white);
+            margin-bottom: 4px;
+        }
+
+        .cat-count {
+            font-size: 0.65rem;
+            color: var(--gray);
+            letter-spacing: 0.05em;
+        }
+
+        /* ────── ORDERS TABLE ────── */
+        .orders-section {
+            margin-bottom: 3rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .view-all-link {
+            font-size: 0.7rem;
+            color: var(--gold);
+            text-decoration: none;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+
+        .view-all-link:hover {
+            color: var(--gold-b);
+            letter-spacing: 0.15em;
+        }
+
+        .orders-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .orders-table th {
+            font-size: 0.62rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--gray2);
+            font-weight: 700;
+            padding: 1rem 1.25rem;
+            text-align: left;
+            border-bottom: 2px solid rgba(197, 160, 89, 0.1);
+        }
+
+        .orders-table td {
+            padding: 1rem 1.25rem;
+            font-size: 0.82rem;
+            color: var(--white);
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .orders-table tbody tr {
+            transition: all 0.25s ease;
+        }
+
+        .orders-table tbody tr:hover {
+            background: rgba(197, 160, 89, 0.05);
+        }
+
+        .order-id {
+            color: var(--gold);
+            font-weight: 700;
+            font-size: 0.78rem;
+            letter-spacing: 0.1em;
+        }
+
+        .status-badge {
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 5px 12px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        .status-delivered {
+            color: var(--green);
+            background: rgba(39, 174, 96, 0.15);
+            border: 1px solid rgba(39, 174, 96, 0.3);
+        }
+
+        .status-pending {
+            color: #f39c12;
+            background: rgba(243, 156, 18, 0.15);
+            border: 1px solid rgba(243, 156, 18, 0.3);
+        }
+
+        .status-shipped {
+            color: var(--blue);
+            background: rgba(52, 152, 219, 0.15);
+            border: 1px solid rgba(52, 152, 219, 0.3);
+        }
+
+        .status-cancelled {
+            color: var(--red);
+            background: rgba(231, 76, 60, 0.15);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+
+        /* ────── PRODUCTS ────── */
+        .product-section {
+            margin-bottom: 3rem;
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+        }
+
+        .product-card {
+            background: rgba(21, 21, 21, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+        }
+
+        .product-card:hover {
+            border-color: rgba(197, 160, 89, 0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 15px 40px rgba(197, 160, 89, 0.15);
+        }
+
+        .product-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+            transition: all 0.3s ease;
+        }
+
+        .product-card:hover .product-img {
+            transform: scale(1.05);
+        }
+
+        .product-info {
+            padding: 1.25rem;
+        }
+
+        .product-name {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.02em;
+        }
+
+        .product-price {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--gold);
+        }
+
+        .product-stock {
+            font-size: 0.65rem;
+            color: var(--gray);
+            margin-top: 0.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        /* ────── MODALS ────── */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+            animation: fadeIn 0.25s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .modal-box {
+            background: linear-gradient(135deg, rgba(21, 21, 21, 0.95), rgba(26, 26, 26, 0.8));
+            border: 1px solid rgba(197, 160, 89, 0.15);
+            border-radius: 18px;
+            padding: 2.5rem;
+            width: 420px;
+            max-width: 90vw;
+            text-align: center;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.7);
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-icon {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            margin: 0 auto 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+        }
+
+        .modal-icon-logout {
+            background: rgba(197, 160, 89, 0.12);
+            color: var(--gold);
+            border: 2px solid rgba(197, 160, 89, 0.25);
+        }
+
+        .modal-icon-warn {
+            background: rgba(231, 76, 60, 0.12);
+            color: var(--red);
+            border: 2px solid rgba(231, 76, 60, 0.25);
+        }
+
+        .modal-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--white);
+            margin-bottom: 0.75rem;
+        }
+
+        .modal-desc {
+            font-size: 0.82rem;
+            color: var(--gray);
+            line-height: 1.7;
+            margin-bottom: 2rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .mbtn {
+            padding: 0.9rem 1.85rem;
+            border-radius: 10px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            text-decoration: none;
+            display: inline-block;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .mbtn-cancel {
+            background: rgba(30, 30, 30, 0.8);
+            color: var(--white);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .mbtn-cancel:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+            background: rgba(197, 160, 89, 0.08);
+        }
+
+        .mbtn-danger {
+            background: rgba(231, 76, 60, 0.9);
+            color: var(--white);
+        }
+
+        .mbtn-danger:hover {
+            background: var(--red);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(231, 76, 60, 0.3);
+        }
+
+        .mbtn-gold {
+            background: linear-gradient(135deg, var(--gold), #d4a970);
+            color: #0b0b0b;
+        }
+
+        .mbtn-gold:hover {
+            background: linear-gradient(135deg, var(--gold-b), #e5c17d);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(197, 160, 89, 0.35);
+        }
+
+        /* ────── RESPONSIVE ────── */
+        @media (max-width: 1200px) {
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .product-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .chart-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            .main {
+                margin-left: 0;
+                padding: 1.5rem;
+            }
+            .stats-row {
+                grid-template-columns: 1fr;
+            }
+            .product-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <h2>LUXELLE</h2>
+            <span>Admin Control Panel</span>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Main</div>
+                <a href="{% url 'admin_dashboard' %}" class="nav-item active"><i class="fa-solid fa-grid-2"></i> Dashboard</a>
+                <a href="{% url 'admin_users' %}" class="nav-item"><i class="fa-solid fa-users"></i> User Management</a>
+                <a class="nav-item"><i class="fa-solid fa-bag-shopping"></i> Orders</a>
+                <a class="nav-item"><i class="fa-solid fa-boxes-stacked"></i> Products</a>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">Analytics</div>
+                <a class="nav-item"><i class="fa-solid fa-chart-line"></i> Revenue</a>
+                <a class="nav-item"><i class="fa-solid fa-bullseye"></i> Marketing</a>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">Settings</div>
+                <a class="nav-item"><i class="fa-solid fa-gear"></i> Configuration</a>
+                <a class="nav-item" onclick="showLogoutModal()"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="admin-profile">
+                <div class="admin-avatar">AS</div>
+                <div>
+                    <div class="admin-name">Ayisha Shiba</div>
+                    <div class="admin-role">Super Admin</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div>
+                <h1 class="page-title">Dashboard</h1>
+                <p style="font-size:.78rem;color:var(--gray);margin-top:4px">Welcome back. Here's your luxury empire at a glance.</p>
+            </div>
+            <div class="top-actions">
+                <div class="top-btn"><i class="fa-regular fa-bell"></i> <span>3</span></div>
+                <div class="top-btn"><i class="fa-regular fa-calendar"></i> May 2026</div>
+                <div class="top-btn top-btn-gold"><i class="fa-solid fa-plus"></i> Add Product</div>
+            </div>
+        </div>
+
+        <!-- Stat Cards -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+                <div class="stat-label">Total Revenue</div>
+                <div class="stat-value">₹12,58,430</div>
+                <span class="stat-change stat-up"><i class="fa-solid fa-arrow-up"></i> 12.5%</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fa-solid fa-bag-shopping"></i></div>
+                <div class="stat-label">Total Orders</div>
+                <div class="stat-value">1,248</div>
+                <span class="stat-change stat-up"><i class="fa-solid fa-arrow-up"></i> 8.2%</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
+                <div class="stat-label">Active Users</div>
+                <div class="stat-value">3,847</div>
+                <span class="stat-change stat-up"><i class="fa-solid fa-arrow-up"></i> 15.3%</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fa-solid fa-rotate-left"></i></div>
+                <div class="stat-label">Returns</div>
+                <div class="stat-value">23</div>
+                <span class="stat-change stat-down"><i class="fa-solid fa-arrow-down"></i> 3.1%</span>
+            </div>
+        </div>
+
+        <!-- Chart + Categories -->
+        <div class="chart-section">
+            <div class="panel">
+                <div class="panel-title">Revenue Analytics</div>
+                <div class="panel-subtitle">Monthly revenue performance for 2026</div>
+                <canvas id="revenueChart" height="110"></canvas>
+            </div>
+            <div class="panel">
+                <div class="panel-title">Top Selling Categories</div>
+                <div class="cat-grid">
+                    <div class="cat-item">
+                        <div class="cat-icon" style="background:rgba(197,160,89,.1);color:var(--gold)"><i class="fa-solid fa-briefcase"></i></div>
+                        <div class="cat-name">Handbags</div>
+                        <div class="cat-count">487 sold</div>
+                    </div>
+                    <div class="cat-item">
+                        <div class="cat-icon" style="background:rgba(52,152,219,.1);color:var(--blue)"><i class="fa-solid fa-wallet"></i></div>
+                        <div class="cat-name">Wallets</div>
+                        <div class="cat-count">312 sold</div>
+                    </div>
+                    <div class="cat-item">
+                        <div class="cat-icon" style="background:rgba(39,174,96,.1);color:var(--green)"><i class="fa-solid fa-suitcase-rolling"></i></div>
+                        <div class="cat-name">Travel</div>
+                        <div class="cat-count">198 sold</div>
+                    </div>
+                    <div class="cat-item">
+                        <div class="cat-icon" style="background:rgba(155,89,182,.1);color:#9b59b6"><i class="fa-solid fa-gem"></i></div>
+                        <div class="cat-name">Accessories</div>
+                        <div class="cat-count">251 sold</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Orders -->
+        <div class="orders-section">
+            <div class="panel">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+                    <div class="panel-title" style="margin:0">Recent Orders</div>
+                    <a href="#" style="font-size:.7rem;color:var(--gold);text-decoration:none;font-weight:600;letter-spacing:.1em;text-transform:uppercase">View All →</a>
+                </div>
+                <table class="orders-table">
+                    <thead><tr><th>Order ID</th><th>Customer</th><th>Product</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+                    <tbody>
+                        <tr><td class="order-id">#LX-4821</td><td>Priya Mehta</td><td>Classic Flap Bag</td><td>₹84,500</td><td><span class="status-badge status-delivered">Delivered</span></td><td>May 19</td></tr>
+                        <tr><td class="order-id">#LX-4820</td><td>Ravi Kumar</td><td>Tote Shoulder</td><td>₹42,000</td><td><span class="status-badge status-shipped">Shipped</span></td><td>May 18</td></tr>
+                        <tr><td class="order-id">#LX-4819</td><td>Ananya Das</td><td>Mini Crossbody</td><td>₹28,750</td><td><span class="status-badge status-pending">Pending</span></td><td>May 18</td></tr>
+                        <tr><td class="order-id">#LX-4818</td><td>Deepak Shah</td><td>Leather Wallet</td><td>₹12,500</td><td><span class="status-badge status-delivered">Delivered</span></td><td>May 17</td></tr>
+                        <tr><td class="order-id">#LX-4817</td><td>Meera Iyer</td><td>Weekend Duffle</td><td>₹65,000</td><td><span class="status-badge status-cancelled">Cancelled</span></td><td>May 16</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Product Grid -->
+        <div class="product-section">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+                <div class="panel-title" style="margin:0">Featured Products</div>
+                <a href="#" style="font-size:.7rem;color:var(--gold);text-decoration:none;font-weight:600;letter-spacing:.1em;text-transform:uppercase">Manage All →</a>
+            </div>
+            <div class="product-grid">
+                <div class="product-card">
+                    <img src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&auto=format&fit=crop" class="product-img" alt="Hobo Bag">
+                    <div class="product-info">
+                        <div class="product-name">Classic Hobo</div>
+                        <div class="product-price">₹84,500</div>
+                        <div class="product-stock">12 in stock</div>
+                    </div>
+                </div>
+                <div class="product-card">
+                    <img src="https://images.unsplash.com/photo-1547949003-9792a18a2601?w=400&auto=format&fit=crop" class="product-img" alt="Woven Bag">
+                    <div class="product-info">
+                        <div class="product-name">Beach Woven Tote</div>
+                        <div class="product-price">₹56,200</div>
+                        <div class="product-stock">8 in stock</div>
+                    </div>
+                </div>
+                <div class="product-card">
+                    <img src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&auto=format&fit=crop" class="product-img" alt="Red Bag">
+                    <div class="product-info">
+                        <div class="product-name">Crimson Shoulder</div>
+                        <div class="product-price">₹72,800</div>
+                        <div class="product-stock">5 in stock</div>
+                    </div>
+                </div>
+                <div class="product-card">
+                    <img src="https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?w=400&auto=format&fit=crop" class="product-img" alt="Gold Clutch">
+                    <div class="product-info">
+                        <div class="product-name">Gold Evening Clutch</div>
+                        <div class="product-price">₹38,900</div>
+                        <div class="product-stock">18 in stock</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Logout Confirmation Modal -->
+    <div class="modal-overlay" id="logoutModal">
+        <div class="modal-box">
+            <div class="modal-icon modal-icon-logout"><i class="fa-solid fa-right-from-bracket"></i></div>
+            <h3 class="modal-title">Confirm Logout</h3>
+            <p class="modal-desc">Are you sure you want to sign out of the Luxelle Admin Panel? Any unsaved changes will be lost.</p>
+            <div class="modal-actions">
+                <button class="mbtn mbtn-cancel" onclick="hideLogoutModal()">Cancel</button>
+                <a href="{% url 'admin_logout' %}" class="mbtn mbtn-gold text-decoration-none">Logout</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-box">
+            <div class="modal-icon modal-icon-warn"><i class="fa-solid fa-trash-can"></i></div>
+            <h3 class="modal-title">Delete Item?</h3>
+            <p class="modal-desc">This action is permanent and cannot be undone. All associated data including order history and analytics will be permanently removed.</p>
+            <div class="modal-actions">
+                <button class="mbtn mbtn-cancel" onclick="hideDeleteModal()">Cancel</button>
+                <button class="mbtn mbtn-danger" onclick="hideDeleteModal()">Delete Permanently</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Revenue Chart
+        const ctx = document.getElementById('revenueChart').getContext('2d');
+        const gradient = ctx.createLinearGradient(0,0,0,250);
+        gradient.addColorStop(0,'rgba(197,160,89,0.25)');
+        gradient.addColorStop(1,'rgba(197,160,89,0)');
+        new Chart(ctx,{
+            type:'line',
+            data:{
+                labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+                datasets:[{
+                    label:'Revenue (₹ Lakhs)',
+                    data:[8.2,9.1,7.8,10.5,12.5,11.2,13.8,14.1,12.9,15.2,16.8,18.3],
+                    borderColor:'#c5a059',borderWidth:2.5,
+                    backgroundColor:gradient,fill:true,
+                    tension:.4,pointRadius:0,pointHoverRadius:6,
+                    pointHoverBackgroundColor:'#c5a059',pointHoverBorderColor:'#fff',pointHoverBorderWidth:2
+                }]
+            },
+            options:{
+                responsive:true,maintainAspectRatio:false,
+                plugins:{legend:{display:false}},
+                scales:{
+                    x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#555',font:{size:11}}},
+                    y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#555',font:{size:11},callback:v=>v+'L'}}
+                }
+            }
+        });
+
+        // Modal Functions
+        function showLogoutModal(){document.getElementById('logoutModal').classList.add('show')}
+        function hideLogoutModal(){document.getElementById('logoutModal').classList.remove('show')}
+        function showDeleteModal(){document.getElementById('deleteModal').classList.add('show')}
+        function hideDeleteModal(){document.getElementById('deleteModal').classList.remove('show')}
+        document.querySelectorAll('.modal-overlay').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show')})});
+    </script>
+</body>
+</html>

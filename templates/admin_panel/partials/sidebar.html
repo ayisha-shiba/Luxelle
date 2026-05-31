@@ -1,0 +1,164 @@
+<aside class="sidebar">
+    <div class="sidebar-brand"><h2>LUXELLE</h2><span>Admin Control Panel</span></div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">
+            <div class="nav-section-title">Main</div>
+            <a href="{% url 'admin_dashboard' %}" class="nav-item {% if active == 'dashboard' %}active{% endif %}"><i class="fa-solid fa-grid-2"></i> Dashboard</a>
+            <a href="{% url 'admin_users' %}" class="nav-item {% if active == 'users' %}active{% endif %}"><i class="fa-solid fa-users"></i> User Management</a>
+            <a class="nav-item"><i class="fa-solid fa-bag-shopping"></i> Orders</a>
+            <a class="nav-item"><i class="fa-solid fa-boxes-stacked"></i> Products</a>
+        </div>
+        <div class="nav-section">
+            <div class="nav-section-title">Analytics</div>
+            <a class="nav-item"><i class="fa-solid fa-chart-line"></i> Revenue</a>
+            <a class="nav-item"><i class="fa-solid fa-bullseye"></i> Marketing</a>
+        </div>
+        <div class="nav-section">
+            <div class="nav-section-title">Settings</div>
+            <a class="nav-item"><i class="fa-solid fa-gear"></i> Configuration</a>
+            <a href="javascript:void(0);" onclick="openLogoutModal()" class="nav-item {% if active == 'logout' %}active{% endif %}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+        </div>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="admin-profile">
+            <div class="admin-avatar">AS</div>
+            <div><div class="admin-name">Ayisha Shiba</div><div class="admin-role">Super Admin</div></div>
+        </div>
+    </div>
+</aside>
+
+<!-- Logout Confirmation Modal -->
+<div class="modal-overlay" id="logoutModal">
+    <div class="modal-box">
+        <div class="modal-icon"><i class="fa-solid fa-sign-out-alt"></i></div>
+        <h3 class="modal-title">Logout from Admin Panel?</h3>
+        <p class="modal-desc">Are you sure you want to logout? You will need to log in again to access the admin panel.</p>
+        <div class="modal-actions">
+            <button class="mbtn mbtn-cancel" onclick="closeLogoutModal()">Cancel</button>
+            <a href="{% url 'admin_logout' %}" class="mbtn mbtn-gold">Logout</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-overlay.show {
+        display: flex;
+    }
+
+    .modal-box {
+        background: #0b0b0b;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 2.5rem;
+        text-align: center;
+        max-width: 400px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .modal-icon {
+        font-size: 3rem;
+        color: #c5a059;
+        margin-bottom: 1rem;
+    }
+
+    .modal-title {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #ffffff;
+        margin-bottom: 0.75rem;
+        margin: 0 0 0.75rem 0;
+    }
+
+    .modal-desc {
+        font-size: 0.9rem;
+        color: #888888;
+        margin-bottom: 2rem;
+        line-height: 1.6;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .mbtn {
+        padding: 0.85rem 2rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .mbtn-cancel {
+        background-color: rgba(255, 255, 255, 0.08);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .mbtn-cancel:hover {
+        background-color: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .mbtn-gold {
+        background-color: #c5a059;
+        color: #0b0b0b;
+    }
+
+    .mbtn-gold:hover {
+        background-color: #e5c17d;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(197, 160, 89, 0.3);
+    }
+</style>
+
+<script>
+    function openLogoutModal() {
+        document.getElementById('logoutModal').classList.add('show');
+    }
+
+    function closeLogoutModal() {
+        document.getElementById('logoutModal').classList.remove('show');
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('logoutModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeLogoutModal();
+        }
+    });
+</script>

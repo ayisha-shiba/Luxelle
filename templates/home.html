@@ -1,0 +1,391 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle | Luxury Handbags</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+</head>
+<body class="bg-lux-beige">
+
+    <!-- =========================================
+       Premium Header / Navigation
+       ========================================= -->
+    <header class="navbar navbar-expand-lg navbar-light bg-white sticky-top py-3 px-4 border-bottom border-light shadow-sm">
+        <div class="container-fluid">
+            <!-- Brand Logo Left -->
+            <a class="navbar-brand font-playfair fs-2 fw-bold tracking-tight text-lux-black m-0" href="{% url 'home' %}">LUXELLE</a>
+            
+            <!-- Navbar Toggler for Mobile -->
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#luxNavbar" aria-controls="luxNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <!-- Center Navigation Links -->
+            <div class="collapse navbar-collapse justify-content-center" id="luxNavbar">
+                <ul class="navbar-nav gap-4 mb-2 mb-lg-0 font-inter text-uppercase small tracking-wider fw-medium">
+                    <li class="nav-item">
+                        <a class="nav-link active text-lux-black" href="{% url 'home' %}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-lux-gray hover-lux-gold" href="#">Collections</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-lux-gray hover-lux-gold" href="#">Shop</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-lux-gray hover-lux-gold" href="#">Stories</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-lux-gray hover-lux-gold" href="#">About Us</a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Right side Utility Icons -->
+            <div class="d-flex align-items-center gap-3 px-2 font-inter text-lux-black">
+                <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale" title="Search">
+                    <i class="fa-solid fa-magnifying-glass fs-5"></i>
+                </a>
+                <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale" title="Favorites">
+                    <i class="fa-regular fa-heart fs-5"></i>
+                </a>
+                <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale position-relative" title="Shopping Cart">
+                    <i class="fa-solid fa-bag-shopping fs-5"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-lux-black text-white small-badge">2</span>
+                </a>
+                <div class="dropdown">
+                    <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale dropdown-toggle no-caret" id="accountDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Account">
+                        <i class="fa-regular fa-user fs-5"></i>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-3 mt-2" aria-labelledby="accountDropdown">
+    {% if request.user.is_authenticated %}
+                        <li><a class="dropdown-item rounded-2 py-2" href="{% url 'profile' %}"><i class="fa-solid fa-user me-2 text-muted"></i>Profile</a></li>
+                        <li>
+                            <form action="{% url 'logout' %}" method="post" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="dropdown-item rounded-2 py-2">
+                                    <i class="fa-solid fa-right-from-bracket me-2 text-muted"></i>Logout
+                                </button>
+                            </form>
+                        </li>
+{% else %}
+                        <li><a class="dropdown-item rounded-2 py-2" href="{% url 'login' %}"><i class="fa-solid fa-right-to-bracket me-2 text-muted"></i>Sign In</a></li>
+                        <li><a class="dropdown-item rounded-2 py-2" href="{% url 'register' %}"><i class="fa-solid fa-user-plus me-2 text-muted"></i>Sign Up</a></li>
+{% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- =========================================
+       Hero Section
+       ========================================= -->
+    <section class="hero-section position-relative overflow-hidden w-100 d-flex align-items-center justify-content-start" style="background-image: url('{% static 'image/hero_model.png' %}');">
+        <div class="hero-overlay position-absolute w-100 h-100 start-0 top-0"></div>
+        <div class="container position-relative z-2 px-4 py-5">
+            <div class="row">
+                <div class="col-12 col-md-8 col-lg-6 text-white hero-content-box">
+                    <h1 class="display-3 font-playfair mb-3 leading-tight tracking-tight text-shadow-sm fade-in-up">Luxury Crafted For Modern Elegance</h1>
+                    <p class="lead font-inter fw-light mb-4 opacity-90 text-shadow-sm fade-in-up-delay">Discover timeless handbags designed for sophisticated women who value superior craftsmanship and contemporary aesthetics.</p>
+                    <a href="#" class="btn btn-lux-dark py-3 px-5 text-uppercase fw-semibold tracking-wider hover-lux-gold-bg fade-in-up-delay-2">Explore Collection &nbsp; <i class="fa-solid fa-arrow-right"></i></a>
+                </div>
+            </div>
+        </div>
+        <!-- Right Bottom Dots and Navigation -->
+        <div class="position-absolute bottom-0 end-0 p-5 z-2 d-none d-md-flex align-items-center gap-4 text-white">
+            <div class="slider-dots d-flex gap-2">
+                <span class="slider-dot active"></span>
+                <span class="slider-dot"></span>
+                <span class="slider-dot"></span>
+            </div>
+            <div class="slider-nav d-flex gap-2">
+                <button class="btn btn-outline-white border-opacity-25 rounded-circle p-2 px-3 hover-lux-gold"><i class="fa-solid fa-chevron-left"></i></button>
+                <button class="btn btn-outline-white border-opacity-25 rounded-circle p-2 px-3 hover-lux-gold"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+        </div>
+    </section>
+
+    <!-- =========================================
+       Signature Collections Section
+       ========================================= -->
+    <section class="py-5 px-4 bg-white">
+        <div class="container py-4">
+            <div class="text-center mb-5">
+                <h2 class="font-playfair display-5 fw-semibold text-lux-black mb-2">Our Signature Collections</h2>
+                <p class="font-inter text-lux-gray fw-light tracking-wide">Curated luxury handbags for every occasion.</p>
+            </div>
+
+            <div class="row g-4 row-cols-1 row-cols-md-2 row-cols-lg-3">
+                <!-- Collection Card 1 -->
+                <div class="col">
+                    <div class="collection-card overflow-hidden rounded-4 position-relative group">
+                        <div class="collection-img-wrapper overflow-hidden">
+                            <img src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=600&auto=format&fit=crop" alt="The Crossbody Bag" class="w-100 h-100 object-fit-cover transition-transform duration-500 hover-scale-110">
+                        </div>
+                        <div class="p-4 bg-white border-top border-light">
+                            <h4 class="font-playfair text-lux-black mb-1 fs-5">The Crossbody Bag</h4>
+                            <p class="font-inter text-lux-gray small-caps text-uppercase tracking-wider opacity-75 mb-0">CLASSIC UTILITY</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Collection Card 2 -->
+                <div class="col">
+                    <div class="collection-card overflow-hidden rounded-4 position-relative group">
+                        <div class="collection-img-wrapper overflow-hidden">
+                            <img src="https://images.unsplash.com/photo-1591561954557-26941169b49e?q=80&w=600&auto=format&fit=crop" alt="The Tote Bag" class="w-100 h-100 object-fit-cover transition-transform duration-500 hover-scale-110">
+                        </div>
+                        <div class="p-4 bg-white border-top border-light">
+                            <h4 class="font-playfair text-lux-black mb-1 fs-5">The Tote Bag</h4>
+                            <p class="font-inter text-lux-gray small-caps text-uppercase tracking-wider opacity-75 mb-0">EVERYDAY ESSENTIAL</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Collection Card 3 -->
+                <div class="col">
+                    <div class="collection-card overflow-hidden rounded-4 position-relative group">
+                        <div class="collection-img-wrapper overflow-hidden">
+                            <img src="https://images.unsplash.com/photo-1590874103328-eac38a683ce7?q=80&w=600&auto=format&fit=crop" alt="The Shoulder Bag" class="w-100 h-100 object-fit-cover transition-transform duration-500 hover-scale-110">
+                        </div>
+                        <div class="p-4 bg-white border-top border-light">
+                            <h4 class="font-playfair text-lux-black mb-1 fs-5">The Shoulder Bag</h4>
+                            <p class="font-inter text-lux-gray small-caps text-uppercase tracking-wider opacity-75 mb-0">MODERN MINIMALISM</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Collection Card 4 -->
+                <div class="col">
+                    <div class="collection-card overflow-hidden rounded-4 position-relative group">
+                        <div class="collection-img-wrapper overflow-hidden">
+                            <img src="https://images.unsplash.com/photo-1547949003-9792a18a2601?q=80&w=600&auto=format&fit=crop" alt="The Beach Bag" class="w-100 h-100 object-fit-cover transition-transform duration-500 hover-scale-110">
+                        </div>
+                        <div class="p-4 bg-white border-top border-light">
+                            <h4 class="font-playfair text-lux-black mb-1 fs-5">The Beach Bag</h4>
+                            <p class="font-inter text-lux-gray small-caps text-uppercase tracking-wider opacity-75 mb-0">SUMMER ESCAPE</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Collection Card 5 -->
+                <div class="col">
+                    <div class="collection-card overflow-hidden rounded-4 position-relative group">
+                        <div class="collection-img-wrapper overflow-hidden">
+                            <img src="https://images.unsplash.com/photo-1594223274512-ad4803739b7c?q=80&w=600&auto=format&fit=crop" alt="The Clutch Bag" class="w-100 h-100 object-fit-cover transition-transform duration-500 hover-scale-110">
+                        </div>
+                        <div class="p-4 bg-white border-top border-light">
+                            <h4 class="font-playfair text-lux-black mb-1 fs-5">The Clutch Bag</h4>
+                            <p class="font-inter text-lux-gray small-caps text-uppercase tracking-wider opacity-75 mb-0">EVENING GRACE</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Collection Card 6 -->
+                <div class="col">
+                    <div class="collection-card overflow-hidden rounded-4 position-relative group">
+                        <div class="collection-img-wrapper overflow-hidden">
+                            <img src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?q=80&w=600&auto=format&fit=crop" alt="The Hobo Bag" class="w-100 h-100 object-fit-cover transition-transform duration-500 hover-scale-110">
+                        </div>
+                        <div class="p-4 bg-white border-top border-light">
+                            <h4 class="font-playfair text-lux-black mb-1 fs-5">The Hobo Bag</h4>
+                            <p class="font-inter text-lux-gray small-caps text-uppercase tracking-wider opacity-75 mb-0">RELAXED SOPHISTICATION</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- =========================================
+       Middle Promotional Section
+       ========================================= -->
+    <section class="promo-section position-relative overflow-hidden w-100 d-flex align-items-center justify-content-center text-center" style="background-image: url('{% static 'image/storefront_promo.png' %}');">
+        <div class="promo-overlay position-absolute w-100 h-100 start-0 top-0"></div>
+        <div class="container position-relative z-2 px-4 py-5 text-white">
+            <div class="row justify-content-center">
+                <div class="col-12 col-md-10 col-lg-8">
+                    <span class="font-inter text-uppercase tracking-widest small fw-semibold mb-3 d-inline-block text-lux-gold opacity-90">THE ART OF DESIGN</span>
+                    <h2 class="font-playfair display-4 fw-medium mb-3 text-shadow-sm">Crafted For Elegance</h2>
+                    <p class="font-inter mb-4 opacity-90 mx-auto fw-light text-shadow-sm max-w-lg">Premium handbags designed for timeless style, minimal aesthetic, and contemporary fashion.</p>
+                    <a href="#" class="btn btn-lux-gold py-3 px-5 text-uppercase fw-semibold tracking-wider hover-lux-dark-bg">Shop Now &nbsp; <i class="fa-solid fa-chevron-right"></i></a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- =========================================
+       Featured Luxury Picks Section
+       ========================================= -->
+    <section class="py-5 px-4 bg-lux-beige">
+        <div class="container py-4">
+            <div class="text-center mb-5">
+                <h2 class="font-playfair display-5 fw-semibold text-lux-black mb-2">Featured Luxury Picks</h2>
+                <p class="font-inter text-lux-gray fw-light tracking-wide">Introducing our latest and most exclusive arrivals.</p>
+            </div>
+
+            <div class="row g-4 row-cols-1 row-cols-sm-2 row-cols-lg-4">
+                <!-- Card 1 -->
+                <div class="col">
+                    <div class="product-card bg-white rounded-4 overflow-hidden border border-light shadow-sm p-3 position-relative d-flex flex-column h-100">
+                        <div class="product-img-wrapper bg-light rounded-3 overflow-hidden position-relative mb-3 flex-grow-1">
+                            <img src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=600&auto=format&fit=crop" alt="Aura Satchel" class="w-100 h-100 object-fit-cover transition-transform duration-500 hover-scale-110">
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <h4 class="font-playfair text-lux-black fs-6 fw-bold mb-0">Aura Satchel</h4>
+                            <span class="rating font-inter small fw-medium text-lux-gold"><i class="fa-solid fa-star"></i> 4.9</span>
+                        </div>
+                        <p class="font-inter text-lux-gray small mb-3 opacity-75">Sophisticated Tote</p>
+                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                            <span class="price font-inter fw-bold text-lux-black fs-5">$2,250</span>
+                            <button class="btn btn-lux-action rounded-circle d-flex align-items-center justify-content-center" title="View details">
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="col">
+                    <div class="product-card bg-white rounded-4 overflow-hidden border border-light shadow-sm p-3 position-relative d-flex flex-column h-100">
+                        <span class="badge bg-lux-gold text-white text-uppercase tracking-wider position-absolute top-4 start-4 z-2 small py-2 px-3 rounded-2 fw-semibold">Bestseller</span>
+                        <div class="product-img-wrapper bg-light rounded-3 overflow-hidden position-relative mb-3 flex-grow-1">
+                            <img src="https://images.unsplash.com/photo-1600857062241-98e5dba7f214?q=80&w=600&auto=format&fit=crop" alt="Celeste Crossbody" class="w-100 h-100 object-fit-cover transition-transform duration-500 hover-scale-110">
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <h4 class="font-playfair text-lux-black fs-6 fw-bold mb-0">Celeste Crossbody</h4>
+                            <span class="rating font-inter small fw-medium text-lux-gold"><i class="fa-solid fa-star"></i> 4.8</span>
+                        </div>
+                        <p class="font-inter text-lux-gray small mb-3 opacity-75">Signature Piece</p>
+                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                            <span class="price font-inter fw-bold text-lux-black fs-5">$1,850</span>
+                            <button class="btn btn-lux-action rounded-circle d-flex align-items-center justify-content-center" title="View details">
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="col">
+                    <div class="product-card bg-white rounded-4 overflow-hidden border border-light shadow-sm p-3 position-relative d-flex flex-column h-100">
+                        <div class="product-img-wrapper bg-light rounded-3 overflow-hidden position-relative mb-3 flex-grow-1">
+                            <img src="https://images.unsplash.com/photo-1591561954557-26941169b49e?q=80&w=600&auto=format&fit=crop" alt="Serene Tote" class="w-100 h-100 object-fit-cover transition-transform duration-500 hover-scale-110">
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <h4 class="font-playfair text-lux-black fs-6 fw-bold mb-0">Serene Tote</h4>
+                            <span class="rating font-inter small fw-medium text-lux-gold"><i class="fa-solid fa-star"></i> 4.6</span>
+                        </div>
+                        <p class="font-inter text-lux-gray small mb-3 opacity-75">Minimal Design</p>
+                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                            <span class="price font-inter fw-bold text-lux-black fs-5">$2,400</span>
+                            <button class="btn btn-lux-action rounded-circle d-flex align-items-center justify-content-center" title="View details">
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 4 -->
+                <div class="col">
+                    <div class="product-card bg-white rounded-4 overflow-hidden border border-light shadow-sm p-3 position-relative d-flex flex-column h-100">
+                        <div class="product-img-wrapper bg-light rounded-3 overflow-hidden position-relative mb-3 flex-grow-1">
+                            <img src="https://images.unsplash.com/photo-1594223274512-ad4803739b7c?q=80&w=600&auto=format&fit=crop" alt="Stellar Clutch" class="w-100 h-100 object-fit-cover transition-transform duration-500 hover-scale-110">
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <h4 class="font-playfair text-lux-black fs-6 fw-bold mb-0">Stellar Clutch</h4>
+                            <span class="rating font-inter small fw-medium text-lux-gold"><i class="fa-solid fa-star"></i> 4.7</span>
+                        </div>
+                        <p class="font-inter text-lux-gray small mb-3 opacity-75">Glamorous Evening</p>
+                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                            <span class="price font-inter fw-bold text-lux-black fs-5">$1,950</span>
+                            <button class="btn btn-lux-action rounded-circle d-flex align-items-center justify-content-center" title="View details">
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- =========================================
+       Footer Section
+       ========================================= -->
+    <footer class="bg-white border-top border-light pt-5 px-4 font-inter">
+        <div class="container pt-4 pb-5">
+            <div class="row g-5">
+                <!-- Column 1: Info and Brand -->
+                <div class="col-12 col-md-4">
+                    <h3 class="font-playfair fw-bold fs-2 text-lux-black mb-3">LUXELLE</h3>
+                    <p class="text-lux-gray small fw-light mb-4 lh-relaxed max-w-sm">Crafting timeless designs for the modern sophisticated woman. Luxury handbags designed with heart and soul.</p>
+                    <div class="d-flex align-items-center gap-3 social-icons text-lux-black">
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-instagram fs-4"></i></a>
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-pinterest fs-4"></i></a>
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-facebook fs-4"></i></a>
+                    </div>
+                </div>
+
+                <!-- Column 2: Shop Links -->
+                <div class="col-6 col-md-2 offset-md-1">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Shop</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Handbags</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Accessories</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Collections</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">New Arrivals</a></li>
+                    </ul>
+                </div>
+
+                <!-- Column 3: Company Links -->
+                <div class="col-6 col-md-2">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Company</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Our Story</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Careers</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Terms & Services</a></li>
+                    </ul>
+                </div>
+
+                <!-- Column 4: Customer Care -->
+                <div class="col-12 col-md-3">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Customer Care</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Contact Us</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Shipping & Returns</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">FAQ</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Privacy Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Copyright and Bottom Line -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center pt-4 mt-5 border-top border-light text-lux-gray small fw-light">
+                <p class="mb-2 mb-md-0">&copy; 2026 Luxelle. Crafted by Antigravity.</p>
+                <div class="d-flex gap-4">
+                    <a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Terms of Use</a>
+                    <a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Privacy Policy</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Toast Notifications -->
+    {% include 'partials/toast.html' %}
+</body>
+</html>

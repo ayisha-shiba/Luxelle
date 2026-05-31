@@ -1,0 +1,611 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle | Edit Profile</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    
+    <style>
+        /* ==========================================================================
+           LUXURY PREMIUM LIGHT BEIGE THEME FOR EDIT PROFILE
+           ========================================================================== */
+        body {
+            background-color: #F5F2EB !important;
+            color: #1A1A1A !important;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Header Style Override */
+        header.navbar {
+            background-color: #ffffff !important;
+            border-bottom: 1px solid #e2dfd9 !important;
+            box-shadow: none !important;
+        }
+        header.navbar .navbar-brand {
+            color: #1A1A1A !important;
+        }
+        header.navbar .nav-link {
+            color: #666666 !important;
+        }
+        header.navbar .nav-link:hover {
+            color: #C9A26A !important;
+        }
+        header.navbar .text-lux-black {
+            color: #1A1A1A !important;
+        }
+        header.navbar .text-lux-black:hover {
+            color: #C9A26A !important;
+        }
+        header.navbar .badge {
+            background-color: #C9A26A !important;
+            color: #ffffff !important;
+        }
+
+        /* Title Styling matching Screenshot */
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #1A1A1A;
+            margin-bottom: 4px;
+        }
+        .lux-heading-line {
+            width: 50px;
+            height: 2px;
+            background-color: #C9A26A;
+            margin-bottom: 30px;
+        }
+
+        /* Profile edit sidebar and form container style */
+        .profile-card-lux {
+            background-color: #ffffff !important;
+            border: 1px solid #e2dfd9 !important;
+            border-radius: 8px !important;
+            padding: 30px 24px !important;
+            height: 100%;
+        }
+
+        /* Avatar Container & Double gold border ring exactly matching reference */
+        .avatar-ring {
+            display: inline-block;
+            position: relative;
+            margin: 0 auto;
+        }
+        .avatar-border-outer {
+            width: 130px;
+            height: 130px;
+            border: 2px solid #C9A26A;
+            border-radius: 50%;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            position: relative;
+            background-color: #ffffff;
+        }
+        .avatar-border-inner {
+            width: 118px;
+            height: 118px;
+            border: 1px solid #C9A26A;
+            border-radius: 50%;
+            padding: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .profile-avatar-img {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        /* Pencil edit button overlay matching reference yellow button */
+        .pencil-edit-overlay {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            background-color: #C9A26A !important;
+            color: #000000 !important;
+            border: 2px solid #ffffff !important;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            transition: all 0.3s ease;
+            z-index: 5;
+        }
+        .pencil-edit-overlay:hover {
+            transform: scale(1.1);
+            background-color: #b08d5b !important;
+        }
+
+        /* Remove Photo button style */
+        .btn-remove-photo {
+            border: 1px solid #dc3545;
+            color: #dc3545;
+            background: transparent;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            padding: 8px 16px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            display: inline-block;
+            text-decoration: none;
+            margin-top: 20px;
+        }
+        .btn-remove-photo:hover {
+            background-color: rgba(220, 53, 69, 0.05);
+            color: #bd2130;
+            border-color: #bd2130;
+        }
+
+        /* Premium ledger description box matching screenshot */
+        .ledger-box {
+            background-color: #FAF8F5 !important;
+            border: 1px solid #EAE5DE !important;
+            border-radius: 6px !important;
+            padding: 20px !important;
+            margin-top: 24px;
+            text-align: left;
+        }
+        .ledger-text {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.76rem;
+            color: #666666;
+            line-height: 1.6;
+            margin-bottom: 0;
+        }
+
+        /* Form styling exactly matching screenshot idea */
+        .form-label-lux {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #b08d5b;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+            display: block;
+        }
+        .form-input-lux {
+            background-color: #ffffff !important;
+            border: 1px solid #e2dfd9 !important;
+            border-radius: 4px !important;
+            color: #1A1A1A !important;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem !important;
+            padding: 14px 16px !important;
+            transition: all 0.3s ease !important;
+            outline: none !important;
+        }
+        .form-input-lux:focus {
+            border-color: #C9A26A !important;
+            box-shadow: 0 0 0 3px rgba(201, 162, 106, 0.15) !important;
+        }
+
+        /* Buttons matching the exact style and placement of Tymora */
+        .btn-save-lux {
+            background-color: #C9A26A !important;
+            color: #000000 !important;
+            border: 1px solid #C9A26A !important;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            padding: 14px 28px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+        .btn-save-lux:hover {
+            background-color: #b08d5b !important;
+            border-color: #b08d5b !important;
+            color: #ffffff !important;
+        }
+        .btn-cancel-lux {
+            background-color: transparent !important;
+            color: #666666 !important;
+            border: 1px solid #e2dfd9 !important;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            padding: 14px 28px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-cancel-lux:hover {
+            background-color: rgba(0,0,0,0.02) !important;
+            color: #1A1A1A !important;
+            border-color: #999999 !important;
+        }
+
+        /* Security card action buttons */
+        .btn-security-lux {
+            border: 1px solid #e2dfd9;
+            background-color: #ffffff;
+            color: #555555;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding: 14px 20px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+        }
+        .btn-security-lux:hover {
+            border-color: #C9A26A;
+            color: #C9A26A;
+            background-color: #FAF8F5;
+        }
+        .btn-security-lux.btn-delete-lux:hover {
+            border-color: #dc3545;
+            color: #dc3545;
+            background-color: rgba(220, 53, 69, 0.02);
+        }
+
+        /* General footer override to light */
+        footer {
+            background-color: #ffffff !important;
+            border-top: 1px solid #e2dfd9 !important;
+            color: #666666 !important;
+        }
+        footer h3, footer h6 {
+            color: #1A1A1A !important;
+        }
+        footer a {
+            color: #666666 !important;
+        }
+        footer a:hover {
+            color: #C9A26A !important;
+        }
+        footer .social-icons a {
+            color: #1A1A1A !important;
+        }
+        footer .social-icons a:hover {
+            color: #C9A26A !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- =========================================
+       Premium Header / Navigation
+       ========================================= -->
+    <header class="navbar navbar-expand-lg navbar-light sticky-top py-3 px-4">
+        <div class="container-fluid">
+            <!-- Brand Logo Left -->
+            <a class="navbar-brand font-playfair fs-2 fw-bold tracking-tight text-lux-black m-0" href="{% url 'home' %}">LUXELLE</a>
+            
+            <!-- Navbar Toggler for Mobile -->
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#luxNavbar" aria-controls="luxNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <!-- Center Navigation Links -->
+            <div class="collapse navbar-collapse justify-content-center" id="luxNavbar">
+                <ul class="navbar-nav gap-4 mb-2 mb-lg-0 font-inter text-uppercase small tracking-wider fw-medium">
+                    <li class="nav-item">
+                        <a class="nav-link text-lux-gray hover-lux-gold" href="{% url 'home' %}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-lux-gray hover-lux-gold" href="#">Collections</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-lux-gray hover-lux-gold" href="#">Shop</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-lux-gray hover-lux-gold" href="#">Stories</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-lux-gray hover-lux-gold" href="#">About Us</a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Right side Utility Icons -->
+            <div class="d-flex align-items-center gap-3 px-2 font-inter text-lux-black">
+                <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale" title="Search">
+                    <i class="fa-solid fa-magnifying-glass fs-5"></i>
+                </a>
+                <a href="{% url 'wishlist' %}" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale" title="Favorites">
+                    <i class="fa-regular fa-heart fs-5"></i>
+                </a>
+                <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale position-relative" title="Shopping Cart">
+                    <i class="fa-solid fa-bag-shopping fs-5"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-circle">2</span>
+                </a>
+                <div class="dropdown">
+                    <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale dropdown-toggle no-caret" id="accountDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Account">
+                        <i class="fa-regular fa-user fs-5 text-lux-gold"></i>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-3 mt-2" aria-labelledby="accountDropdown">
+                        <li><a class="dropdown-item rounded-2 py-2" href="{% url 'profile' %}"><i class="fa-solid fa-house me-2 text-muted"></i>Dashboard</a></li>
+                        <li>
+    <form action="{% url 'logout' %}" method="post" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="dropdown-item rounded-2 py-2">
+            <i class="fa-solid fa-right-from-bracket me-2 text-muted"></i>Logout
+        </button>
+    </form>
+</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- =========================================
+       Edit Profile Body
+       ========================================= -->
+    <main class="container py-5">
+        
+        <!-- Page Title & Accent Line matching Screenshot -->
+        <div>
+            <h1 class="page-title">Edit Profile</h1>
+            <div class="lux-heading-line"></div>
+        </div>
+
+        <!-- Django Success/Error Messages -->
+        {% if messages %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    {% for message in messages %}
+                        <div class="alert {% if message.tags == 'error' %}alert-danger bg-danger-light border-0 text-danger{% else %}alert-success bg-success-light border-0 text-success{% endif %} alert-dismissible fade show font-inter small py-3" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        <form method="POST" action="{% url 'profile_edit' %}" enctype="multipart/form-data" id="profileEditForm">
+            {% csrf_token %}
+            <!-- Hidden elements for photo operations -->
+            <input type="hidden" name="clear_avatar" id="clearAvatarInput" value="false">
+
+            <div class="row g-4">
+                
+                <!-- LEFT COLUMN: Profile Sidebar -->
+                <aside class="col-12 col-md-4 col-lg-3">
+                    <div class="profile-card-lux text-center">
+                        
+                        <!-- Circular Avatar Frame with Overlay Pencil exactly matching reference -->
+                        <div class="avatar-ring">
+                            <div class="avatar-border-outer">
+                                <div class="avatar-border-inner">
+                                    <img src="{% if profile.avatar %}{{ profile.avatar.url }}{% else %}{% static 'image/ayisha_avatar.png' %}{% endif %}" alt="{{ user.get_full_name }}" class="profile-avatar-img" id="avatarPreviewImg">
+                                </div>
+                                <!-- Pencil edit overlay yellow button -->
+                                <div class="pencil-edit-overlay" id="changePhotoOverlay" title="Upload New Photo">
+                                    <i class="fa-solid fa-pencil text-xs"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- File Input hidden -->
+                        <input type="file" name="avatar" id="avatarFileInput" class="d-none" accept="image/*">
+
+                        <!-- Remove Photo CTA -->
+                        <div>
+                            <button type="button" class="btn-remove-photo" id="removePhotoBtn">REMOVE PHOTO</button>
+                        </div>
+
+                        <!-- Styled ecosystem ledger text block exactly matching screenshot -->
+                        <div class="ledger-box">
+                            <p class="ledger-text">
+                                Your profile is your digital ledger within the Luxelle ecosystem. Ensure your shipping details and contact information are current to prevent delays in boutique dispatches.
+                            </p>
+                        </div>
+
+                    </div>
+                </aside>
+
+                <!-- RIGHT COLUMN: Personal Form fields & Security actions -->
+                <div class="col-12 col-md-8 col-lg-9 d-flex flex-column gap-4">
+                    
+                    <!-- Main details edit Form Card -->
+                    <div class="profile-card-lux">
+                        <div class="row g-4">
+                            
+                            <!-- Full Name -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label-lux">FULL NAME</label>
+                                <input type="text" name="full_name" class="form-control form-input-lux {% if user_form.full_name.errors %}is-invalid{% endif %}" value="{{ user_form.full_name.value|default:user.get_full_name }}" minlength="2" required>
+                                {% if user_form.full_name.errors %}
+                                    <div class="invalid-feedback d-block font-inter small mt-1 text-danger">
+                                        {% for error in user_form.full_name.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Phone Number -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label-lux">PHONE NUMBER</label>
+                                <input type="text" name="phone" class="form-control form-input-lux {% if user_form.phone.errors %}is-invalid{% endif %}" value="{{ user_form.phone.value|default:user.phone }}" pattern="[0-9\+\s\-]{10,14}" title="Enter a valid 10-digit phone number" required>
+                                {% if user_form.phone.errors %}
+                                    <div class="invalid-feedback d-block font-inter small mt-1 text-danger">
+                                        {% for error in user_form.phone.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Date of Birth -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label-lux">DATE OF BIRTH</label>
+                                <input type="date" name="date_of_birth" class="form-control form-input-lux {% if profile_form.date_of_birth.errors %}is-invalid{% endif %}" value="{% if profile_form.date_of_birth.value %}{{ profile_form.date_of_birth.value|date:'Y-m-d' }}{% elif profile.date_of_birth %}{{ profile.date_of_birth|date:'Y-m-d' }}{% endif %}">
+                                {% if profile_form.date_of_birth.errors %}
+                                    <div class="invalid-feedback d-block font-inter small mt-1 text-danger">
+                                        {% for error in profile_form.date_of_birth.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Email Address -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label-lux">EMAIL ADDRESS</label>
+                                <input type="email" name="email" class="form-control form-input-lux {% if user_form.email.errors %}is-invalid{% endif %}" value="{{ user_form.email.value|default:user.email }}" required>
+                                {% if user_form.email.errors %}
+                                    <div class="invalid-feedback d-block font-inter small mt-1 text-danger">
+                                        {% for error in user_form.email.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                        </div>
+
+                        <!-- Action Form buttons at the bottom matching reference placement and colors -->
+                        <div class="d-flex gap-3 mt-5 pt-3 border-top border-light">
+                            <button type="submit" class="btn-save-lux">SAVE CHANGES</button>
+                            <a href="{% url 'profile' %}" class="btn-cancel-lux">CANCEL</a>
+                        </div>
+                    </div>
+
+                    <!-- Security & Account Settings Actions Card -->
+                    <div class="profile-card-lux">
+                        <h4 class="font-playfair fw-bold fs-5 text-lux-black mb-4">Security & Credentials</h4>
+                        
+                        <div class="row g-3">
+                            <div class="col-12 col-md-4">
+                                <a href="{% url 'change_password' %}" class="btn-security-lux">
+                                    <i class="fa-solid fa-key me-2 text-lux-gold"></i> Change Password
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <a href="{% url 'change_email' %}" class="btn-security-lux">
+                                    <i class="fa-solid fa-envelope me-2 text-lux-gold"></i> Change Email
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <a href="{% url 'delete_account' %}" class="btn-security-lux btn-delete-lux">
+                                    <i class="fa-solid fa-user-minus me-2 text-danger"></i> Delete Account
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </form>
+    </main>
+
+    <!-- =========================================
+       Footer Section
+       ========================================= -->
+    <footer class="pt-5 px-4 font-inter">
+        <div class="container pt-4 pb-5">
+            <div class="row g-5">
+                <!-- Column 1: Info and Brand -->
+                <div class="col-12 col-md-4">
+                    <h3 class="font-playfair fw-bold fs-2 text-lux-black mb-3">LUXELLE</h3>
+                    <p class="text-lux-gray small fw-light mb-4 lh-relaxed max-w-sm">Experience the pinnacle of curated luxury; your personal gateway to the world's most exclusive fashion houses.</p>
+                    <div class="d-flex align-items-center gap-3 social-icons">
+                        <a href="#" class="text-decoration-none"><i class="fa-brands fa-instagram fs-4"></i></a>
+                        <a href="#" class="text-decoration-none"><i class="fa-brands fa-pinterest fs-4"></i></a>
+                        <a href="#" class="text-decoration-none"><i class="fa-brands fa-facebook fs-4"></i></a>
+                    </div>
+                </div>
+
+                <!-- Column 2: Shop Links -->
+                <div class="col-6 col-md-2 offset-md-1">
+                    <h6 class="text-uppercase tracking-wider fw-bold mb-3 small">Collections</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none">Ready-to-Wear</a></li>
+                        <li><a href="#" class="text-decoration-none">Leather Goods</a></li>
+                        <li><a href="#" class="text-decoration-none">Exotics</a></li>
+                    </ul>
+                </div>
+
+                <!-- Column 3: Company Links -->
+                <div class="col-6 col-md-2">
+                    <h6 class="text-uppercase tracking-wider fw-bold mb-3 small">Customer Care</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none">Shipping & Returns</a></li>
+                        <li><a href="#" class="text-decoration-none">Size Guide</a></li>
+                        <li><a href="#" class="text-decoration-none">Personal Shopping</a></li>
+                    </ul>
+                </div>
+
+                <!-- Column 4: Legal -->
+                <div class="col-12 col-md-3">
+                    <h6 class="text-uppercase tracking-wider fw-bold mb-3 small">Legal</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none">Privacy Policy</a></li>
+                        <li><a href="#" class="text-decoration-none">Terms of Service</a></li>
+                        <li><a href="#" class="text-decoration-none">Cookie Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Copyright and Bottom Line -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center pt-4 mt-5 border-top border-light text-lux-gray small fw-light">
+                <p class="mb-2 mb-md-0">&copy; 2026 Luxelle. All Rights Reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript for Image Preview, Upload, and Removal -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const avatarFileInput = document.getElementById('avatarFileInput');
+            const changePhotoOverlay = document.getElementById('changePhotoOverlay');
+            const avatarPreviewImg = document.getElementById('avatarPreviewImg');
+            const removePhotoBtn = document.getElementById('removePhotoBtn');
+            const clearAvatarInput = document.getElementById('clearAvatarInput');
+
+            // Click on pencil overlay triggers hidden file input
+            changePhotoOverlay.addEventListener('click', function() {
+                avatarFileInput.click();
+            });
+
+            // Live preview when a new image file is chosen
+            avatarFileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        avatarPreviewImg.src = e.target.result;
+                        clearAvatarInput.value = 'false'; // Cancel any pending clear instruction
+                    }
+                    reader.readAsDataURL(this.files[0]);
+                }
+            });
+
+            // "Remove Photo" action setting fallback avatar preview and signaling server
+            removePhotoBtn.addEventListener('click', function() {
+                avatarPreviewImg.src = "{% static 'image/ayisha_avatar.png' %}";
+                avatarFileInput.value = ''; // Reset file input
+                clearAvatarInput.value = 'true'; // Signals server to delete model avatar file
+            });
+        });
+    </script>
+</body>
+</html>
