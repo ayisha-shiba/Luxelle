@@ -176,25 +176,37 @@ def admin_toggle_user_status_view(request, user_id):
         user.save(update_fields=["is_active"])
         action = "unblocked" if user.is_active else "blocked"
         messages.success(request, f"User {user.get_full_name()} has been {action}.")
-        logger.info(f"[ADMIN] User {user.email} {action} by {request.user.email}")
+        admin_email = request.session.get('_admin_email', 'unknown')
+        logger.info(f"[ADMIN] User {user.email} {action} by {admin_email}")
     except CustomUser.DoesNotExist:
         messages.error(request, "User not found.")
 
     return redirect("admin_users")
+
+
 
 
 @admin_required
+@never_cache
 def admin_delete_user_view(request, user_id):
+    """Delete a non‑superuser and stay in admin panel.
+
+    Accepts both GET and POST (GET for convenience in UI). Performs the delete,
+    adds a success message and redirects back to the user‑management view.
+    """
+    # Allow GET for backward compatibility; POST is preferred.
+    if request.method not in ("POST", "GET"):
+        return redirect('admin_users')
     try:
-        user      = CustomUser.objects.get(id=user_id, is_superuser=False)
+        user = CustomUser.objects.get(id=user_id, is_superuser=False)
         user_name = user.get_full_name()
         user.delete()
         messages.success(request, f"User {user_name} has been permanently deleted.")
-        logger.info(f"[ADMIN] User {user_name} deleted by {request.user.email}")
+        admin_email = request.session.get('_admin_email', 'unknown')
+        logger.info(f"[ADMIN] User {user_name} deleted by {admin_email}")
     except CustomUser.DoesNotExist:
         messages.error(request, "User not found.")
-
-    return redirect("admin_users")
+    return redirect('admin_users')
 
 
 # ADMIN FORGOT PASSWORD — Step 1: Request OTP
