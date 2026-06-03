@@ -642,6 +642,9 @@ def addresses_view(request):
             try:
                 address      = form.save(commit=False)
                 address.user = request.user
+                # If this is the user's first address, make it default
+                if request.user.addresses.count() == 0:
+                    address.is_default = True
                 address.save()
                 messages.success(request, "Address added successfully.")
                 return redirect("addresses")
