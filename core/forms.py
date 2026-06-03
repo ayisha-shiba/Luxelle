@@ -7,6 +7,41 @@ import re
 
 from .models import CustomUser, UserProfile, Address
 
+PHONE_NORMALIZATION_REGEX = re.compile(r"[^\d+]")
+PHONE_ALLOWED_CHARS_REGEX = re.compile(r"^\+?[0-9\-\s\(\)]{10,20}$")
+
+
+def normalize_phone_number(phone):
+    phone = str(phone or "").strip()
+    if not phone:
+        return ""
+    normalized = PHONE_NORMALIZATION_REGEX.sub("", phone)
+    if normalized.startswith("+"):
+        normalized = normalized[1:]
+    if normalized.startswith("0") and len(normalized) == 11:
+        normalized = normalized[1:]
+    elif normalized.startswith("91") and len(normalized) == 12:
+        normalized = normalized[2:]
+    return normalized
+
+
+def validate_phone_number(phone):
+    phone = str(phone or "").strip()
+    if not phone:
+        raise ValidationError("Phone number is required.")
+    if not PHONE_ALLOWED_CHARS_REGEX.match(phone):
+        raise ValidationError(
+            "Enter a valid Indian mobile number using digits, spaces, hyphens, parentheses, or a leading +91."
+        )
+    normalized = normalize_phone_number(phone)
+    if not normalized.isdigit():
+        raise ValidationError("Phone number must contain digits only after removing formatting characters.")
+    if len(normalized) != 10:
+        raise ValidationError("Enter a valid 10-digit Indian mobile number.")
+    if normalized[0] not in "6789":
+        raise ValidationError("Enter a valid Indian mobile number starting with 6, 7, 8, or 9.")
+    return normalized
+
 
 # ─────────────────────────────────────────────
 # Custom Password Validator
@@ -56,7 +91,13 @@ def _password(placeholder):
 # ─────────────────────────────────────────────
 
 class RegistrationForm(forms.ModelForm):
-    
+    # Explicit field for full name (non-model)
+    full_name = forms.CharField(
+        label="Full Name",
+        widget=_input("Full Name"),
+        required=True,
+    )
+
     password1 = forms.CharField(
         label="Password",
         widget=_password("Create a password"),
@@ -69,28 +110,24 @@ class RegistrationForm(forms.ModelForm):
     )
 
     class Meta:
-        model  = CustomUser
-        fields = ["first_name", "last_name", "email", "phone"]
+        model = CustomUser
+        # Exclude full_name from model fields; it's handled manually above
+        fields = ["email", "phone"]
         widgets = {
-            "first_name": _input("First name"),
-            "last_name":  _input("Last name"),
             "email":      _email("Email address"),
             "phone":      _input("Phone number", type_="tel"),
         }
-    def clean_first_name(self):
-        name = self.cleaned_data.get("first_name", "").strip()
-        if len(name) < 2:
-            raise ValidationError("First name must be at least 2 characters.")
-        if not all(ch.isalpha() or ch.isspace() for ch in name):
-            raise ValidationError("First name can only contain letters and spaces.")
-        return name
+        required = {
+            "email": True,
+            "phone": True,
+        }
 
-    def clean_last_name(self):
-        name = self.cleaned_data.get("last_name", "").strip()
+    def clean_full_name(self):
+        name = self.cleaned_data.get("full_name", "").strip()
         if len(name) < 2:
-            raise ValidationError("Last name must be at least 2 characters.")
+            raise ValidationError("Full name must be at least 2 characters.")
         if not all(ch.isalpha() or ch.isspace() for ch in name):
-            raise ValidationError("Last name can only contain letters and spaces.")
+            raise ValidationError("Full name can only contain letters and spaces.")
         return name
 
     def clean_email(self):
@@ -111,10 +148,11 @@ class RegistrationForm(forms.ModelForm):
         return email
 
     def clean_phone(self):
-        phone = self.cleaned_data.get("phone", "").strip()
-        if phone and not phone.replace("+", "").isdigit():
-            raise ValidationError("Enter a valid phone number.")
-        return phone
+        phone = self.cleaned_data.get("phone", "")
+        normalized_phone = validate_phone_number(phone)
+        if CustomUser.objects.filter(phone=normalized_phone).exists():
+            raise ValidationError("A user with this phone number already exists.")
+        return normalized_phone
 
     def clean(self):
         cleaned = super().clean()
@@ -126,6 +164,15 @@ class RegistrationForm(forms.ModelForm):
 
     def save(self, commit=True):
         user = super().save(commit=False)
+        # Split full_name into first and last name
+        full_name = self.cleaned_data.get("full_name", "").strip()
+        parts = full_name.split(maxsplit=1)
+        if len(parts) == 2:
+            user.first_name = parts[0]
+            user.last_name = parts[1]
+        else:
+            user.first_name = full_name
+            user.last_name = ""
         user.set_password(self.cleaned_data["password1"])
         user.is_active = False   # Stays inactive until OTP verified
         if commit:
@@ -300,6 +347,7 @@ class EmailChangeForm(forms.Form):
 # ─────────────────────────────────────────────
 
 class ProfileEditForm(forms.ModelForm):
+    # Explicit non-model full_name field for editing
     full_name = forms.CharField(
         label="Full Name",
         widget=_input("Enter your full name"),
@@ -307,12 +355,13 @@ class ProfileEditForm(forms.ModelForm):
     )
 
     class Meta:
-        model  = CustomUser
-        fields = ["full_name", "email", "phone"]
+        model = CustomUser
+        # Exclude full_name from model fields; handled manually above
+        fields = ["phone"]
         widgets = {
-            "email": _email("Email address"),
             "phone": _input("Phone number", type_="tel"),
         }
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -328,21 +377,14 @@ class ProfileEditForm(forms.ModelForm):
         return name
 
     def clean_phone(self):
-        phone = self.cleaned_data.get("phone", "").strip()
-        if not phone.isdigit():
-            raise ValidationError("Phone must contain digits only.")
-        if len(phone) != 10:
-            raise ValidationError("Phone number must be exactly 10 digits.")
-        return phone
-
-    def clean_email(self):
-        email = self.cleaned_data.get("email", "").lower()
-        qs = CustomUser.objects.filter(email__iexact=email)
+        phone = self.cleaned_data.get("phone", "")
+        normalized_phone = validate_phone_number(phone)
+        qs = CustomUser.objects.filter(phone=normalized_phone)
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
-            raise ValidationError("This email is already in use by another user.")
-        return email
+            raise ValidationError("This phone number is already in use by another user.")
+        return normalized_phone
 
     def save(self, commit=True):
         user      = super().save(commit=False)
@@ -356,7 +398,7 @@ class ProfileEditForm(forms.ModelForm):
             user.last_name  = ""
         if commit:
             # Only update the fields this form owns — never touch password.
-            user.save(update_fields=["first_name", "last_name", "email", "phone"])
+            user.save(update_fields=["first_name", "last_name", "phone"])
         return user
 
 
@@ -366,7 +408,7 @@ class UserProfileForm(forms.ModelForm):
         fields = ["avatar", "gender", "date_of_birth", "bio"]
         widgets = {
             "gender":        forms.Select(attrs={"class": "form-control"}),
-            "date_of_birth": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "date_of_birth": forms.DateInput(attrs={"class": "form-control", "type": "date", "max": timezone.localdate().isoformat()}),
             "bio":           forms.Textarea(attrs={
                 "class":       "form-control",
                 "rows":        3,
@@ -385,6 +427,19 @@ class UserProfileForm(forms.ModelForm):
             if hasattr(avatar, "content_type") and avatar.content_type not in allowed:
                 raise ValidationError("Only JPEG, PNG, or WebP images are allowed.")
         return avatar
+
+    def clean_date_of_birth(self):
+        dob = self.cleaned_data.get('date_of_birth')
+        if dob:
+            today = timezone.localdate()
+            if dob > today:
+                raise ValidationError('Date of birth cannot be in the future.')
+            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+            if age < 13:
+                raise ValidationError('You must be at least 13 years old.')
+            if age > 120:
+                raise ValidationError('Age cannot exceed 120 years.')
+        return dob
 
 
 # ─────────────────────────────────────────────
@@ -421,17 +476,8 @@ class AddressForm(forms.ModelForm):
         return name
 
     def clean_phone(self):
-        phone  = self.cleaned_data.get("phone", "").strip()
-        digits = phone.replace("+", "").replace(" ", "").replace("-", "")
-        if digits.startswith("91") and len(digits) == 12:
-            digits = digits[2:]
-        elif digits.startswith("0") and len(digits) == 11:
-            digits = digits[1:]
-        if not digits.isdigit():
-            raise ValidationError("Phone number must contain digits only.")
-        if len(digits) != 10:
-            raise ValidationError("Phone number must be exactly 10 digits.")
-        return digits
+        phone = self.cleaned_data.get("phone", "")
+        return validate_phone_number(phone)
 
     def clean_address_line1(self):
         value = self.cleaned_data.get("address_line1", "").strip()

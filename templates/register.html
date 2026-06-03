@@ -72,39 +72,34 @@
                         <form method="POST" action="{% url 'register' %}" class="font-inter">
                             {% csrf_token %}
 
-                            <!-- First Name -->
-    <div class="form-floating mb-3 custom-input-group">
-        <input type="text" class="form-control custom-input {% if form.first_name.errors %}is-invalid{% endif %}" name="first_name"
-            placeholder="First Name" value="{{ form.first_name.value|default_if_none:'' }}" minlength="2" required />
-        <label>First Name</label>
-        <div class="validation-error{% if form.first_name.errors %} show{% endif %}">{{ form.first_name.errors.0|default:'' }}</div>
-    </div>
 
-                            <!-- Last Name -->
-    <div class="form-floating mb-3 custom-input-group">
-        <input type="text" class="form-control custom-input {% if form.last_name.errors %}is-invalid{% endif %}" name="last_name"
-            placeholder="Last Name" value="{{ form.last_name.value|default_if_none:'' }}" minlength="2" required />
-        <label>Last Name</label>
-        <div class="validation-error{% if form.last_name.errors %} show{% endif %}">{{ form.last_name.errors.0|default:'' }}</div>
-    </div>
+<!-- Full Name -->
+<div class="form-floating mb-3 custom-input-group">
+    <input type="text" class="form-control custom-input {% if form.full_name.errors %}is-invalid{% endif %}"
+           name="full_name"
+           placeholder="Full Name" value="{{ form.full_name.value|default_if_none:'' }}" />
+    <label>Full Name</label>
+    <div class="validation-error{% if form.full_name.errors %} show{% endif %}">{{ form.full_name.errors.0|default:'' }}</div>
+</div>
+
 
                             <!-- Email -->
     <div class="form-floating mb-3 custom-input-group">
-        <input type="email" class="form-control custom-input {% if form.email.errors %}is-invalid{% endif %}" name="email" placeholder="Email"
-            value="{{ form.email.value|default_if_none:'' }}" required />
+            <input type="text" class="form-control custom-input {% if form.email.errors %}is-invalid{% endif %}" name="email"
+                placeholder="Email" value="{{ form.email.value|default_if_none:'' }}" />
         <label>Email address</label>
         <div class="validation-error{% if form.email.errors %} show{% endif %}">{{ form.email.errors.0|default:'' }}</div>
     </div>
 
           <div class="form-floating mb-3 custom-input-group position-relative">
-        <input type="text" class="form-control custom-input {% if form.phone.errors %}is-invalid{% endif %}" name="phone" placeholder="Phone"
-            value="{{ form.phone.value|default_if_none:'' }}" pattern="[0-9\+\s\-]{10,14}" title="Enter a valid 10-digit phone number" required />
+            <input type="tel" class="form-control custom-input {% if form.phone.errors %}is-invalid{% endif %}" name="phone" placeholder="Phone"
+                value="{{ form.phone.value|default_if_none:'' }}" pattern="^(\+91[\-\s]?|0)?[6-9][0-9]{4}[\-\s]?[0-9]{5}$" title="Enter a valid Indian mobile number, e.g. +91 98765 43210, 09876543210, or 9876543210" maxlength="20" />
         <label>Phone Number</label>
         <div class="validation-error{% if form.phone.errors %} show{% endif %}">{{ form.phone.errors.0|default:'' }}</div>
     </div>            <!-- Password -->
     <div class="form-floating mb-3 custom-input-group position-relative">
-        <input type="password" class="form-control custom-input {% if form.password1.errors %}is-invalid{% endif %}" name="password1" id="regPassword1"
-            placeholder="Password" minlength="8" required />
+            <input type="password" class="form-control custom-input {% if form.password1.errors %}is-invalid{% endif %}" name="password1" id="regPassword1"
+                placeholder="Password" />
         <label>Password</label>
         <span class="position-absolute end-0 top-50 translate-middle-y pe-3 text-muted" style="cursor:pointer;z-index:5;" onclick="togglePasswordVisibility(this)">
             <i class="fa-regular fa-eye"></i>
@@ -114,8 +109,8 @@
 
                             <!-- Confirm Password -->
     <div class="form-floating mb-4 custom-input-group position-relative">
-        <input type="password" class="form-control custom-input {% if form.password2.errors %}is-invalid{% endif %}" name="password2" id="regPassword2"
-            placeholder="Confirm Password" minlength="8" required />
+            <input type="password" class="form-control custom-input {% if form.password2.errors %}is-invalid{% endif %}" name="password2" id="regPassword2"
+                placeholder="Confirm Password" />
         <label>Confirm Password</label>
         <span class="position-absolute end-0 top-50 translate-middle-y pe-3 text-muted" style="cursor:pointer;z-index:5;" onclick="togglePasswordVisibility(this)">
             <i class="fa-regular fa-eye"></i>
@@ -125,7 +120,7 @@
 
                             <!-- Terms -->
                             <div class="form-check mb-4">
-                                <input class="form-check-input" type="checkbox" required />
+                                <input class="form-check-input" type="checkbox" />
                                 <label class="form-check-label">
                                     I agree to Terms & Conditions
                                 </label>

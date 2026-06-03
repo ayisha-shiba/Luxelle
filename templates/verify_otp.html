@@ -94,7 +94,7 @@
 
             <!-- Resend timer & Back links -->
             <div class="d-flex flex-column gap-2 text-xxs font-inter border-top border-light pt-3">
-                <span class="text-muted fw-medium d-block mb-1" id="timerLabel">Resend code in <strong class="text-lux-gold" id="timerSec">59</strong>s</span>
+                <span class="text-muted fw-medium d-block mb-1" id="timerLabel">Resend code in <strong class="text-lux-gold" id="timerSec">{{ seconds_remaining|default_if_none:59 }}</strong>s</span>
                 <a href="{% url 'resend_otp' %}" class="text-lux-gold text-decoration-none fw-bold hover-scale-105 d-none" id="resendCodeLink">RESEND CODE</a>
                 
             </div>
@@ -161,22 +161,44 @@
             otpInputs.forEach(input => { input.removeAttribute('name'); });
         });
 
-        // Live Resend countdown timer
-        let timeLeft = {{ seconds_remaining|default:59 }};
+        // Live Resend countdown timer using sessionStorage to preserve remaining time across page reloads
+        // Initialize timeLeft from sessionStorage if available, otherwise from server-provided value
+        let storedTime = sessionStorage.getItem('otpTimer');
+        let timeLeft = storedTime !== null ? parseInt(storedTime, 10) : {{ seconds_remaining|default_if_none:59 }};
         const timerSec = document.getElementById('timerSec');
         const timerLabel = document.getElementById('timerLabel');
         const resendLink = document.getElementById('resendCodeLink');
-        
-        const countdown = setInterval(() => {
-            timeLeft--;
-            if (timeLeft >= 0) {
-                timerSec.innerText = timeLeft;
-            } else {
-                clearInterval(countdown);
+
+        const updateResendCountdown = () => {
+            timerSec.innerText = timeLeft;
+            if (timeLeft <= 0) {
                 timerLabel.classList.add('d-none');
                 resendLink.classList.remove('d-none');
+                // Clear stored timer when countdown completed
+                sessionStorage.removeItem('otpTimer');
+            } else {
+                timerLabel.classList.remove('d-none');
+                resendLink.classList.add('d-none');
+                // Store remaining time for page reloads
+                sessionStorage.setItem('otpTimer', timeLeft);
             }
-        }, 1000);
+        };
+
+        updateResendCountdown();
+
+        if (timeLeft > 0) {
+            const countdown = setInterval(() => {
+                timeLeft--;
+                updateResendCountdown();
+                if (timeLeft <= 0) {
+                    clearInterval(countdown);
+                }
+            }, 1000);
+        }
+        // When user clicks the resend link, clear stored timer so it restarts from fresh value on next load
+        resendLink.addEventListener('click', () => {
+            sessionStorage.removeItem('otpTimer');
+        });
     </script>
 </body>
 </html>

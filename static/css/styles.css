@@ -66,11 +66,14 @@ body {
    Card & Forms
    ========================================= */
 .login-card {
-    max-width: 520px;
-    background-color: rgba(255,255,255,0.98);
-    border-radius: 28px;
-    border: 1px solid rgba(0,0,0,0.04);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+    max-width: 380px;
+    padding: 2rem 1.5rem;
+    background: rgba(255,255,255,0.85);
+    border-radius: 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(0,0,0,0.08);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.1);
     transition: var(--transition-smooth);
 }
 
@@ -89,17 +92,17 @@ body {
 /* Inputs */
 .custom-input {
     border: 1px solid var(--lux-gray-light);
-    border-radius: 10px;
-    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    padding: 1.2rem 1.3rem;
     font-size: 1rem;
     transition: var(--transition-smooth);
-    background-color: #FAFAFA;
+    background-color: #F9F9F9;
 }
 
 .custom-input:focus {
     background-color: var(--lux-white);
     border-color: var(--lux-gold);
-    box-shadow: 0 0 0 4px rgba(201, 162, 106, 0.15);
+    box-shadow: 0 0 0 4px rgba(201, 162, 106, 0.25);
 }
 
 .form-floating > label {
@@ -140,13 +143,18 @@ body {
 
 /* Buttons */
 .luxury-btn {
-    background-color: var(--lux-black);
+    background: linear-gradient(135deg, var(--lux-black), var(--lux-gray-dark, #2c2c2c));
     border: none;
     border-radius: 12px;
     font-weight: 600;
     letter-spacing: 0.6px;
     padding: 0.95rem 1.2rem;
     transition: var(--transition-smooth);
+}
+.luxury-btn:hover {
+    background: var(--lux-gold);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(201, 162, 106, 0.4);
 }
 
 .luxury-btn:hover {
@@ -230,15 +238,16 @@ body {
 }
 
 .login-card {
-    max-width: 520px;
-    background-color: var(--lux-white);
-    border-radius: 28px;
-    box-shadow: var(--shadow-soft);
+    max-width: 380px;
+    background: rgba(255,255,255,0.85);
+    border-radius: 20px;
+    border: 1px solid rgba(0,0,0,0.08);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.1);
     transition: var(--transition-smooth);
 }
-
 .login-card:hover {
-    box-shadow: var(--shadow-hover);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.12);
     transform: translateY(-2px);
 }
 
