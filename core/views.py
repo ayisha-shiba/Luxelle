@@ -1,8 +1,16 @@
 
 
 import logging
-import random
-import string
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+    logger.addHandler(console_handler)
+logger.setLevel(logging.INFO)
 from datetime import datetime, timedelta
 
 from django.contrib import messages
@@ -12,6 +20,7 @@ from django.contrib.auth import update_session_auth_hash
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
+# pyrefly: ignore [missing-import]
 from django.views.decorators.http import require_POST
 
 
@@ -39,6 +48,7 @@ from .utils import (
     verify_otp,
     generate_otp,
     OTP_EXPIRY_MINUTES,
+    SESSION_EXPIRY_MINUTES,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,6 +72,23 @@ def _clear_registration_session(request):
         request.session.pop(key, None)
 
 
+def _get_pending_otp_resend_seconds_remaining(request):
+    sent_at_str = request.session.get("pending_otp_sent_at")
+    if not sent_at_str:
+        return 0
+
+    try:
+        sent_at = datetime.fromisoformat(sent_at_str)
+        if timezone.is_naive(sent_at):
+            sent_at = timezone.make_aware(sent_at)
+        elapsed = (timezone.now() - sent_at).total_seconds()
+        cooldown = OTPVerification.RESEND_COOLDOWN_SECONDS
+        remaining = int(cooldown - elapsed)
+        return max(0, remaining)
+    except (ValueError, TypeError):
+        return 0
+
+
 # HOME
 
 def home_view(request):
@@ -75,14 +102,12 @@ def home_view(request):
 @never_cache
 @anonymous_required()
 def register_view(request):
-    # Only clear registration session if there is no pending registration data.
     if not request.session.get("pending_registration"):
         _clear_registration_session(request)
 
     if request.user.is_authenticated:
         logout(request)
 
-    # Initialize form with any previously stored registration data to preserve input.
     initial_data = request.session.get("pending_registration", {})
     form = RegistrationForm(request.POST or None, initial=initial_data)
 
@@ -91,8 +116,7 @@ def register_view(request):
             registration_data = {
                 "email": form.cleaned_data["email"],
                 "password": form.cleaned_data["password1"],
-                "first_name": form.cleaned_data["first_name"],
-                "last_name": form.cleaned_data["last_name"],
+                "full_name": form.cleaned_data["full_name"],
                 "phone": form.cleaned_data.get("phone", ""),
             }
             request.session["pending_registration"] = registration_data
@@ -102,18 +126,19 @@ def register_view(request):
 
             class _TempUser:
                 email = registration_data["email"]
-                first_name = registration_data["first_name"]
+                # Use first part of full name for email template
+                full_name = registration_data.get("full_name", "")
+                first_name = full_name.split(maxsplit=1)[0] if full_name else ""
 
             if send_otp_email(_TempUser(), otp_code, purpose="registration"):
                 request.session["pending_otp"] = otp_code
                 request.session["pending_otp_expires_at"] = expires_at.isoformat()
                 request.session["pending_otp_sent_at"] = timezone.now().isoformat()
-                request.session.set_expiry(OTP_EXPIRY_MINUTES * 60)
-                return redirect("verify_otp")
+                request.session.set_expiry(SESSION_EXPIRY_MINUTES * 60)
+                return redirect('verify_otp')
             else:
                 messages.error(request, "Failed to send verification email. Please try again.")
         else:
-            # Preserve entered data on validation errors
             request.session["pending_registration"] = request.POST.dict()
 
     return render(request, "register.html", {"form": form})
@@ -123,8 +148,7 @@ def register_view(request):
 
 @never_cache
 @otp_session_required
-def verify_otp_view(request):
-    
+def verify_otp_view(request):    
     registration_data = request.session.get("pending_registration")
     if not registration_data:
         _clear_registration_session(request)
@@ -150,30 +174,28 @@ def verify_otp_view(request):
                 return render(request, "verify_otp.html", {
                     "form": form,
                     "email": registration_data["email"],
-                    "seconds_remaining": 0,
+                    "seconds_remaining": _get_pending_otp_resend_seconds_remaining(request),
                 })
 
 
             if otp_input != pending_otp:
-                messages.error(request, "Incorrect OTP. Please try again.")
-                seconds_remaining = 0
-                if expires_at:
-                    delta = (expires_at - timezone.now()).total_seconds()
-                    seconds_remaining = max(0, int(delta))
-                if seconds_remaining > 59:
-                    seconds_remaining = 59
+                messages.error(request, "Invalid OTP. Please try again.")
                 return render(request, "verify_otp.html", {
                     "form": form,
                     "email": registration_data["email"],
-                    "seconds_remaining": seconds_remaining,
+                    "seconds_remaining": _get_pending_otp_resend_seconds_remaining(request),
                 })
 
             try:
+                full_name = registration_data.get("full_name", "")
+                name_parts = full_name.split(maxsplit=1)
+                first_name = name_parts[0] if len(name_parts) > 0 else ""
+                last_name = name_parts[1] if len(name_parts) > 1 else ""
                 user = CustomUser.objects.create_user(
                     email      = registration_data["email"],
                     password   = registration_data["password"],
-                    first_name = registration_data["first_name"],
-                    last_name  = registration_data["last_name"],
+                    first_name = first_name,
+                    last_name  = last_name,
                     phone      = registration_data.get("phone", ""),
                 )
                 user.is_active   = True
@@ -188,24 +210,10 @@ def verify_otp_view(request):
 
             request.session.flush()
             login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-            logger.info(f"[VERIFY_OTP] User created and activated: {user.email}")
             messages.success(request, "Email verified! Welcome to Luxelle.")
             return redirect("home")
 
-    seconds_remaining = 0
-    sent_at_str = request.session.get("pending_otp_sent_at")
-    if sent_at_str:
-        try:
-            sent_at = datetime.fromisoformat(sent_at_str)
-            if timezone.is_naive(sent_at):
-                sent_at = timezone.make_aware(sent_at)
-            elapsed = (timezone.now() - sent_at).total_seconds()
-            cooldown = OTPVerification.RESEND_COOLDOWN_SECONDS
-            remaining = int(cooldown - elapsed)
-            if remaining > 0:
-                seconds_remaining = remaining
-        except (ValueError, TypeError):
-            seconds_remaining = 0
+    seconds_remaining = _get_pending_otp_resend_seconds_remaining(request)
 
     return render(request, "verify_otp.html", {
         "form":               form,
@@ -215,51 +223,35 @@ def verify_otp_view(request):
 
 
 @never_cache
-
+@otp_session_required
 def resend_otp_view(request):
-    """Resend OTP during registration without losing session data."""
     registration_data = request.session.get("pending_registration")
     if not registration_data:
         messages.error(request, "Session expired. Please register again.")
         return redirect("register")
-    # Enforce resend cooldown
-    sent_at_str = request.session.get("pending_otp_sent_at")
-    if sent_at_str:
-        try:
-            sent_at = datetime.fromisoformat(sent_at_str)
-            if timezone.is_naive(sent_at):
-                sent_at = timezone.make_aware(sent_at)
-            elapsed = (timezone.now() - sent_at).total_seconds()
-            cooldown = OTPVerification.RESEND_COOLDOWN_SECONDS
-            if elapsed < cooldown:
-                remaining = int(cooldown - elapsed)
-                messages.warning(request, f"Please wait {remaining} seconds before requesting a new OTP.")
-                return redirect("verify_otp")
-        except (ValueError, TypeError):
-            pass
-    # Generate and send a new OTP
+
     otp_code = generate_otp()
     expires_at = timezone.now() + timedelta(minutes=OTP_EXPIRY_MINUTES)
 
     class _TempUser:
         email = registration_data["email"]
-        first_name = registration_data["first_name"]
+        full_name = registration_data.get("full_name", "")
+        first_name = full_name.split(maxsplit=1)[0] if full_name else ""
 
     email_sent = send_otp_email(_TempUser(), otp_code, purpose="registration")
     if email_sent:
         request.session["pending_otp"] = otp_code
         request.session["pending_otp_expires_at"] = expires_at.isoformat()
         request.session["pending_otp_sent_at"] = timezone.now().isoformat()
-        request.session.set_expiry(OTP_EXPIRY_MINUTES * 60)
-        messages.success(request, f"A new OTP has been sent to {registration_data['email']}.")
+        request.session["pending_registration"] = registration_data
+        request.session["otp_purpose"] = "registration"
+        request.session.set_expiry(SESSION_EXPIRY_MINUTES * 60)
+        request.session.modified = True
+        request.session.save()
+        messages.success(request, "OTP resent successfully.")
     else:
         messages.error(request, "Failed to resend OTP. Please try again.")
-    request.session.modified = True
-    return redirect("verify_otp")
-
-
-
-# LOGIN
+    return redirect('verify_otp')
 
 @never_cache
 @anonymous_required()
@@ -295,10 +287,14 @@ def login_view(request):
 
                 messages.error(request, "Invalid email or password.")
             else:
+                if user.is_superuser:
+                    messages.error(request, "This account is for admin use only. Please login via the admin portal.")
+                    return render(request, "login.html", {"form": form})
                 clear_pending_user_session(request)
                 request.session.cycle_key()
                 login(request, user)
-                logger.info(f"[LOGIN] User logged in: {user.email}")
+                request.session.pop('_is_admin', None)
+                request.session.pop('_admin_user_id', None)
                 messages.success(request, f"Welcome back, {user.first_name or user.email}!")
                 next_url = request.GET.get("next", "home")
                 return redirect(next_url)
@@ -360,13 +356,13 @@ def forgot_password_view(request):
 @never_cache
 
 def forgot_password_otp_view(request):
-    """Verify the password-reset OTP (server-side expiry check)."""
     user = get_pending_user(request)
     if not user or request.session.get("otp_purpose") != "password_reset":
         messages.error(request, "Session expired. Please start again.")
         return redirect("forgot_password")
 
     form = OTPVerificationForm(request.POST or None)
+    seconds_remaining = _get_pending_otp_resend_seconds_remaining(request)
 
     if request.method == "POST":
         if form.is_valid():
@@ -381,7 +377,7 @@ def forgot_password_otp_view(request):
             else:
                 messages.error(request, error_msg)
 
-    return render(request, "forgot_password_otp.html", {"form": form, "email": user.email})
+    return render(request, "forgot_password_otp.html", {"form": form, "email": user.email, "seconds_remaining": seconds_remaining})
 
 
 @never_cache
@@ -401,26 +397,14 @@ def resend_forgot_password_otp_view(request):
     email_sent = send_otp_email(user, otp_obj.otp, purpose="password_reset")
 
     if email_sent:
-        messages.success(request, f"A new OTP has been sent to {user.email}.")
+        set_pending_user_session(request, user.pk, purpose="password_reset")
+        messages.success(request, "OTP sent successfully.")
     else:
         messages.error(request, "Failed to resend OTP. Please try again.")
 
     from .forms import OTPVerificationForm
     form = OTPVerificationForm()
-    seconds_remaining = 0
-    sent_at_str = request.session.get("pending_otp_sent_at")
-    if sent_at_str:
-        try:
-            sent_at = datetime.fromisoformat(sent_at_str)
-            if timezone.is_naive(sent_at):
-                sent_at = timezone.make_aware(sent_at)
-            elapsed = (timezone.now() - sent_at).total_seconds()
-            cooldown = OTPVerification.RESEND_COOLDOWN_SECONDS
-            remaining = int(cooldown - elapsed)
-            if remaining > 0:
-                seconds_remaining = remaining
-        except (ValueError, TypeError):
-            pass
+    seconds_remaining = _get_pending_otp_resend_seconds_remaining(request)
     return render(request, "forgot_password_otp.html", {"form": form, "email": user.email, "seconds_remaining": seconds_remaining})
 
 # FORGOT PASSWORD — Step 3: Set New Password
@@ -532,7 +516,6 @@ def change_password_view(request):
 @login_required
 
 def change_email_view(request):
-    """Initiate email change: validate new email, send OTP to current email."""
     if request.method == "POST":
         form = EmailChangeForm(request.user, request.POST)
         if form.is_valid():
@@ -553,7 +536,6 @@ def change_email_view(request):
     else:
         form = EmailChangeForm(request.user)
     return render(request, "change_email.html", {"form": form})
-
 
 @never_cache
 @login_required
@@ -612,7 +594,6 @@ def resend_email_otp_view(request):
 @login_required
 @never_cache
 def delete_account_view(request):
-    """Permanently delete the authenticated user's account after password confirmation."""
     error = None
     if request.method == "POST":
         password = request.POST.get("password", "")
@@ -632,7 +613,6 @@ def delete_account_view(request):
 @login_required
 @never_cache
 def addresses_view(request):
-    """List all addresses and handle Add Address form."""
     addresses = request.user.addresses.all()
     form      = AddressForm()
 
@@ -683,7 +663,6 @@ def address_edit_view(request, address_id):
 @login_required
 @never_cache
 def address_delete_view(request, address_id):
-    """Delete an address (POST only, ownership enforced)."""
     address = get_object_or_404(Address, pk=address_id, user=request.user)
     if request.method == "POST":
         address.delete()

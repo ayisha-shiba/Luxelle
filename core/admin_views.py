@@ -34,20 +34,19 @@ def admin_login_view(request):
         return redirect("admin_dashboard")
 
     if request.method == "POST":
-        email    = request.POST.get("email", "").strip()
+        email = request.POST.get("email", "").strip()
         password = request.POST.get("password", "")
 
-        # Normal authentication path
         user = authenticate(request, email=email, password=password)
 
         if user is not None and user.is_superuser:
-            login(request, user)
             request.session["_is_admin"] = True
             request.session["_admin_user_id"] = str(user.id)
+            request.session.modified = True
             logger.info(f"[ADMIN LOGIN] Superuser logged in: {user.email}")
             messages.success(request, "Welcome to the Luxelle Admin Panel.")
             return redirect("admin_dashboard")
-        else:   
+        else:
             messages.error(request, "Wrong password")
 
     return render(request, "admin_panel/login.html")
@@ -56,19 +55,19 @@ def admin_login_view(request):
 @admin_required
 @never_cache
 def admin_logout_view(request):
-    """Log out admin and redirect to admin login."""
-    logout(request)
+
+    request.session.pop('_is_admin', None)
+    request.session.pop('_admin_user_id', None)
+    request.session.modified = True
     messages.success(request, "You have been logged out of the Admin Panel.")
     return redirect("admin_login")
 
 
-# 
+
 # ADMIN DASHBOARD
-# ════════════════════════════════════════════════════════════
 
 @admin_required
 def admin_dashboard_view(request):
-    """Admin dashboard showing summary statistics."""
     from django.utils import timezone
 
     non_superusers = CustomUser.objects.filter(is_superuser=False)
@@ -84,9 +83,7 @@ def admin_dashboard_view(request):
     return render(request, "admin_panel/dashboard.html", context)
 
 
-# ══════════════════════════════════════════════════════════════
 # USER MANAGEMENT
-# ══════════════════════════════════════════════════════════════
 
 @admin_required
 def admin_user_management_view(request):
@@ -171,24 +168,22 @@ def admin_delete_user_view(request, user_id):
 # ADMIN FORGOT PASSWORD — Step 1: Request OTP
 
 def admin_forgot_password_view(request):
-    """Handle admin forgot password flow: validate email, send OTP, and redirect to OTP verification page."""
     logger.debug("admin_forgot_password_view called with method=%s", request.method)
     if request.method != "POST":
         return render(request, "admin_panel/forgot_password.html")
-
-        try:
-            user = CustomUser.objects.get(email=email)
-        except CustomUser.DoesNotExist:
-            # No admin user found; show generic message to avoid revealing existence
-            messages.success(request, "If an admin account with that email exists, an OTP has been sent.")
-            return render(request, "admin_panel/forgot_password.html")
-
-    # At this point we have a valid user instance
+    email = request.POST.get("email", "").strip()
+    if not email:
+        messages.error(request, "Please provide an email address.")
+        return render(request, "admin_panel/forgot_password.html")
+    try:
+        user = CustomUser.objects.get(email=email, is_superuser=True)
+    except CustomUser.DoesNotExist:
+        messages.success(request, "If an admin account with that email exists, an OTP has been sent.")
+        return render(request, "admin_panel/forgot_password.html")
     allowed, seconds_left = check_resend_cooldown(user, purpose="password_reset")
     if not allowed:
         messages.warning(request, f"Please wait {seconds_left} seconds before requesting a new OTP.")
         return render(request, "admin_panel/forgot_password.html")
-
     otp_obj = create_otp_for_user(user, purpose="password_reset")
     email_sent = send_otp_email(user, otp_obj.otp, purpose="password_reset")
     if email_sent:
@@ -199,11 +194,10 @@ def admin_forgot_password_view(request):
     request.session.modified = True
     request.session.save()
     logger.debug("Redirecting to OTP page for user %s", user.email)
-    return HttpResponseRedirect(reverse('admin_forgot_password_otp'))
+    return redirect('admin_forgot_password_otp')
 
-# ══════════════════════════════════════════════════════════════
+
 # ADMIN FORGOT PASSWORD — Step 2: Verify OTP
-# ══════════════════════════════════════════════════════════════
 
 @never_cache
 def admin_forgot_password_otp_view(request):
@@ -232,9 +226,7 @@ def admin_forgot_password_otp_view(request):
     return render(request, "admin_panel/otp.html", {"email": user.email})
 
 
-# ══════════════════════════════════════════════════════════════
 # ADMIN FORGOT PASSWORD — Resend OTP
-# ══════════════════════════════════════════════════════════════
 
 @never_cache
 def admin_resend_forgot_password_otp_view(request):
@@ -260,9 +252,7 @@ def admin_resend_forgot_password_otp_view(request):
     return redirect("admin_forgot_password_otp")
 
 
-# ══════════════════════════════════════════════════════════════
 # ADMIN FORGOT PASSWORD — Step 3: Reset Password
-# ══════════════════════════════════════════════════════════════
 
 @never_cache
 def admin_reset_password_view(request):

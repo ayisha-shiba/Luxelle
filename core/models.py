@@ -13,7 +13,7 @@ class CustomUserManager(BaseUserManager):
         if not email:
             raise ValueError("Email address is required.")
         email = self.normalize_email(email)
-        extra_fields.setdefault("is_active", False)  # Inactive until OTP verified
+        extra_fields.setdefault("is_active", False)  
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -36,9 +36,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     last_name  = models.CharField(max_length=50, blank=True)
     phone      = models.CharField(max_length=15, blank=True)
 
-    is_active   = models.BooleanField(default=False)   # Activated after OTP
+    is_active   = models.BooleanField(default=False)   
     is_staff    = models.BooleanField(default=False)
-    is_verified = models.BooleanField(default=False)   # Email verified
+    is_verified = models.BooleanField(default=False)   
 
     date_joined = models.DateTimeField(default=timezone.now)
 
@@ -64,9 +64,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             UserProfile.objects.get_or_create(user=self)
 
 
-# ─────────────────────────────────────────────
 # OTP Model
-# ─────────────────────────────────────────────
 
 class OTPVerification(models.Model):
 
@@ -102,9 +100,7 @@ class OTPVerification(models.Model):
         return f"OTP({self.user.email} | {self.purpose})"
 
 
-# ─────────────────────────────────────────────
 # User Profile Model
-# ─────────────────────────────────────────────
 
 class UserProfile(models.Model):
     GENDER_CHOICES = [
@@ -130,9 +126,7 @@ class UserProfile(models.Model):
         return "/static/images/default_avatar.png"
 
 
-# ─────────────────────────────────────────────
 # Address Model
-# ─────────────────────────────────────────────
 
 class Address(models.Model):
 
@@ -165,7 +159,6 @@ class Address(models.Model):
         return f"{self.full_name} — {self.city}, {self.state}"
 
     def save(self, *args, **kwargs):
-        """Ensure only one address is marked default per user."""
         if self.is_default:
             Address.objects.filter(
                 user=self.user, is_default=True

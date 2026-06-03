@@ -10,7 +10,6 @@ class CoreConfig(AppConfig):
     name = "core"
 
     def ready(self):
-        # Clear all non-admin sessions on server start to ensure regular users are logged out
         from django.contrib.sessions.models import Session
         for s in Session.objects.all():
             data = s.get_decoded()

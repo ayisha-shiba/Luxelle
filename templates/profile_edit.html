@@ -467,17 +467,6 @@
                                 {% endif %}
                             </div>
 
-                            <!-- Email Address -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label-lux">EMAIL ADDRESS</label>
-                                <input type="email" name="email" class="form-control form-input-lux {% if user_form.email.errors %}is-invalid{% endif %}" value="{{ user_form.email.value|default:user.email }}" required>
-                                {% if user_form.email.errors %}
-                                    <div class="invalid-feedback d-block font-inter small mt-1 text-danger">
-                                        {% for error in user_form.email.errors %}{{ error }}{% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-
                         </div>
 
                         <!-- Action Form buttons at the bottom matching reference placement and colors -->
