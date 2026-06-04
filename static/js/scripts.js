@@ -42,23 +42,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 3. Form Submit Interaction (Button animation simulation)
     const loginForm = document.getElementById('loginForm');
-    const submitBtn = loginForm.querySelector('button[type="submit"]');
-    
-    loginForm.addEventListener('submit', (e) => {
-        e.preventDefault(); // Prevent actual submission for demo purposes
+    if (loginForm) {
+        const submitBtn = loginForm.querySelector('button[type="submit"]');
         
-        // Change button state to show loading
-        const originalText = submitBtn.innerText;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Signing in...';
-        submitBtn.disabled = true;
-        
-        // Simulate network request
-        setTimeout(() => {
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
-            // You could trigger a success animation or redirect here
-        }, 1500);
-    });
+        loginForm.addEventListener('submit', (e) => {
+            // Note: If you want actual submission to work, remove e.preventDefault() 
+            // e.preventDefault(); 
+            
+            // Change button state to show loading
+            const originalText = submitBtn.innerText;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Signing in...';
+            submitBtn.disabled = true;
+            
+            // Re-enable after delay if not navigating away
+            setTimeout(() => {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }, 1500);
+        });
+    }
 
     // 4. Subtle Parallax Effect on Banner (Mouse move)
     const bannerSection = document.querySelector('.banner-section');

@@ -15,13 +15,289 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <!-- Custom CSS -->
     <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    
+    <style>
+        /* ==========================================================================
+           LUXURY PREMIUM LIGHT BEIGE THEME FOR EDIT PROFILE
+           ========================================================================== */
+        body {
+            background-color: #F5F2EB !important;
+            color: #1A1A1A !important;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Header Style Override */
+        header.navbar {
+            background-color: #ffffff !important;
+            border-bottom: 1px solid #e2dfd9 !important;
+            box-shadow: none !important;
+        }
+        header.navbar .navbar-brand {
+            color: #1A1A1A !important;
+        }
+        header.navbar .nav-link {
+            color: #666666 !important;
+        }
+        header.navbar .nav-link:hover {
+            color: #C9A26A !important;
+        }
+        header.navbar .text-lux-black {
+            color: #1A1A1A !important;
+        }
+        header.navbar .text-lux-black:hover {
+            color: #C9A26A !important;
+        }
+        header.navbar .badge {
+            background-color: #C9A26A !important;
+            color: #ffffff !important;
+        }
+
+        /* Title Styling matching Screenshot */
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #1A1A1A;
+            margin-bottom: 4px;
+        }
+        .lux-heading-line {
+            width: 50px;
+            height: 2px;
+            background-color: #C9A26A;
+            margin-bottom: 30px;
+        }
+
+        /* Profile edit sidebar and form container style */
+        .profile-card-lux {
+            background-color: #ffffff !important;
+            border: 1px solid #e2dfd9 !important;
+            border-radius: 8px !important;
+            padding: 30px 24px !important;
+            height: 100%;
+        }
+
+        /* Avatar Container & Double gold border ring exactly matching reference */
+        .avatar-ring {
+            display: inline-block;
+            position: relative;
+            margin: 0 auto;
+        }
+        .avatar-border-outer {
+            width: 130px;
+            height: 130px;
+            border: 2px solid #C9A26A;
+            border-radius: 50%;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            position: relative;
+            background-color: #ffffff;
+        }
+        .avatar-border-inner {
+            width: 118px;
+            height: 118px;
+            border: 1px solid #C9A26A;
+            border-radius: 50%;
+            padding: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .profile-avatar-img {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        /* Pencil edit button overlay matching reference yellow button */
+        .pencil-edit-overlay {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            background-color: #C9A26A !important;
+            color: #000000 !important;
+            border: 2px solid #ffffff !important;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            transition: all 0.3s ease;
+            z-index: 5;
+        }
+        .pencil-edit-overlay:hover {
+            transform: scale(1.1);
+            background-color: #b08d5b !important;
+        }
+
+        /* Remove Photo button style */
+        .btn-remove-photo {
+            border: 1px solid #dc3545;
+            color: #dc3545;
+            background: transparent;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            padding: 8px 16px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            display: inline-block;
+            text-decoration: none;
+            margin-top: 20px;
+        }
+        .btn-remove-photo:hover {
+            background-color: rgba(220, 53, 69, 0.05);
+            color: #bd2130;
+            border-color: #bd2130;
+        }
+
+        /* Premium ledger description box matching screenshot */
+        .ledger-box {
+            background-color: #FAF8F5 !important;
+            border: 1px solid #EAE5DE !important;
+            border-radius: 6px !important;
+            padding: 20px !important;
+            margin-top: 24px;
+            text-align: left;
+        }
+        .ledger-text {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.76rem;
+            color: #666666;
+            line-height: 1.6;
+            margin-bottom: 0;
+        }
+
+        /* Form styling exactly matching screenshot idea */
+        .form-label-lux {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #b08d5b;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+            display: block;
+        }
+        .form-input-lux {
+            background-color: #ffffff !important;
+            border: 1px solid #e2dfd9 !important;
+            border-radius: 4px !important;
+            color: #1A1A1A !important;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem !important;
+            padding: 14px 16px !important;
+            transition: all 0.3s ease !important;
+            outline: none !important;
+        }
+        .form-input-lux:focus {
+            border-color: #C9A26A !important;
+            box-shadow: 0 0 0 3px rgba(201, 162, 106, 0.15) !important;
+        }
+
+        /* Buttons matching the exact style and placement of Tymora */
+        .btn-save-lux {
+            background-color: #C9A26A !important;
+            color: #000000 !important;
+            border: 1px solid #C9A26A !important;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            padding: 14px 28px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+        .btn-save-lux:hover {
+            background-color: #b08d5b !important;
+            border-color: #b08d5b !important;
+            color: #ffffff !important;
+        }
+        .btn-cancel-lux {
+            background-color: transparent !important;
+            color: #666666 !important;
+            border: 1px solid #e2dfd9 !important;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            padding: 14px 28px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-cancel-lux:hover {
+            background-color: rgba(0,0,0,0.02) !important;
+            color: #1A1A1A !important;
+            border-color: #999999 !important;
+        }
+
+        /* Security card action buttons */
+        .btn-security-lux {
+            border: 1px solid #e2dfd9;
+            background-color: #ffffff;
+            color: #555555;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding: 14px 20px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: block;
+            text-align: center;
+        }
+        .btn-security-lux:hover {
+            border-color: #C9A26A;
+            color: #C9A26A;
+            background-color: #FAF8F5;
+        }
+        .btn-security-lux.btn-delete-lux:hover {
+            border-color: #dc3545;
+            color: #dc3545;
+            background-color: rgba(220, 53, 69, 0.02);
+        }
+
+        /* General footer override to light */
+        footer {
+            background-color: #ffffff !important;
+            border-top: 1px solid #e2dfd9 !important;
+            color: #666666 !important;
+        }
+        footer h3, footer h6 {
+            color: #1A1A1A !important;
+        }
+        footer a {
+            color: #666666 !important;
+        }
+        footer a:hover {
+            color: #C9A26A !important;
+        }
+        footer .social-icons a {
+            color: #1A1A1A !important;
+        }
+        footer .social-icons a:hover {
+            color: #C9A26A !important;
+        }
+    </style>
 </head>
-<body class="bg-lux-beige">
+<body>
 
     <!-- =========================================
        Premium Header / Navigation
        ========================================= -->
-    <header class="navbar navbar-expand-lg navbar-light bg-white sticky-top py-3 px-4 border-bottom border-light shadow-sm">
+    <header class="navbar navbar-expand-lg navbar-light sticky-top py-3 px-4">
         <div class="container-fluid">
             <!-- Brand Logo Left -->
             <a class="navbar-brand font-playfair fs-2 fw-bold tracking-tight text-lux-black m-0" href="{% url 'home' %}">LUXELLE</a>
@@ -44,7 +320,7 @@
                         <a class="nav-link text-lux-gray hover-lux-gold" href="#">Shop</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-lux-gray hover-lux-gold" href="#">Deals</a>
+                        <a class="nav-link text-lux-gray hover-lux-gold" href="#">Stories</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link text-lux-gray hover-lux-gold" href="#">About Us</a>
@@ -57,708 +333,267 @@
                 <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale" title="Search">
                     <i class="fa-solid fa-magnifying-glass fs-5"></i>
                 </a>
-                <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale" title="Favorites">
+                <a href="{% url 'wishlist' %}" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale" title="Favorites">
                     <i class="fa-regular fa-heart fs-5"></i>
                 </a>
                 <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale position-relative" title="Shopping Cart">
                     <i class="fa-solid fa-bag-shopping fs-5"></i>
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-lux-black text-white small-badge">2</span>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-circle">2</span>
                 </a>
                 <div class="dropdown">
                     <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale dropdown-toggle no-caret" id="accountDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Account">
                         <i class="fa-regular fa-user fs-5 text-lux-gold"></i>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-3 mt-2" aria-labelledby="accountDropdown">
-                        <li><a class="dropdown-item rounded-2 py-2" href="{% url 'profile' %}"><i class="fa-solid fa-grip-vertical me-2 text-muted"></i>Dashboard</a></li>
-                        <li><a class="dropdown-item rounded-2 py-2 text-danger" href="#" data-bs-toggle="modal" data-bs-target="#logoutModal"><i class="fa-solid fa-right-from-bracket me-2"></i>Sign Out</a></li>
+                        <li><a class="dropdown-item rounded-2 py-2" href="{% url 'profile' %}"><i class="fa-solid fa-house me-2 text-muted"></i>Dashboard</a></li>
+                        <li>
+    <form action="{% url 'logout' %}" method="post" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="dropdown-item rounded-2 py-2">
+            <i class="fa-solid fa-right-from-bracket me-2 text-muted"></i>Logout
+        </button>
+    </form>
+</li>
                     </ul>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Success Floating Alert -->
-    <div class="position-fixed bottom-4 end-4 z-3" style="bottom: 24px; right: 24px;">
-        <div class="toast align-items-center text-white bg-dark border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true" id="successToast">
-            <div class="d-flex">
-                <div class="toast-body d-flex align-items-center gap-2">
-                    <i class="fa-solid fa-circle-check text-lux-gold"></i>
-                    <span id="toastMessage">Changes saved successfully!</span>
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-        </div>
-    </div>
-
     <!-- =========================================
        Edit Profile Body
        ========================================= -->
     <main class="container py-5">
         
-        <!-- Header Title Banner -->
-        <div class="text-center mb-5">
-            <h1 class="font-playfair text-lux-black display-5 fw-bold mb-2">Edit Your Luxury Profile</h1>
-            <p class="font-inter text-lux-gray small tracking-wide">Manage your personal details and customize your Luxelle experience.</p>
+        <!-- Page Title & Accent Line matching Screenshot -->
+        <div>
+            <h1 class="page-title">Edit Profile</h1>
+            <div class="lux-heading-line"></div>
         </div>
 
-        <div class="row g-4">
-            
-            <!-- LEFT COLUMN: Profile Sidebar -->
-            <aside class="col-12 col-lg-4">
-                <div class="bg-white rounded-4 border border-light shadow-sm p-4 text-center mb-4">
-                    <!-- User Avatar Frame matching Screenshot 1 -->
-                    <div class="position-relative d-inline-block mb-3">
-                        <img src="https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=600&auto=format&fit=crop" alt="Ayisha Shiba" class="rounded-circle border border-3 border-lux-beige shadow-sm sidebar-avatar" style="width: 140px; height: 140px; object-fit: cover;">
-                        <span class="position-absolute bottom-0 end-0 bg-lux-black text-white rounded-circle p-2 d-flex align-items-center justify-content-center cursor-pointer border border-2 border-white" style="width:36px; height:36px;" title="Change Photo" id="changePhotoBtn">
-                            <i class="fa-solid fa-camera text-xs"></i>
-                        </span>
-                        <input type="file" id="avatarFileInput" class="d-none" accept="image/*">
-                    </div>
-                    
-                    <h3 class="font-playfair fw-bold fs-4 text-lux-black mb-1">Ayisha Shiba</h3>
-                    <span class="badge bg-lux-gold text-white text-uppercase tracking-wider rounded-2 mb-4 font-inter fw-bold px-3 py-1.5 text-xxs">
-                        <i class="fa-solid fa-crown me-1 text-white"></i> LUXELLE PREMIUM MEMBER
-                    </span>
-
-                    <!-- Member Stats Box matching Screenshot 1 -->
-                    <div class="bg-light-soft rounded-3 p-3 text-start mb-4">
-                        <h5 class="font-inter text-uppercase tracking-wider text-xxs fw-bold text-lux-gray mb-3 border-bottom border-light pb-2">Member Stats</h5>
-                        <div class="d-flex justify-content-between align-items-center mb-2 font-inter text-xs">
-                            <span class="text-lux-gray">Member since</span>
-                            <span class="fw-semibold text-lux-black">October 2021</span>
+        <!-- Django Success/Error Messages -->
+        {% if messages %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    {% for message in messages %}
+                        <div class="alert {% if message.tags == 'error' %}alert-danger bg-danger-light border-0 text-danger{% else %}alert-success bg-success-light border-0 text-success{% endif %} alert-dismissible fade show font-inter small py-3" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2 font-inter text-xs">
-                            <span class="text-lux-gray">Wishlist items</span>
-                            <span class="fw-semibold text-lux-black">24</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-0 font-inter text-xs">
-                            <span class="text-lux-gray">Total Orders</span>
-                            <span class="fw-semibold text-lux-black">12</span>
-                        </div>
-                    </div>
-
-                    <a href="{% url 'profile' %}" class="btn btn-outline-secondary w-100 py-2.5 text-uppercase fw-semibold tracking-wider font-inter small text-xxs mb-2">
-                        <i class="fa-solid fa-arrow-left me-2"></i> Back to Dashboard
-                    </a>
+                    {% endfor %}
                 </div>
-            </aside>
-
-            <!-- RIGHT COLUMN: Forms and Settings -->
-            <div class="col-12 col-lg-8 d-flex flex-column gap-4">
-                
-                <!-- Card: Personal Information Form -->
-                <div class="bg-white rounded-4 border border-light shadow-sm p-4">
-                    <div class="d-flex align-items-center gap-2 mb-4 text-lux-black">
-                        <i class="fa-regular fa-user text-lux-gold fs-5"></i>
-                        <h3 class="font-playfair fw-bold fs-4 mb-0">Personal Information</h3>
-                    </div>
-
-                    <form id="personalInfoForm">
-                        <div class="row g-3">
-                            <div class="col-12 col-md-6">
-                                <label class="form-label font-inter text-uppercase tracking-wider text-xxs fw-bold text-lux-gray">Full Name</label>
-                                <input type="text" class="form-control font-inter px-3 py-2.5 border border-light-dark" value="Ayisha Shiba">
-                            </div>
-                            <div class="col-12 col-md-6">
-                                <label class="form-label font-inter text-uppercase tracking-wider text-xxs fw-bold text-lux-gray">Username</label>
-                                <input type="text" class="form-control font-inter px-3 py-2.5 border border-light-dark" value="ayisha_shiba">
-                            </div>
-                            <div class="col-12 col-md-6">
-                                <label class="form-label font-inter text-uppercase tracking-wider text-xxs fw-bold text-lux-gray">Email Address</label>
-                                <input type="email" class="form-control font-inter px-3 py-2.5 border border-light-dark" value="ayisha.s@maison.com" disabled>
-                            </div>
-                            <div class="col-12 col-md-6">
-                                <label class="form-label font-inter text-uppercase tracking-wider text-xxs fw-bold text-lux-gray">Phone Number</label>
-                                <input type="text" class="form-control font-inter px-3 py-2.5 border border-light-dark" value="+1 (555) 234-5678">
-                            </div>
-                            <div class="col-12 col-md-6">
-                                <label class="form-label font-inter text-uppercase tracking-wider text-xxs fw-bold text-lux-gray">Date of Birth</label>
-                                <input type="text" class="form-control font-inter px-3 py-2.5 border border-light-dark" value="05/14/1992">
-                            </div>
-                            <div class="col-12 col-md-6">
-                                <label class="form-label font-inter text-uppercase tracking-wider text-xxs fw-bold text-lux-gray">Gender</label>
-                                <select class="form-select font-inter px-3 py-2.5 border border-light-dark">
-                                    <option value="Female" selected>Female</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Non-Binary">Non-Binary</option>
-                                    <option value="Prefer-not-to-say">Prefer not to say</option>
-                                </select>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Card: Luxury Bio Form -->
-                <div class="bg-white rounded-4 border border-light shadow-sm p-4">
-                    <div class="d-flex align-items-center gap-2 mb-4 text-lux-black">
-                        <i class="fa-solid fa-pen-nib text-lux-gold fs-5"></i>
-                        <h3 class="font-playfair fw-bold fs-4 mb-0">Luxury Bio</h3>
-                    </div>
-                    <div>
-                        <label class="form-label font-inter text-uppercase tracking-wider text-xxs fw-bold text-lux-gray">About You</label>
-                        <textarea class="form-control font-inter px-3 py-3 border border-light-dark text-italic" rows="4" style="line-height: 1.6; font-style: italic;">Fashion enthusiast with an affinity for minimalist architecture and timeless leather craftsmanship. Collector of vintage clutches and advocate for sustainable luxury.</textarea>
-                    </div>
-                </div>
-
-
-                <!-- Card: Security, Privacy & Quick Settings Actions -->
-                <div class="bg-white rounded-4 border border-light shadow-sm p-4">
-                    <div class="d-flex align-items-center gap-2 mb-4 text-lux-black">
-                        <i class="fa-solid fa-shield-halved text-lux-gold fs-5"></i>
-                        <h3 class="font-playfair fw-bold fs-4 mb-0">Security & Account Settings</h3>
-                    </div>
-
-                    <div class="row g-3">
-                        <div class="col-12 col-md-4">
-                            <button class="btn btn-outline-secondary w-100 py-3 text-uppercase font-inter fw-semibold tracking-wide text-xxs" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
-                                <i class="fa-solid fa-key me-2 text-lux-gold"></i> Change Password
-                            </button>
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <button class="btn btn-outline-secondary w-100 py-3 text-uppercase font-inter fw-semibold tracking-wide text-xxs" data-bs-toggle="modal" data-bs-target="#changeEmailModal">
-                                <i class="fa-solid fa-envelope me-2 text-lux-gold"></i> Change Email
-                            </button>
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <button class="btn btn-outline-danger w-100 py-3 text-uppercase font-inter fw-semibold tracking-wide text-xxs" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
-                                <i class="fa-solid fa-user-minus me-2 text-danger"></i> Delete Account
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Form Bottom Save / Cancel CTAs -->
-                <div class="d-flex gap-3 justify-content-end mb-5">
-                    <a href="{% url 'profile' %}" class="btn btn-outline-secondary px-5 py-3 text-uppercase fw-semibold font-inter tracking-wider small text-xxs">Cancel</a>
-                    <button class="btn btn-lux-dark px-5 py-3 text-uppercase fw-semibold font-inter tracking-wider small text-xxs hover-lux-gold-bg" onclick="triggerToast('Changes saved successfully!')">Save All Changes</button>
-                </div>
-
             </div>
-        </div>
+        {% endif %}
+
+        <form method="POST" action="{% url 'profile_edit' %}" enctype="multipart/form-data" id="profileEditForm">
+            {% csrf_token %}
+            <!-- Hidden elements for photo operations -->
+            <input type="hidden" name="clear_avatar" id="clearAvatarInput" value="false">
+
+            <div class="row g-4">
+                
+                <!-- LEFT COLUMN: Profile Sidebar -->
+                <aside class="col-12 col-md-4 col-lg-3">
+                    <div class="profile-card-lux text-center">
+                        
+                        <!-- Circular Avatar Frame with Overlay Pencil exactly matching reference -->
+                        <div class="avatar-ring">
+                            <div class="avatar-border-outer">
+                                <div class="avatar-border-inner">
+                                    <img src="{% if profile.avatar %}{{ profile.avatar.url }}{% else %}{% static 'image/ayisha_avatar.png' %}{% endif %}" alt="{{ user.get_full_name }}" class="profile-avatar-img" id="avatarPreviewImg">
+                                </div>
+                                <!-- Pencil edit overlay yellow button -->
+                                <div class="pencil-edit-overlay" id="changePhotoOverlay" title="Upload New Photo">
+                                    <i class="fa-solid fa-pencil text-xs"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- File Input hidden -->
+                        <input type="file" name="avatar" id="avatarFileInput" class="d-none" accept="image/*">
+
+                        <!-- Remove Photo CTA -->
+                        <div>
+                            <button type="button" class="btn-remove-photo" id="removePhotoBtn">REMOVE PHOTO</button>
+                        </div>
+
+                        <!-- Styled ecosystem ledger text block exactly matching screenshot -->
+                        <div class="ledger-box">
+                            <p class="ledger-text">
+                                Your profile is your digital ledger within the Luxelle ecosystem. Ensure your shipping details and contact information are current to prevent delays in boutique dispatches.
+                            </p>
+                        </div>
+
+                    </div>
+                </aside>
+
+                <!-- RIGHT COLUMN: Personal Form fields & Security actions -->
+                <div class="col-12 col-md-8 col-lg-9 d-flex flex-column gap-4">
+                    
+                    <!-- Main details edit Form Card -->
+                    <div class="profile-card-lux">
+                        <div class="row g-4">
+                            
+                            <!-- Full Name -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label-lux">FULL NAME</label>
+                                <input type="text" name="full_name" class="form-control form-input-lux {% if user_form.full_name.errors %}is-invalid{% endif %}" value="{{ user_form.full_name.value|default:user.get_full_name }}" minlength="2" required>
+                                {% if user_form.full_name.errors %}
+                                    <div class="invalid-feedback d-block font-inter small mt-1 text-danger">
+                                        {% for error in user_form.full_name.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Phone Number -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label-lux">PHONE NUMBER</label>
+                                <input type="text" name="phone" class="form-control form-input-lux {% if user_form.phone.errors %}is-invalid{% endif %}" value="{{ user_form.phone.value|default:user.phone }}" pattern="[0-9\+\s\-]{10,14}" title="Enter a valid 10-digit phone number" required>
+                                {% if user_form.phone.errors %}
+                                    <div class="invalid-feedback d-block font-inter small mt-1 text-danger">
+                                        {% for error in user_form.phone.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Date of Birth -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label-lux">DATE OF BIRTH</label>
+                                <input type="date" name="date_of_birth" class="form-control form-input-lux {% if profile_form.date_of_birth.errors %}is-invalid{% endif %}" value="{% if profile_form.date_of_birth.value %}{{ profile_form.date_of_birth.value|date:'Y-m-d' }}{% elif profile.date_of_birth %}{{ profile.date_of_birth|date:'Y-m-d' }}{% endif %}">
+                                {% if profile_form.date_of_birth.errors %}
+                                    <div class="invalid-feedback d-block font-inter small mt-1 text-danger">
+                                        {% for error in profile_form.date_of_birth.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                        </div>
+
+                        <!-- Action Form buttons at the bottom matching reference placement and colors -->
+                        <div class="d-flex gap-3 mt-5 pt-3 border-top border-light">
+                            <button type="submit" class="btn-save-lux">SAVE CHANGES</button>
+                            <a href="{% url 'profile' %}" class="btn-cancel-lux">CANCEL</a>
+                        </div>
+                    </div>
+
+                    <!-- Security & Account Settings Actions Card -->
+                    <div class="profile-card-lux">
+                        <h4 class="font-playfair fw-bold fs-5 text-lux-black mb-4">Security & Credentials</h4>
+                        
+                        <div class="row g-3">
+                            <div class="col-12 col-md-4">
+                                <a href="{% url 'change_password' %}" class="btn-security-lux">
+                                    <i class="fa-solid fa-key me-2 text-lux-gold"></i> Change Password
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <a href="{% url 'change_email' %}" class="btn-security-lux">
+                                    <i class="fa-solid fa-envelope me-2 text-lux-gold"></i> Change Email
+                                </a>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <a href="{% url 'delete_account' %}" class="btn-security-lux btn-delete-lux">
+                                    <i class="fa-solid fa-user-minus me-2 text-danger"></i> Delete Account
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </form>
     </main>
 
     <!-- =========================================
-       MODALS CORNER
+       Footer Section
        ========================================= -->
-
-    <!-- 1. Logout Modal -->
-    <div class="modal fade" id="logoutModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
-            <div class="modal-content border-0 rounded-4 shadow-lg p-3">
-                <div class="modal-body text-center font-inter p-4">
-                    <span class="d-inline-flex align-items-center justify-content-center bg-lux-gold-light text-lux-gold rounded-circle mb-3" style="width: 60px; height: 60px;">
-                        <i class="fa-solid fa-arrow-right-from-bracket fs-3"></i>
-                    </span>
-                    <h3 class="font-playfair fw-bold fs-4 text-lux-black mb-2">Sign Out of Luxelle?</h3>
-                    <p class="text-lux-gray small mb-4">Are you sure you want to end your current luxury browsing session?</p>
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <button type="button" class="btn btn-light w-100 py-2.5 text-uppercase fw-semibold tracking-wide text-xxs" data-bs-dismiss="modal">Cancel</button>
-                        </div>
-                        <div class="col-6">
-                            <a href="{% url 'login' %}" class="btn btn-lux-dark w-100 py-2.5 text-uppercase fw-semibold tracking-wide text-xxs text-white text-decoration-none d-block text-center">Logout</a>
-                        </div>
+    <footer class="pt-5 px-4 font-inter">
+        <div class="container pt-4 pb-5">
+            <div class="row g-5">
+                <!-- Column 1: Info and Brand -->
+                <div class="col-12 col-md-4">
+                    <h3 class="font-playfair fw-bold fs-2 text-lux-black mb-3">LUXELLE</h3>
+                    <p class="text-lux-gray small fw-light mb-4 lh-relaxed max-w-sm">Experience the pinnacle of curated luxury; your personal gateway to the world's most exclusive fashion houses.</p>
+                    <div class="d-flex align-items-center gap-3 social-icons">
+                        <a href="#" class="text-decoration-none"><i class="fa-brands fa-instagram fs-4"></i></a>
+                        <a href="#" class="text-decoration-none"><i class="fa-brands fa-pinterest fs-4"></i></a>
+                        <a href="#" class="text-decoration-none"><i class="fa-brands fa-facebook fs-4"></i></a>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- 2. Add Address Modal -->
-    <div class="modal fade" id="addAddressModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
-            <div class="modal-content border-0 rounded-0 shadow-lg p-4 bg-white">
-                <div class="modal-header border-0 pb-0 justify-content-end p-0">
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <!-- Column 2: Shop Links -->
+                <div class="col-6 col-md-2 offset-md-1">
+                    <h6 class="text-uppercase tracking-wider fw-bold mb-3 small">Collections</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none">Ready-to-Wear</a></li>
+                        <li><a href="#" class="text-decoration-none">Leather Goods</a></li>
+                        <li><a href="#" class="text-decoration-none">Exotics</a></li>
+                    </ul>
                 </div>
-                <div class="modal-body font-inter pt-2 p-0">
-                    <form id="addAddressForm">
-                        <div class="row g-3">
-                            <!-- Full Name -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Full Name</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" placeholder="e.g. Ayisha Shiba" required id="newFullName">
-                            </div>
-                            <!-- Phone Number -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Phone Number</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" placeholder="+1 (000) 000-0000" required id="newPhone">
-                            </div>
-                            <!-- Email Address -->
-                            <div class="col-12">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Email Address</label>
-                                <input type="email" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" placeholder="ayisha.shiba@luxury.com" required id="newEmail">
-                            </div>
-                            <!-- House / Apartment -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">House / Apartment</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" placeholder="Apt 4C" required id="newHouse">
-                            </div>
-                            <!-- Street Address -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Street Address</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" placeholder="1248 Luxury Boulevard" required id="newStreet">
-                            </div>
-                            <!-- Landmark -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Landmark</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" placeholder="Opposite Central Park" id="newLandmark">
-                            </div>
-                            <!-- City -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">City</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" placeholder="New York" required id="newCity">
-                            </div>
-                            <!-- State / Province -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">State / Province</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" placeholder="NY" required id="newZIP">
-                            </div>
-                            <!-- Postal Code -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Postal Code</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" placeholder="10021" required id="newPostal">
-                            </div>
-                            
-                            <!-- Hidden backwards compatibility fields -->
-                            <input type="hidden" id="newLabel" value="Home">
-                            <input type="hidden" id="defaultAddressCheck" value="true">
-                        </div>
-                        
-                        <!-- Modal Footer / Action Buttons matching screenshot exactly -->
-                        <div class="d-flex gap-3 justify-content-between mt-4 pt-2">
-                            <button type="button" class="btn btn-block py-3 text-uppercase fw-semibold tracking-wider text-xs border border-dark rounded-0 bg-white text-lux-black w-50" data-bs-dismiss="modal">CANCEL</button>
-                            <button type="button" class="btn btn-block py-3 text-uppercase fw-semibold tracking-wider text-xs rounded-0 text-white w-50" style="background-color: #6b5113; border: 1px solid #6b5113;" onclick="saveNewAddress()">SAVE NEW ADDRESS</button>
-                        </div>
-                    </form>
+
+                <!-- Column 3: Company Links -->
+                <div class="col-6 col-md-2">
+                    <h6 class="text-uppercase tracking-wider fw-bold mb-3 small">Customer Care</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none">Shipping & Returns</a></li>
+                        <li><a href="#" class="text-decoration-none">Size Guide</a></li>
+                        <li><a href="#" class="text-decoration-none">Personal Shopping</a></li>
+                    </ul>
+                </div>
+
+                <!-- Column 4: Legal -->
+                <div class="col-12 col-md-3">
+                    <h6 class="text-uppercase tracking-wider fw-bold mb-3 small">Legal</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none">Privacy Policy</a></li>
+                        <li><a href="#" class="text-decoration-none">Terms of Service</a></li>
+                        <li><a href="#" class="text-decoration-none">Cookie Policy</a></li>
+                    </ul>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- 3. Edit Address Modal -->
-    <div class="modal fade" id="editAddressModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 600px;">
-            <div class="modal-content border-0 rounded-0 shadow-lg p-4 bg-white">
-                <div class="modal-header border-0 pb-0 justify-content-end p-0">
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body font-inter pt-2 p-0">
-                    <form id="editAddressForm">
-                        <div class="row g-3">
-                            <!-- Full Name -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Full Name</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" value="Ayisha Shiba" required id="editFullName">
-                            </div>
-                            <!-- Phone Number -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Phone Number</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" value="+1 (000) 000-0000" required id="editPhone">
-                            </div>
-                            <!-- Email Address -->
-                            <div class="col-12">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Email Address</label>
-                                <input type="email" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" value="ayisha.shiba@luxury.com" required id="editEmail">
-                            </div>
-                            <!-- House / Apartment -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">House / Apartment</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" value="Apt 4C" required id="editHouse">
-                            </div>
-                            <!-- Street Address -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Street Address</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" value="1248 Luxury Boulevard" required id="editStreet">
-                            </div>
-                            <!-- Landmark -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Landmark</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" value="Opposite Central Park" id="editLandmark">
-                            </div>
-                            <!-- City -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">City</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" value="New York" required id="editCity">
-                            </div>
-                            <!-- State / Province -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">State / Province</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" value="NY" required id="editState">
-                            </div>
-                            <!-- Postal Code -->
-                            <div class="col-12 col-md-6">
-                                <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Postal Code</label>
-                                <input type="text" class="form-control rounded-0 px-3 py-2.5 border border-light-dark font-inter text-xs" value="10021" required id="editPostal">
-                            </div>
-                        </div>
-                        
-                        <!-- Modal Footer / Action Buttons matching screenshot exactly -->
-                        <div class="d-flex gap-3 justify-content-between mt-4 pt-2">
-                            <button type="button" class="btn btn-block py-3 text-uppercase fw-semibold tracking-wider text-xs border border-dark rounded-0 bg-white text-lux-black w-50" data-bs-dismiss="modal">CANCEL</button>
-                            <button type="button" class="btn btn-block py-3 text-uppercase fw-semibold tracking-wider text-xs rounded-0 text-white w-50" style="background-color: #6b5113; border: 1px solid #6b5113;" data-bs-dismiss="modal" onclick="triggerToast('Address updated successfully!')">SAVE CHANGES</button>
-                        </div>
-                    </form>
-                </div>
+            <!-- Copyright and Bottom Line -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center pt-4 mt-5 border-top border-light text-lux-gray small fw-light">
+                <p class="mb-2 mb-md-0">&copy; 2026 Luxelle. All Rights Reserved.</p>
             </div>
         </div>
-    </div>
-
-    <!-- 4. Delete Address Modal -->
-    <div class="modal fade" id="deleteAddressModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
-            <div class="modal-content border-0 rounded-4 shadow-lg p-3">
-                <div class="modal-body text-center font-inter p-4">
-                    <span class="d-inline-flex align-items-center justify-content-center bg-danger-light text-danger rounded-circle mb-3" style="width: 60px; height: 60px;">
-                        <i class="fa-solid fa-trash-can fs-3"></i>
-                    </span>
-                    <h3 class="font-playfair fw-bold fs-4 text-lux-black mb-2">Delete Address?</h3>
-                    <p class="text-lux-gray small mb-4">Are you sure you want to delete this address from your active record? This action cannot be undone.</p>
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <button type="button" class="btn btn-light w-100 py-2.5 text-uppercase fw-semibold tracking-wide text-xxs" data-bs-dismiss="modal">Cancel</button>
-                        </div>
-                        <div class="col-6">
-                            <button type="button" class="btn btn-danger w-100 py-2.5 text-uppercase fw-semibold tracking-wide text-xxs text-white" onclick="confirmDeleteAddress()">Delete</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 5. Simplified Change Password Modal -->
-    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
-            <div class="modal-content border-0 rounded-4 shadow-lg p-4">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="font-playfair fw-bold text-lux-black fs-4 mb-0">Change Your Password</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body font-inter pt-3">
-                    <form>
-                        <!-- Current Password -->
-                        <div class="mb-3">
-                            <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Current Password</label>
-                            <div class="position-relative">
-                                <input type="password" class="form-control px-3 py-2 border border-light-dark font-inter text-xs" placeholder="Enter current password" required>
-                                <span class="position-absolute end-3 top-50 translate-middle-y text-lux-gray cursor-pointer" onclick="togglePasswordVisibility(this)">
-                                    <i class="fa-regular fa-eye text-xs"></i>
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- New Password -->
-                        <div class="mb-3">
-                            <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">New Password</label>
-                            <div class="position-relative">
-                                <input type="password" class="form-control px-3 py-2 border border-light-dark font-inter text-xs" placeholder="Enter new password" required>
-                                <span class="position-absolute end-3 top-50 translate-middle-y text-lux-gray cursor-pointer" onclick="togglePasswordVisibility(this)">
-                                    <i class="fa-regular fa-eye text-xs"></i>
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- Confirm Password -->
-                        <div class="mb-3">
-                            <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Confirm New Password</label>
-                            <div class="position-relative">
-                                <input type="password" class="form-control px-3 py-2 border border-light-dark font-inter text-xs" placeholder="Confirm new password" required>
-                                <span class="position-absolute end-3 top-50 translate-middle-y text-lux-gray cursor-pointer" onclick="togglePasswordVisibility(this)">
-                                    <i class="fa-regular fa-eye text-xs"></i>
-                                </span>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer border-0 pt-3 d-flex gap-2 justify-content-end">
-                    <button type="button" class="btn btn-light px-4 py-2 text-uppercase fw-semibold tracking-wide text-xxs" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-lux-dark px-4 py-2 text-uppercase fw-semibold tracking-wide text-xxs" data-bs-dismiss="modal" onclick="triggerToast('Password updated successfully!')">Update Password</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 6. Simplified Change Email Modal -->
-    <div class="modal fade" id="changeEmailModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
-            <div class="modal-content border-0 rounded-4 shadow-lg p-4">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="font-playfair fw-bold text-lux-black fs-4 mb-0">Change Your Email</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body font-inter pt-3">
-                    <form>
-                        <!-- Current Email (Shows static value) -->
-                        <div class="mb-3">
-                            <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Current Email Address</label>
-                            <input type="email" class="form-control px-3 py-2 border border-light-dark font-inter text-xs bg-light" value="ayisha.s@maison.com" disabled>
-                        </div>
-
-                        <!-- New Email (Input Space) -->
-                        <div class="mb-3">
-                            <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">New Email Address</label>
-                            <input type="email" class="form-control px-3 py-2 border border-light-dark font-inter text-xs" placeholder="e.g. ayisha@luxelle.com" required id="newEmailInput">
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer border-0 pt-3 d-flex gap-2 justify-content-end">
-                    <button type="button" class="btn btn-light px-4 py-2 text-uppercase fw-semibold tracking-wide text-xxs" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-lux-dark px-4 py-2 text-uppercase fw-semibold tracking-wide text-xxs" data-bs-toggle="modal" data-bs-target="#verifyOtpModal">Verify & Update Email</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 7. Verify Your Identity OTP Modal matching Screenshot 4 -->
-    <div class="modal fade" id="verifyOtpModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
-            <div class="modal-content border-0 rounded-4 shadow-lg p-4">
-                <div class="modal-body p-0 text-center font-inter">
-                    <!-- OTP Shield Icon -->
-                    <span class="d-inline-flex align-items-center justify-content-center bg-lux-gold-light text-lux-gold rounded-circle mb-3" style="width: 54px; height: 54px;">
-                        <i class="fa-solid fa-circle-check fs-4"></i>
-                    </span>
-                    <h3 class="font-playfair fw-bold fs-3 text-lux-black mb-1">Verify Your Identity</h3>
-                    <p class="text-lux-gray small mb-4 text-xxs px-2 leading-relaxed">A secure code has been sent to your email to ensure your luxury experience remains protected.</p>
-
-                    <!-- OTP Input Box row matching Screenshot 4 -->
-                    <div class="d-flex justify-content-center gap-2 mb-4" id="otpBoxRow">
-                        <input type="text" maxlength="1" class="form-control otp-box text-center font-monospace fw-bold fs-4 border" style="width: 42px; height: 42px; padding: 0; border-radius: 6px;">
-                        <input type="text" maxlength="1" class="form-control otp-box text-center font-monospace fw-bold fs-4 border" style="width: 42px; height: 42px; padding: 0; border-radius: 6px;">
-                        <input type="text" maxlength="1" class="form-control otp-box text-center font-monospace fw-bold fs-4 border" style="width: 42px; height: 42px; padding: 0; border-radius: 6px;">
-                        <input type="text" maxlength="1" class="form-control otp-box text-center font-monospace fw-bold fs-4 border" style="width: 42px; height: 42px; padding: 0; border-radius: 6px;">
-                        <input type="text" maxlength="1" class="form-control otp-box text-center font-monospace fw-bold fs-4 border" style="width: 42px; height: 42px; padding: 0; border-radius: 6px;">
-                        <input type="text" maxlength="1" class="form-control otp-box text-center font-monospace fw-bold fs-4 border" style="width: 42px; height: 42px; padding: 0; border-radius: 6px;">
-                    </div>
-
-                    <!-- Verify Button -->
-                    <button type="button" class="btn btn-lux-dark w-100 py-2.5 text-uppercase fw-semibold tracking-wide text-xxs mb-3" data-bs-dismiss="modal" onclick="triggerToast('Identity verified and email updated successfully!')">Verify Now</button>
-
-                    <!-- Actions links matching Screenshot 4 -->
-                    <div class="d-flex flex-column gap-1 text-xxs font-inter pt-2">
-                        <a href="#" class="text-lux-gold text-decoration-none fw-bold hover-scale-105" onclick="triggerToast('OTP code resent successfully!')">RESEND CODE</a>
-                        <a href="#" class="text-lux-gray text-decoration-none hover-scale-105" data-bs-toggle="modal" data-bs-target="#changeEmailModal">CHANGE EMAIL</a>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 8. Delete Account Modal matching Screenshot 5 -->
-    <div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
-            <div class="modal-content border-0 rounded-4 shadow-lg p-4">
-                <div class="modal-body p-0 text-center font-inter">
-                    <!-- Red circular trash top icon mapping Screenshot 5 -->
-                    <span class="d-inline-flex align-items-center justify-content-center bg-danger-light text-danger rounded-circle mb-3 animate-pulse" style="width: 58px; height: 58px;">
-                        <i class="fa-solid fa-trash-can fs-4"></i>
-                    </span>
-                    <h3 class="font-playfair fw-bold fs-3 text-lux-black mb-1">Delete Your Luxelle Account?</h3>
-                    <p class="text-lux-gray small mb-4 text-xs">Are you sure you want to permanently remove your Luxelle account and luxury profile?</p>
-
-                    <!-- Identity Widget mapping Screenshot 5 -->
-                    <div class="border border-light rounded-3 p-2.5 mb-4 d-inline-flex align-items-center gap-3 text-start bg-light-soft mx-auto" style="min-width: 250px;">
-                        <img src="https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=600&auto=format&fit=crop" class="rounded-circle" style="width: 36px; height: 36px; object-fit: cover;">
-                        <div class="lh-sm">
-                            <h6 class="font-playfair text-lux-black fw-bold mb-0 text-xs">Ayisha Shiba</h6>
-                            <span class="text-lux-gray text-xxs mb-1 d-block">ayisha@luxelle.com</span>
-                            <span class="badge bg-warning-light text-warning text-xxs px-2 py-0.5 rounded-1" style="font-size: 0.55rem; font-weight:700;">PREMIUM MEMBER</span>
-                        </div>
-                    </div>
-
-                    <!-- Red erased block mapping Screenshot 5 -->
-                    <div class="bg-danger-light border border-danger-subtle rounded-3 p-3 mb-4 text-start">
-                        <h6 class="text-xxs fw-bold tracking-wider text-danger text-uppercase mb-2">The following data will be erased:</h6>
-                        <div class="text-lux-black text-xxs d-flex flex-column gap-2 opacity-90">
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="fa-regular fa-heart text-danger"></i> Curated Wishlist & Style Board
-                            </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="fa-regular fa-credit-card text-danger"></i> Stored Payment Methods & Credits
-                            </div>
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="fa-solid fa-clock-rotate-left text-danger"></i> Complete Order & Bespoke History
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Form Password verification mapping Screenshot 5 -->
-                    <div class="text-start mb-4">
-                        <label class="form-label text-xxs text-lux-gray fw-bold text-uppercase tracking-wider">Enter Password to Confirm</label>
-                        <input type="password" class="form-control px-3 py-2 border border-light-dark font-inter text-xs" placeholder="Confirm your password">
-                        
-                        <div class="form-check mt-3">
-                            <input class="form-check-input border-danger" type="checkbox" id="deleteConfirmCheck">
-                            <label class="form-check-label text-xxs text-lux-black fw-semibold opacity-90" for="deleteConfirmCheck">
-                                I understand this action is permanent and my data cannot be recovered.
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Secured Disclaimer -->
-                    <p class="text-xxs text-muted opacity-75 mb-4 text-center">
-                        <i class="fa-solid fa-shield-halved text-xxs me-1 text-muted"></i> ENCRYPTED IDENTITY VERIFICATION SECURE PROTOCOL.
-                    </p>
-
-                    <!-- Action Buttons -->
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-danger w-100 py-2.5 text-uppercase fw-semibold tracking-wide text-xxs" onclick="performAccountDeletion()">Delete Permanently</button>
-                        <button type="button" class="btn btn-light w-100 py-2.5 text-uppercase fw-semibold tracking-wide text-xxs" data-bs-dismiss="modal">Cancel</button>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-    </div>
+    </footer>
 
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- Custom JavaScript Interactions -->
+    
+    <!-- Custom JavaScript for Image Preview, Upload, and Removal -->
     <script>
-        // Floating Alert Trigger Helper
-        function triggerToast(message) {
-            const toastEl = document.getElementById('successToast');
-            const messageEl = document.getElementById('toastMessage');
-            messageEl.innerText = message;
-            const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
-            toast.show();
-        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const avatarFileInput = document.getElementById('avatarFileInput');
+            const changePhotoOverlay = document.getElementById('changePhotoOverlay');
+            const avatarPreviewImg = document.getElementById('avatarPreviewImg');
+            const removePhotoBtn = document.getElementById('removePhotoBtn');
+            const clearAvatarInput = document.getElementById('clearAvatarInput');
 
-        // Avatar change simulator
-        const changePhotoBtn = document.getElementById('changePhotoBtn');
-        const fileInput = document.getElementById('avatarFileInput');
-        if (changePhotoBtn && fileInput) {
-            changePhotoBtn.addEventListener('click', () => fileInput.click());
-            fileInput.addEventListener('change', (e) => {
-                if (e.target.files && e.target.files[0]) {
-                    triggerToast('New profile photo uploaded successfully!');
+            // Click on pencil overlay triggers hidden file input
+            changePhotoOverlay.addEventListener('click', function() {
+                avatarFileInput.click();
+            });
+
+            // Live preview when a new image file is chosen
+            avatarFileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        avatarPreviewImg.src = e.target.result;
+                        clearAvatarInput.value = 'false'; // Cancel any pending clear instruction
+                    }
+                    reader.readAsDataURL(this.files[0]);
                 }
             });
-        }
 
-        // Password visibility toggler
-        function togglePasswordVisibility(btn) {
-            const input = btn.previousElementSibling;
-            const icon = btn.querySelector('i');
-            if (input.type === "password") {
-                input.type = "text";
-                icon.classList.remove('fa-regular', 'fa-eye');
-                icon.classList.add('fa-solid', 'fa-eye-slash');
-            } else {
-                input.type = "password";
-                icon.classList.remove('fa-solid', 'fa-eye-slash');
-                icon.classList.add('fa-regular', 'fa-eye');
-            }
-        }
-
-        // Address deletion simulation
-        let deleteTargetId = null;
-        function setDeleteAddressTarget(id) {
-            deleteTargetId = id;
-        }
-
-        function confirmDeleteAddress() {
-            if (deleteTargetId) {
-                const element = document.getElementById(deleteTargetId);
-                if (element) {
-                    element.remove();
-                    triggerToast('Address deleted successfully!');
-                }
-            }
-            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteAddressModal'));
-            if (modal) modal.hide();
-        }
-
-        // Save new address simulation
-        function saveNewAddress() {
-            const fullName = document.getElementById('newFullName').value || 'Ayisha Shiba';
-            const phone = document.getElementById('newPhone').value || '+1 (000) 000-0000';
-            const email = document.getElementById('newEmail').value || 'ayisha.shiba@luxury.com';
-            const house = document.getElementById('newHouse').value || 'Apt 4C';
-            const street = document.getElementById('newStreet').value || '1248 Luxury Boulevard';
-            const landmark = document.getElementById('newLandmark').value || '';
-            const city = document.getElementById('newCity').value || 'New York';
-            const state = document.getElementById('newZIP').value || 'NY';
-            const postal = document.getElementById('newPostal').value || '10021';
-
-            const grid = document.querySelector('#addressSection .row');
-            const newId = 'addressCard_' + Date.now();
-
-            const cardHtml = `
-                <div class="col-12 col-md-6" id="${newId}">
-                    <div class="address-item p-3 border border-light rounded-3 bg-white position-relative h-100 d-flex flex-column justify-content-between">
-                        <div>
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="fa-solid fa-house text-muted text-xxs"></i>
-                                    <span class="font-inter small fw-bold text-uppercase tracking-wide text-xxs text-lux-black">${fullName}</span>
-                                </div>
-                                <span class="badge bg-success-light text-success text-xxs border border-success-subtle">Primary</span>
-                            </div>
-                            <p class="font-inter text-lux-black small text-xxs mb-3 lh-relaxed opacity-90">
-                                ${house}, ${street}${landmark ? ', ' + landmark : ''},<br>
-                                ${city}, ${state} ${postal}<br>
-                                <span class="text-muted">Phone: ${phone} | Email: ${email}</span>
-                            </p>
-                        </div>
-                        <div class="d-flex gap-2 justify-content-end mt-auto pt-2 border-top border-light">
-                            <button class="btn btn-sm btn-outline-secondary px-2 py-1 text-xxs border-0 hover-lux-gold" data-bs-toggle="modal" data-bs-target="#editAddressModal">
-                                <i class="fa-solid fa-pen me-1"></i> Edit
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger px-2 py-1 text-xxs border-0 hover-lux-red" data-bs-toggle="modal" data-bs-target="#deleteAddressModal" onclick="setDeleteAddressTarget('${newId}')">
-                                <i class="fa-solid fa-trash me-1"></i> Delete
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            grid.insertAdjacentHTML('beforeend', cardHtml);
-            triggerToast('Address added successfully!');
-            
-            const modal = bootstrap.Modal.getInstance(document.getElementById('addAddressModal'));
-            if (modal) modal.hide();
-            document.getElementById('addAddressForm').reset();
-        }
-
-        // Account deletion simulation
-        function performAccountDeletion() {
-            const check = document.getElementById('deleteConfirmCheck');
-            if (!check.checked) {
-                alert('Please check the confirmation box to proceed.');
-                return;
-            }
-            triggerToast('Request submitted. Your account is being permanently closed.');
-            setTimeout(() => {
-                window.location.href = "{% url 'login' %}";
-            }, 3000);
-            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteAccountModal'));
-            if (modal) modal.hide();
-        }
-
-        // Auto focus transfer in OTP box row
-        const otpInputs = document.querySelectorAll('#otpBoxRow input');
-        otpInputs.forEach((input, index) => {
-            input.addEventListener('keyup', (e) => {
-                if (e.target.value.length === 1 && index < otpInputs.length - 1) {
-                    otpInputs[index + 1].focus();
-                }
+            // "Remove Photo" action setting fallback avatar preview and signaling server
+            removePhotoBtn.addEventListener('click', function() {
+                avatarPreviewImg.src = "{% static 'image/ayisha_avatar.png' %}";
+                avatarFileInput.value = ''; // Reset file input
+                clearAvatarInput.value = 'true'; // Signals server to delete model avatar file
             });
-            input.addEventListener('keydown', (e) => {
-                if (e.key === "Backspace" && e.target.value.length === 0 && index > 0) {
-                    otpInputs[index - 1].focus();
-                }
-            });
-        });
-
-        // OTP verification redirect handler
-        window.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('status') === 'verified') {
-                triggerToast('Identity verified and email updated successfully!');
-            }
         });
     </script>
 </body>

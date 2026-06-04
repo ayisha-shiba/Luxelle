@@ -1,17 +1,10 @@
-"""
-models.py — Luxelle Ecommerce (app: core)
-Custom User, OTP, UserProfile, and Address models.
-"""
-
 import uuid
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 from django.utils import timezone
 
 
-# ─────────────────────────────────────────────
 # Custom User Manager
-# ─────────────────────────────────────────────
 
 class CustomUserManager(BaseUserManager):
     """Manager for CustomUser: email is the unique identifier."""
@@ -20,7 +13,7 @@ class CustomUserManager(BaseUserManager):
         if not email:
             raise ValueError("Email address is required.")
         email = self.normalize_email(email)
-        extra_fields.setdefault("is_active", False)  # Inactive until OTP verified
+        extra_fields.setdefault("is_active", False)  
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -34,24 +27,19 @@ class CustomUserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 
-# ─────────────────────────────────────────────
 # Custom User Model
-# ─────────────────────────────────────────────
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
-    """
-    Main user model. Uses email as login.
-    Replaces Django's default User model.
-    """
     id         = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email      = models.EmailField(unique=True, db_index=True)
     first_name = models.CharField(max_length=50, blank=True)
     last_name  = models.CharField(max_length=50, blank=True)
+    full_name  = models.CharField(max_length=150, blank=True, default="")
     phone      = models.CharField(max_length=15, blank=True)
 
-    is_active   = models.BooleanField(default=False)   # Activated after OTP
+    is_active   = models.BooleanField(default=False)   
     is_staff    = models.BooleanField(default=False)
-    is_verified = models.BooleanField(default=False)   # Email verified
+    is_verified = models.BooleanField(default=False)   
 
     date_joined = models.DateTimeField(default=timezone.now)
 
@@ -61,7 +49,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = []
 
     class Meta:
-        verbose_name = "User"
+        verbose_name        = "User"
         verbose_name_plural = "Users"
 
     def __str__(self):
@@ -77,16 +65,16 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             UserProfile.objects.get_or_create(user=self)
 
 
-# ─────────────────────────────────────────────
-# OTP Model (Registration + Password Reset)
-# ─────────────────────────────────────────────
+# OTP Model
 
 class OTPVerification(models.Model):
-    """Stores OTPs for email verification and password reset."""
+
+    RESEND_COOLDOWN_SECONDS = 60
 
     PURPOSE_CHOICES = [
-        ("registration", "Registration"),
+        ("registration",   "Registration"),
         ("password_reset", "Password Reset"),
+        ("email_change",   "Email Change"),   
     ]
 
     user       = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="otps")
@@ -100,27 +88,27 @@ class OTPVerification(models.Model):
         ordering = ["-created_at"]
 
     def is_valid(self):
-        """Returns True if OTP is unused and not expired."""
+        
         return not self.is_used and timezone.now() < self.expires_at
+
+    def seconds_until_resend_allowed(self):
+    
+        elapsed   = (timezone.now() - self.created_at).total_seconds()
+        remaining = self.RESEND_COOLDOWN_SECONDS - elapsed
+        return max(0, int(remaining))
 
     def __str__(self):
         return f"OTP({self.user.email} | {self.purpose})"
 
 
-# ─────────────────────────────────────────────
 # User Profile Model
-# ─────────────────────────────────────────────
 
 class UserProfile(models.Model):
-    """
-    Extended profile info linked 1-to-1 with CustomUser.
-    Created automatically via CustomUser.save() override.
-    """
     GENDER_CHOICES = [
         ("M", "Male"),
         ("F", "Female"),
         ("O", "Other"),
-        ("", "Prefer not to say"),
+        ("",  "Prefer not to say"),
     ]
 
     user          = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="profile")
@@ -134,22 +122,18 @@ class UserProfile(models.Model):
         return f"Profile({self.user.email})"
 
     def avatar_url(self):
-        """Returns avatar URL or a default placeholder."""
         if self.avatar:
             return self.avatar.url
         return "/static/images/default_avatar.png"
 
 
-# ─────────────────────────────────────────────
 # Address Model
-# ─────────────────────────────────────────────
 
 class Address(models.Model):
-    """Shipping/billing addresses for a user."""
 
     ADDRESS_TYPE_CHOICES = [
-        ("home", "Home"),
-        ("work", "Work"),
+        ("home",  "Home"),
+        ("work",  "Work"),
         ("other", "Other"),
     ]
 
@@ -169,14 +153,15 @@ class Address(models.Model):
     updated_at    = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-is_default", "-created_at"]
+        ordering            = ["-is_default", "-created_at"]
         verbose_name_plural = "Addresses"
 
     def __str__(self):
         return f"{self.full_name} — {self.city}, {self.state}"
 
     def save(self, *args, **kwargs):
-        """Ensure only one address is default per user."""
         if self.is_default:
-            Address.objects.filter(user=self.user, is_default=True).exclude(pk=self.pk).update(is_default=False)
+            Address.objects.filter(
+                user=self.user, is_default=True
+            ).exclude(pk=self.pk).update(is_default=False)
         super().save(*args, **kwargs)

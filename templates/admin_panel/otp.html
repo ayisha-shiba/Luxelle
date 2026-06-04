@@ -419,6 +419,36 @@
             .form-col { flex: 1; padding: 4.5rem 3rem; }
             .otp-input { width: 52px; height: 58px; font-size: 1.4rem; }
         }
+
+        /* Alert Styling */
+        .alert {
+            background-color: rgba(21, 21, 21, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1.25rem;
+            font-size: 0.88rem;
+            margin-bottom: 1.75rem;
+        }
+
+        .alert-success {
+            border-color: rgba(39, 174, 96, 0.3);
+            background-color: rgba(39, 174, 96, 0.08);
+            color: #27ae60;
+        }
+
+        .alert-error {
+            border-color: rgba(231, 76, 60, 0.3);
+            background-color: rgba(231, 76, 60, 0.08);
+            color: #e74c3c;
+        }
+
+        .btn-close {
+            filter: brightness(0.8);
+        }
+
+        .btn-close:hover {
+            filter: brightness(1.2);
+        }
     </style>
 </head>
 <body>
@@ -467,17 +497,27 @@
                     <p class="form-subtitle">A 6-digit secure code has been dispatched to your registered admin workspace.</p>
                 </div>
 
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
                 <!-- Email display badge -->
                 <div class="email-badge">
                     <i class="fa-regular fa-envelope"></i>
-                    <span>admin@luxelleatelier.com</span>
+                    <span>{{ email }}</span>
                 </div>
 
-                <form method="POST" action="{% url 'admin_reset_password' %}">
+                <form method="POST" action="{% url 'admin_forgot_password_otp' %}">
                     {% csrf_token %}
 
                     <label class="admin-input-label">Enter Verification Code</label>
                     <div class="otp-row">
+                        <input type="hidden" name="otp" id="hiddenOtp">
                         <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" autofocus>
                         <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
                         <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]">
@@ -581,7 +621,19 @@
                 }
             }, 1000);
             otpInputs.forEach(i => { i.value = ''; i.classList.remove('filled'); });
+            document.getElementById('hiddenOtp').value = '';
             otpInputs[0].focus();
+        });
+
+        // Update hidden OTP input before submit
+        document.querySelector('form').addEventListener('submit', function(e) {
+            let fullOtp = '';
+            otpInputs.forEach(i => fullOtp += i.value);
+            document.getElementById('hiddenOtp').value = fullOtp;
+            if(fullOtp.length !== 6) {
+                e.preventDefault();
+                alert('Please enter all 6 digits of the verification code.');
+            }
         });
     </script>
 </body>

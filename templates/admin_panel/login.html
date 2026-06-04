@@ -457,7 +457,16 @@
                     <p class="form-subtitle">Sign in to manage the Luxelle luxury experience.</p>
                 </div>
 
-                <form method="POST" action="{% url 'admin_dashboard' %}">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} alert-dismissible fade show" role="alert" style="background-color: rgba(231, 76, 60, 0.1); border: 1px solid rgba(231, 76, 60, 0.3); color: #e74c3c; border-radius: 8px; font-size: 0.85rem; letter-spacing: 0.05em;">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="filter: invert(1) grayscale(100%) brightness(200%); width: 0.5em; height: 0.5em; top: 0.2rem; right: 0.2rem;"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="POST" action="{% url 'admin_login' %}">
                     {% csrf_token %}
                     
                     <!-- Admin Email -->
@@ -470,13 +479,28 @@
                     </div>
                     
                     <!-- Password -->
-                    <div class="admin-form-group">
-                        <label class="admin-input-label">Password</label>
-                        <div class="admin-input-wrapper">
-                            <input type="password" name="password" class="admin-input" placeholder="••••••••" required value="password123">
-                            <i class="fa-solid fa-lock admin-input-icon"></i>
-                        </div>
-                    </div>
+{% comment %} Password field with eye toggle {% endcomment %}
+<div class="admin-form-group">
+    <label class="admin-input-label">Password</label>
+    <div class="admin-input-wrapper">
+        <input type="password" name="password" class="admin-input" placeholder="••••••••" required value="password123">
+        <i class="fa-solid fa-lock admin-input-icon"></i>
+        <i class="fa-regular fa-eye admin-input-icon toggle-password" style="right: 1.25rem; left: auto; cursor: pointer;"></i>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggle = document.querySelector('.toggle-password');
+        const passwordInput = document.querySelector('input[name="password"]');
+        toggle.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            // switch icons
+            this.classList.toggle('fa-eye');
+            this.classList.toggle('fa-eye-slash');
+        });
+    });
+</script>
 
                     <!-- CTA Buttons -->
                     <button type="submit" class="btn-admin-solid">Access Admin Dashboard</button>

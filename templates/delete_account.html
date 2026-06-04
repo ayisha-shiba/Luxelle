@@ -1,0 +1,208 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle | Delete Account</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: #F5F2EB !important;
+            color: #1A1A1A !important;
+            font-family: 'Inter', sans-serif;
+        }
+
+        header.navbar {
+            background-color: #ffffff !important;
+            border-bottom: 1px solid #e2dfd9 !important;
+        }
+
+        .page-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #dc3545; /* Red title to signal warning */
+            margin-bottom: 4px;
+        }
+        .lux-heading-line {
+            width: 50px;
+            height: 2px;
+            background-color: #dc3545;
+            margin: 0 auto 30px auto;
+        }
+
+        .profile-card-lux {
+            background-color: #ffffff !important;
+            border: 1px solid #e2dfd9 !important;
+            border-radius: 8px !important;
+            padding: 40px 30px !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02) !important;
+        }
+
+        .form-label-lux {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #b08d5b;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+            display: block;
+        }
+        .form-input-lux {
+            background-color: #ffffff !important;
+            border: 1px solid #e2dfd9 !important;
+            border-radius: 4px !important;
+            color: #1A1A1A !important;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem !important;
+            padding: 14px 16px !important;
+            transition: all 0.3s ease !important;
+            outline: none !important;
+        }
+        .form-input-lux:focus {
+            border-color: #dc3545 !important;
+            box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15) !important;
+        }
+
+        .btn-delete-lux {
+            background-color: #dc3545 !important;
+            color: #ffffff !important;
+            border: 1px solid #dc3545 !important;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            padding: 14px 28px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        .btn-delete-lux:hover {
+            background-color: #bd2130 !important;
+            border-color: #bd2130 !important;
+        }
+        .btn-cancel-lux {
+            background-color: transparent !important;
+            color: #666666 !important;
+            border: 1px solid #e2dfd9 !important;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            padding: 14px 28px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+        }
+        .btn-cancel-lux:hover {
+            background-color: rgba(0,0,0,0.02) !important;
+            color: #1A1A1A !important;
+            border-color: #999999 !important;
+        }
+
+        .warning-text {
+            font-size: 0.85rem;
+            color: #555555;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header class="navbar navbar-expand-lg navbar-light sticky-top py-3 px-4">
+        <div class="container-fluid">
+            <a class="navbar-brand font-playfair fs-2 fw-bold tracking-tight text-lux-black m-0" href="{% url 'home' %}">LUXELLE</a>
+            <div class="d-flex align-items-center gap-3">
+                <a href="{% url 'profile' %}" class="btn btn-outline-secondary btn-sm rounded-1 text-uppercase tracking-wider px-3"><i class="fa-solid fa-arrow-left me-1"></i> Dashboard</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 col-lg-5">
+                
+                <div class="text-center mb-4">
+                    <h1 class="page-title text-center">Delete Account</h1>
+                    <div class="lux-heading-line"></div>
+                </div>
+
+                <!-- Django Success/Error Messages -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert {% if message.tags == 'error' %}alert-danger bg-danger-light border-0 text-danger{% else %}alert-success bg-success-light border-0 text-success{% endif %} alert-dismissible fade show font-inter small py-3 mb-4" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <!-- Form Card -->
+                <div class="profile-card-lux">
+                    <form method="POST" action="{% url 'delete_account' %}">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4 text-center">
+                            <i class="fa-solid fa-triangle-exclamation text-danger fs-1 mb-3"></i>
+                            <h5 class="font-playfair fw-bold text-lux-black">Are you absolutely sure?</h5>
+                            <p class="warning-text font-inter mt-3">
+                                Deleting your account is permanent. All your order history, profile settings, and membership benefits will be completely erased and cannot be recovered.
+                            </p>
+                        </div>
+
+                        <!-- Password Confirmation -->
+                        <div class="mb-4">
+                            <label class="form-label-lux">CONFIRM YOUR PASSWORD</label>
+                            <input type="password" name="password" class="form-control form-input-lux {% if error %}is-invalid{% endif %}" placeholder="Enter password to confirm" required>
+                            {% if error %}
+                                <div class="invalid-feedback d-block font-inter small mt-1 text-danger">
+                                    {{ error }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Checkbox Confirmation -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="confirmDeleteCheck" required style="cursor: pointer;">
+                                <label class="form-check-label font-inter small text-lux-gray ms-2" for="confirmDeleteCheck" style="cursor: pointer; user-select: none;">
+                                    I understand that this action is permanent and irreversible.
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex flex-column gap-2 mt-5">
+                            <button type="submit" class="btn-delete-lux" id="deleteSubmitBtn">DELETE MY ACCOUNT PERMANENTLY</button>
+                            <a href="{% url 'profile_edit' %}" class="btn-cancel-lux">CANCEL</a>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
