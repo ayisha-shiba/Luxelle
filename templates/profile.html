@@ -64,14 +64,21 @@
                     <i class="fa-solid fa-bag-shopping fs-5"></i>
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-lux-black text-white small-badge">2</span>
                 </a>
-                <div class="dropdown">
-                    <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale dropdown-toggle no-caret" id="accountDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Account">
-                        <i class="fa-regular fa-user fs-5 text-lux-gold"></i>
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-3 mt-2" aria-labelledby="accountDropdown">
-                        <li><a class="dropdown-item rounded-2 py-2" href="{% url 'home' %}"><i class="fa-solid fa-house me-2 text-muted"></i>Homepage</a></li>
-                        <li><a class="dropdown-item rounded-2 py-2" href="{% url 'login' %}"><i class="fa-solid fa-right-to-bracket me-2 text-muted"></i>Sign Out</a></li>
-                    </ul>
+                {% if user.is_authenticated %}
+<div class="dropdown">
+    <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale dropdown-toggle no-caret" id="accountDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Account">
+        <i class="fa-regular fa-user fs-5 text-lux-gold"></i>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-3 mt-2" aria-labelledby="accountDropdown">
+        <li><a class="dropdown-item rounded-2 py-2" href="{% url 'home' %}"><i class="fa-solid fa-house me-2 text-muted"></i>Homepage</a></li>
+        <li><a class="dropdown-item rounded-2 py-2" href="{% url 'login' %}"><i class="fa-solid fa-right-to-bracket me-2 text-muted"></i>Sign Out</a></li>
+    </ul>
+</div>
+{% else %}
+<a href="{% url 'login' %}" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale" title="Login">Login</a>
+{% endif %}
+
+                    
                 </div>
             </div>
         </div>

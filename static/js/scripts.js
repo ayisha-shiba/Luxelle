@@ -40,25 +40,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 3. Form Submit Interaction (Button animation simulation)
+    // 3. Form Submit Interaction (Removed to allow native submission)
     const loginForm = document.getElementById('loginForm');
-    const submitBtn = loginForm.querySelector('button[type="submit"]');
-    
-    loginForm.addEventListener('submit', (e) => {
-        e.preventDefault(); // Prevent actual submission for demo purposes
-        
-        // Change button state to show loading
-        const originalText = submitBtn.innerText;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Signing in...';
-        submitBtn.disabled = true;
-        
-        // Simulate network request
-        setTimeout(() => {
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
-            // You could trigger a success animation or redirect here
-        }, 1500);
-    });
+    if (loginForm) {
+        const submitBtn = loginForm.querySelector('button[type="submit"]');
+        loginForm.addEventListener('submit', () => {
+            // Use setTimeout so the form actually submits before disabling the button
+            if (submitBtn) {
+                setTimeout(() => {
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Signing in...';
+                    submitBtn.disabled = true;
+                }, 10);
+            }
+        });
+    }
 
     // 4. Subtle Parallax Effect on Banner (Mouse move)
     const bannerSection = document.querySelector('.banner-section');

@@ -38,6 +38,10 @@ def _password(placeholder):
 # Registration Form
 # ─────────────────────────────────────────────
 class RegistrationForm(forms.ModelForm):
+    full_name = forms.CharField(
+        label="Full Name",
+        widget=_input("Full Name"),
+    )
     password1 = forms.CharField(
         label="Password",
         widget=_password("Create a password"),
@@ -50,13 +54,19 @@ class RegistrationForm(forms.ModelForm):
 
     class Meta:
         model = CustomUser
-        fields = ["first_name", "last_name", "email", "phone"]
+        fields = ["email", "phone"]
         widgets = {
-            "first_name": _input("First name"),
-            "last_name":  _input("Last name"),
             "email":      _email("Email address"),
             "phone":      _input("Phone number", type_="tel"),
         }
+
+    def clean_full_name(self):
+        full_name = self.cleaned_data.get("full_name", "").strip()
+        if len(full_name.split()) < 2:
+            raise ValidationError("Please enter your full name (first and last name).")
+        if not all(c.isalpha() or c.isspace() for c in full_name):
+            raise ValidationError("Name must contain letters only.")
+        return full_name
 
     def clean_email(self):
         email = self.cleaned_data.get("email", "").lower()

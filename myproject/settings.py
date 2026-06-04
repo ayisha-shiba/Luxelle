@@ -31,8 +31,14 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",
 
     "core.apps.CoreConfig",
+
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
 ]
 
 
@@ -64,6 +70,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 
@@ -220,3 +227,41 @@ SESSION_COOKIE_HTTPONLY = True
 # -------------------------------------------------------------------
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# -------------------------------------------------------------------
+# AUTHENTICATION BACKENDS & OAUTH SETTINGS
+# -------------------------------------------------------------------
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+SITE_ID = 1
+
+# ── Allauth account settings (email-based login, no username field) ──
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None   # CustomUser has no username field
+ACCOUNT_LOGIN_METHODS              = {"email"}  # Authenticate via email only
+ACCOUNT_SIGNUP_FIELDS              = ["email*", "password1*", "password2*"]  # No username on signup
+
+# ── Skip the "Sign In Via Google" confirmation interstitial page ──
+SOCIALACCOUNT_LOGIN_ON_GET = True
+
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "APP": {
+            "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+            "secret": os.getenv("GOOGLE_CLIENT_SECRET"),
+            "key": ""
+        },
+        "SCOPE": [
+            "profile",
+            "email",
+        ],
+        "AUTH_PARAMS": {
+            "access_type": "online",
+        }
+    }
+}
+
+SOCIALACCOUNT_ADAPTER = "core.adapters.CustomSocialAccountAdapter"
