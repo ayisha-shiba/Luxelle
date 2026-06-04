@@ -183,17 +183,6 @@
                             </p>
                         </div>
 
-                        <!-- Current Password -->
-                        <div class="mb-4">
-                            <label class="form-label-lux">CURRENT PASSWORD</label>
-                            <input type="password" name="password" class="form-control form-input-lux {% if form.password.errors %}is-invalid{% endif %}" placeholder="Confirm your current password" required>
-                            {% if form.password.errors %}
-                                <div class="invalid-feedback d-block font-inter small mt-1 text-danger">
-                                    {% for error in form.password.errors %}{{ error }}{% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-
                         <!-- Action Buttons -->
                         <div class="d-flex flex-column gap-2 mt-5">
                             <button type="submit" class="btn-save-lux">SEND VERIFICATION CODE</button>

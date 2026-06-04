@@ -74,7 +74,8 @@ class OTPVerification(models.Model):
     PURPOSE_CHOICES = [
         ("registration",   "Registration"),
         ("password_reset", "Password Reset"),
-        ("email_change",   "Email Change"),   
+        ("email_change",   "Email Change"),
+        ("account_delete", "Account Deletion"),
     ]
 
     user       = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="otps")

@@ -169,7 +169,8 @@
                             </p>
                         </div>
 
-                        <!-- Password Confirmation -->
+                        {% if has_password %}
+                        <!-- Password Confirmation (email/password users) -->
                         <div class="mb-4">
                             <label class="form-label-lux">CONFIRM YOUR PASSWORD</label>
                             <input type="password" name="password" class="form-control form-input-lux {% if error %}is-invalid{% endif %}" placeholder="Enter password to confirm" required>
@@ -195,6 +196,60 @@
                             <button type="submit" class="btn-delete-lux" id="deleteSubmitBtn">DELETE MY ACCOUNT PERMANENTLY</button>
                             <a href="{% url 'profile_edit' %}" class="btn-cancel-lux">CANCEL</a>
                         </div>
+
+                        {% elif not otp_sent %}
+                        <!-- Google users, step 1: request an email verification code -->
+                        <div class="mb-4">
+                            <p class="warning-text font-inter">
+                                Your account uses Google sign-in and has no password. To confirm deletion,
+                                we'll send a verification code to <strong>{{ user.email }}</strong>.
+                            </p>
+                        </div>
+                        <div class="d-flex flex-column gap-2 mt-5">
+                            <button type="submit" name="action" value="send_otp" class="btn-delete-lux">SEND VERIFICATION CODE</button>
+                            <a href="{% url 'profile_edit' %}" class="btn-cancel-lux">CANCEL</a>
+                        </div>
+
+                        {% else %}
+                        <!-- Google users, step 2: enter the OTP to confirm -->
+                        <div class="mb-4">
+                            <label class="form-label-lux">VERIFICATION CODE</label>
+                            <input type="text" name="otp" inputmode="numeric" maxlength="6" class="form-control form-input-lux {% if error %}is-invalid{% endif %}" placeholder="Enter the 6-digit code" required>
+                            {% if error %}
+                                <div class="invalid-feedback d-block font-inter small mt-1 text-danger">
+                                    {{ error }}
+                                </div>
+                            {% endif %}
+                            <p class="warning-text font-inter mt-2">
+                                We sent a code to <strong>{{ user.email }}</strong>. It expires in 10 minutes.
+                            </p>
+                        </div>
+
+                        <!-- Checkbox Confirmation -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="confirmDeleteCheck" required style="cursor: pointer;">
+                                <label class="form-check-label font-inter small text-lux-gray ms-2" for="confirmDeleteCheck" style="cursor: pointer; user-select: none;">
+                                    I understand that this action is permanent and irreversible.
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Resend countdown -->
+                        <div class="text-center mb-3">
+                            <p class="text-muted small mb-0 font-inter">
+                                Didn't receive the code?
+                                <span id="deleteCountdownBlock" class="fw-bold" style="color:#b08d5b;">Resend in <span id="deleteTimerSeconds">{{ seconds_remaining }}</span>s</span>
+                            </p>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex flex-column gap-2 mt-3">
+                            <button type="submit" name="action" value="confirm" class="btn-delete-lux" id="deleteSubmitBtn">DELETE MY ACCOUNT PERMANENTLY</button>
+                            <button type="submit" name="action" value="send_otp" class="btn-cancel-lux d-none" id="deleteResendBtn">RESEND CODE</button>
+                            <a href="{% url 'profile_edit' %}" class="btn-cancel-lux">CANCEL</a>
+                        </div>
+                        {% endif %}
                     </form>
                 </div>
 
@@ -204,5 +259,38 @@
 
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Resend code countdown (delete-account OTP step) -->
+    <script>
+        (function () {
+            const block     = document.getElementById('deleteCountdownBlock');
+            const resendBtn = document.getElementById('deleteResendBtn');
+            const timerEl   = document.getElementById('deleteTimerSeconds');
+            // Only runs on the OTP step; harmless elsewhere
+            if (!block || !resendBtn || !timerEl) return;
+
+            let seconds = parseInt(timerEl.innerText, 10) || 0;
+
+            function render() {
+                timerEl.innerText = seconds;
+                if (seconds <= 0) {
+                    block.classList.add('d-none');       // hide timer
+                    resendBtn.classList.remove('d-none'); // show resend button
+                } else {
+                    block.classList.remove('d-none');
+                    resendBtn.classList.add('d-none');
+                }
+            }
+
+            render();
+            if (seconds > 0) {
+                const interval = setInterval(function () {
+                    seconds--;
+                    render();
+                    if (seconds <= 0) clearInterval(interval);
+                }, 1000);
+            }
+        })();
+    </script>
 </body>
 </html>

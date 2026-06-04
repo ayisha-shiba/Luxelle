@@ -3,10 +3,29 @@ import logging
 from django.contrib import messages
 from django.shortcuts import redirect
 from django.contrib.auth import get_user_model
+from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
+from allauth.core.exceptions import ImmediateHttpResponse
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+
+SUSPENDED_MESSAGE = "Your account has been suspended. Please contact support."
+
+
+class CustomAccountAdapter(DefaultAccountAdapter):
+    """Custom account adapter.
+
+    allauth calls `respond_user_inactive` whenever an inactive (blocked) user
+    completes a login — including via Google. By default it redirects to a
+    static `/accounts/inactive/` page. We override it to send the user back to
+    our own login page with a clear 'suspended' message instead.
+    """
+
+    def respond_user_inactive(self, request, user):
+        messages.error(request, SUSPENDED_MESSAGE)
+        return redirect("login")
 
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
@@ -21,8 +40,13 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
     """
 
     def pre_social_login(self, request, sociallogin):
-        """Connect an incoming Google login to an existing local account."""
+        """Connect an incoming Google login to an existing local account, and
+        block suspended (inactive) users before the login completes."""
+        # Social account already linked to a local user
         if sociallogin.is_existing:
+            if not sociallogin.user.is_active:
+                messages.error(request, SUSPENDED_MESSAGE)
+                raise ImmediateHttpResponse(redirect("login"))
             return
 
         email = sociallogin.account.extra_data.get("email")
@@ -31,9 +55,16 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
 
         try:
             existing_user = User.objects.get(email__iexact=email)
-            sociallogin.connect(request, existing_user)
         except User.DoesNotExist:
-            pass
+            return
+
+        # A local account with this email exists — block it if suspended,
+        # otherwise link the Google login to it.
+        if not existing_user.is_active:
+            messages.error(request, SUSPENDED_MESSAGE)
+            raise ImmediateHttpResponse(redirect("login"))
+
+        sociallogin.connect(request, existing_user)
 
     def save_user(self, request, sociallogin, form=None):
         """Persist the Google user, ensuring is_active / is_verified are set."""

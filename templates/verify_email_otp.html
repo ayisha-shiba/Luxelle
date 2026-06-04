@@ -193,10 +193,18 @@
                             {% endif %}
                         </div>
 
+                        <!-- Resend countdown -->
+                        <div class="text-center mt-4 mb-1">
+                            <p class="helper-text font-inter mb-0">
+                                Didn't receive the code?
+                                <span id="otpCountdownBlock" class="fw-bold" style="color:#b08d5b;">Resend in <span id="otpTimerSeconds">{{ seconds_remaining }}</span>s</span>
+                            </p>
+                        </div>
+
                         <!-- Action Buttons -->
-                        <div class="d-flex flex-column gap-2 mt-5">
+                        <div class="d-flex flex-column gap-2 mt-3">
                             <button type="submit" class="btn-save-lux">VERIFY & UPDATE</button>
-                            <a href="{% url 'resend_email_otp' %}" class="btn btn-outline-secondary w-100 py-3 text-uppercase tracking-wider small text-xs border border-light-dark font-inter"><i class="fa-solid fa-rotate-right me-2"></i> RESEND OTP</a>
+                            <a href="{% url 'resend_email_otp' %}" id="otpResendLink" class="btn btn-outline-secondary w-100 py-3 text-uppercase tracking-wider small text-xs border border-light-dark font-inter d-none"><i class="fa-solid fa-rotate-right me-2"></i> RESEND OTP</a>
                             <a href="{% url 'profile_edit' %}" class="btn-cancel-lux">CANCEL</a>
                         </div>
                     </form>
@@ -208,5 +216,37 @@
 
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Resend OTP countdown -->
+    <script>
+        (function () {
+            const block   = document.getElementById('otpCountdownBlock');
+            const link    = document.getElementById('otpResendLink');
+            const timerEl = document.getElementById('otpTimerSeconds');
+            if (!block || !link || !timerEl) return;
+
+            let seconds = parseInt(timerEl.innerText, 10) || 0;
+
+            function render() {
+                timerEl.innerText = seconds;
+                if (seconds <= 0) {
+                    block.classList.add('d-none');   // hide timer
+                    link.classList.remove('d-none'); // show resend link
+                } else {
+                    block.classList.remove('d-none');
+                    link.classList.add('d-none');
+                }
+            }
+
+            render();
+            if (seconds > 0) {
+                const interval = setInterval(function () {
+                    seconds--;
+                    render();
+                    if (seconds <= 0) clearInterval(interval);
+                }, 1000);
+            }
+        })();
+    </script>
 </body>
 </html>

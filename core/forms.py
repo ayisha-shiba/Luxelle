@@ -136,6 +136,11 @@ class RegistrationForm(forms.ModelForm):
         # Check if any user with this email (case-insensitive) already exists in the database
         existing_user_qs = CustomUser.objects.filter(email__iexact=email)
         if existing_user_qs.exists():
+            # A verified account that an admin has deactivated = suspended user.
+            # They must not be able to recreate the account.
+            if existing_user_qs.filter(is_active=False, is_verified=True).exists():
+                raise ValidationError("This email has been suspended by the admin. Please contact support.")
+
             # If the existing user is an unverified ghost record (inactive + unverified),
             # we can safely delete it to allow the user to register/retry.
             ghost_qs = existing_user_qs.filter(is_active=False, is_verified=False)
@@ -317,10 +322,6 @@ class EmailChangeForm(forms.Form):
         label="New Email",
         widget=_email("New email address"),
     )
-    password = forms.CharField(
-        label="Current Password",
-        widget=_password("Confirm your current password"),
-    )
 
     def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -333,13 +334,6 @@ class EmailChangeForm(forms.Form):
         if CustomUser.objects.filter(email__iexact=email).exclude(pk=self.user.pk).exists():
             raise ValidationError("This email is already in use by another account.")
         return email
-
-    # CHANGE: validate the password field
-    def clean_password(self):
-        password = self.cleaned_data.get("password", "")
-        if not self.user.check_password(password):
-            raise ValidationError("Password is incorrect.")
-        return password
 
 
 # ─────────────────────────────────────────────

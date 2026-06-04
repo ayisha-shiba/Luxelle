@@ -98,6 +98,7 @@ def send_otp_email(user, otp_code: str, purpose: str) -> bool:
         "registration":   "Luxelle — Verify Your Email",
         "password_reset": "Luxelle — Password Reset OTP",
         "email_change":   "Luxelle — Confirm Email Change",
+        "account_delete": "Luxelle — Confirm Account Deletion",
     }
     subject = subjects.get(purpose, "Luxelle — OTP Verification")
 
@@ -117,6 +118,16 @@ def send_otp_email(user, otp_code: str, purpose: str) -> bool:
             f"OTP: {otp_code}\n\n"
             f"This OTP is valid for {OTP_EXPIRY_MINUTES} minutes.\n\n"
             f"If you did not request this change, please ignore this email.\n\n"
+            f"— The Luxelle Team"
+        )
+    elif purpose == "account_delete":
+        body = (
+            f"Hi {user.first_name or 'there'},\n\n"
+            f"We received a request to permanently delete your Luxelle account.\n\n"
+            f"OTP: {otp_code}\n\n"
+            f"This OTP is valid for {OTP_EXPIRY_MINUTES} minutes.\n\n"
+            f"WARNING: Entering this code will permanently erase your account and all data. "
+            f"If you did not request this, please ignore this email and change your password.\n\n"
             f"— The Luxelle Team"
         )
     else:

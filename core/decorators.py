@@ -3,6 +3,7 @@ from datetime import datetime
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
+from django.contrib import messages
 
 
 # ─────────────────────────────────────────────
@@ -161,32 +162,6 @@ def password_reset_session_required(view_func):
     return wrapper
 
 
-# ─────────────────────────────────────────────
-# Admin Required
-def admin_required(view_func):
-    """Guard admin panel views using custom admin session.
-    Checks for session flag `_is_admin` and validates the stored admin user ID.
-    If missing or user is not a superuser, redirects to admin login.
-    """
-    @wraps(view_func)
-    @never_cache
-    def wrapper(request, *args, **kwargs):
-        admin_flag = request.session.get('_is_admin')
-        admin_user_id = request.session.get('_admin_user_id')
-        if not admin_flag or not admin_user_id:
-            messages.error(request, "Admin access required. Please log in.")
-            return redirect('admin_login')
-        try:
-            from .models import CustomUser
-            admin_user = CustomUser.objects.get(id=admin_user_id)
-            if not admin_user.is_superuser:
-                raise CustomUser.DoesNotExist
-        except CustomUser.DoesNotExist:
-            messages.error(request, "Admin access required. Please log in.")
-            return redirect('admin_login')
-        request.admin_user = admin_user
-        return view_func(request, *args, **kwargs)
-    return wrapper
 
 
 from django.shortcuts import redirect
@@ -282,19 +257,25 @@ def admin_required(view_func):
     @wraps(view_func)
     @never_cache
     def wrapper(request, *args, **kwargs):
-        # Check admin session flags
         if not request.session.get("_is_admin") or not request.session.get("_admin_user_id"):
             messages.error(request, "Admin access required. Please log in.")
             return redirect("admin_login")
         try:
-            admin_user = CustomUser.objects.get(id=request.session.get("_admin_user_id"), is_superuser=True)
+            admin_user = CustomUser.objects.get(id=request.session.get("_admin_user_id"), is_staff=True)
         except CustomUser.DoesNotExist:
             messages.error(request, "Admin account not found. Please log in again.")
-            # Clear possibly stale admin flags
             request.session.pop("_is_admin", None)
             request.session.pop("_admin_user_id", None)
+            request.session.pop("_admin_pw_hash", None)
             return redirect("admin_login")
-        # Attach admin user to request for view usage and logging
+
+        # If the admin's password was changed (e.g. via forgot-password), invalidate the session
+        stored_hash = request.session.get("_admin_pw_hash")
+        if stored_hash and admin_user.password != stored_hash:
+            request.session.flush()
+            messages.error(request, "Your password was changed. Please log in again.")
+            return redirect("admin_login")
+
         request.user = admin_user
         return view_func(request, *args, **kwargs)
     return wrapper

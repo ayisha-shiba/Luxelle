@@ -277,15 +277,19 @@ def login_view(request):
                 logger.debug('Cleared admin session flags before user login')
 
             if user is None:
-                # Check if the credentials belong to an admin account
                 try:
                     existing = CustomUser.objects.get(email=email)
-                    if existing.is_superuser:
+                    if existing.is_staff:
+                        # Admin account — don't reveal reason
                         messages.error(request, "Invalid email or password.")
-                        return render(request, "login.html", {"form": form})
+                    elif not existing.is_active and existing.check_password(password):
+                        # Correct password but account is blocked by admin
+                        messages.error(request, "Your account has been suspended. Please contact support.")
+                    else:
+                        messages.error(request, "Invalid email or password.")
                 except CustomUser.DoesNotExist:
-                    pass
-                messages.error(request, "Invalid email or password.")
+                    messages.error(request, "Invalid email or password.")
+                return render(request, "login.html", {"form": form})
             else:
                 if user.is_superuser:
                     messages.error(request, "This account is for admin use only. Please login via the admin portal.")
@@ -341,15 +345,10 @@ def forgot_password_view(request):
             email_sent = send_otp_email(user, otp_obj.otp, purpose="password_reset")
 
             if email_sent:
-                logger.debug("SESSION BEFORE SET_PENDING (forgot_password): %s", request.session.items())
-                logger.debug("SESSION BEFORE SET_PENDING (admin_forgot_password): %s", request.session.items())
-                logger.debug("SESSION BEFORE SET_PENDING (admin_forgot_password): %s", request.session.items())
-                logger.debug("SESSION BEFORE SET_PENDING (admin_forgot_password): %s", request.session.items())
                 set_pending_user_session(request, user.id, purpose="password_reset")
                 request.session.save()
-                logger.debug("SESSION AFTER SET_PENDING (admin_forgot_password): %s", request.session.items())
                 messages.success(request, f"An OTP has been sent to {user.email}.")
-                return redirect("admin_forgot_password_otp")
+                return redirect("forgot_password_otp")
             else:
                 messages.error(request, "Failed to send OTP email. Please try again.")
 
@@ -366,8 +365,7 @@ def forgot_password_otp_view(request):
     user = get_pending_user(request)
     if not user or request.session.get("otp_purpose") != "password_reset":
         messages.error(request, "Session expired. Please request a new OTP.")
-        return redirect("admin_forgot_password")
-    logger.debug("SESSION AFTER OTP VERIFY (admin_forgot_password_otp): %s", request.session.items())
+        return redirect("forgot_password")
     form = OTPVerificationForm(request.POST or None)
     seconds_remaining = _get_pending_otp_resend_seconds_remaining(request)
 
@@ -508,19 +506,31 @@ def profile_edit_view(request):
 @login_required
 
 def change_password_view(request):
+    # Google-only users have no usable password — they "set" one for the first
+    # time instead of "changing" it, so we skip the current-password check.
+    has_password = request.user.has_usable_password()
+
     if request.method == "POST":
-        form = ChangePasswordForm(request.user, request.POST)
+        if has_password:
+            form = ChangePasswordForm(request.user, request.POST)
+        else:
+            form = SetNewPasswordForm(request.POST)
+
         if form.is_valid():
             request.user.set_password(form.cleaned_data["new_password"])
             request.user.save(update_fields=["password"])
-            update_session_auth_hash(request, request.user)  
-            messages.success(request, "Your password has been updated.")
+            update_session_auth_hash(request, request.user)
+            if has_password:
+                messages.success(request, "Your password has been updated.")
+            else:
+                messages.success(request, "Password set successfully. You can now log in with your email and password too.")
             return redirect("profile")
         else:
             messages.error(request, "Please correct the errors below.")
     else:
-        form = ChangePasswordForm(request.user)
-    return render(request, "change_password.html", {"form": form})
+        form = ChangePasswordForm(request.user) if has_password else SetNewPasswordForm()
+
+    return render(request, "change_password.html", {"form": form, "has_password": has_password})
 
 
 @never_cache
@@ -582,10 +592,17 @@ def verify_email_otp_view(request):
         else:
             messages.error(request, error_msg)
 
+    # Seconds left before a new code can be requested (drives the visible timer)
+    latest = OTPVerification.objects.filter(
+        user=user, purpose="email_change"
+    ).order_by("-created_at").first()
+    seconds_remaining = latest.seconds_until_resend_allowed() if latest else 0
+
     return render(request, "verify_email_otp.html", {
-        "form":      form,
-        "email":     user.email,
-        "new_email": new_email,
+        "form":              form,
+        "email":             user.email,
+        "new_email":         new_email,
+        "seconds_remaining": seconds_remaining,
     })
 
 
@@ -611,22 +628,68 @@ def resend_email_otp_view(request):
 @login_required
 @never_cache
 def delete_account_view(request):
+    user = request.user
+    has_password = user.has_usable_password()
     error = None
+
     if request.method == "POST":
         # Prevent admin (superuser) deletion via normal user interface
-        if request.user.is_superuser:
+        if user.is_superuser:
             messages.error(request, "Admin accounts cannot be deleted from this page.")
             return redirect("profile")
-        password = request.POST.get("password", "")
-        if not request.user.check_password(password):
-            error = "Password incorrect. Account not deleted."
+
+        if has_password:
+            # Email/password users: confirm with their password
+            password = request.POST.get("password", "")
+            if not user.check_password(password):
+                error = "Password incorrect. Account not deleted."
+            else:
+                logout(request)
+                user.delete()
+                messages.success(request, "Your account has been permanently deleted.")
+                return redirect("home")
         else:
-            user = request.user
-            logout(request)
-            user.delete()
-            messages.success(request, "Your account has been permanently deleted.")
-            return redirect("home")
-    return render(request, "delete_account.html", {"error": error})
+            # Google-only users (no password): confirm with an email OTP
+            action = request.POST.get("action")
+
+            if action == "send_otp":
+                allowed, seconds_left = check_resend_cooldown(user, purpose="account_delete")
+                if not allowed:
+                    messages.warning(request, f"Please wait {seconds_left} seconds before requesting a new code.")
+                else:
+                    otp_obj = create_otp_for_user(user, purpose="account_delete")
+                    send_otp_email(user, otp_obj.otp, purpose="account_delete")
+                    request.session["delete_otp_sent"] = True
+                    messages.success(request, f"A verification code has been sent to {user.email}.")
+
+            elif action == "confirm":
+                otp_input = request.POST.get("otp", "").strip()
+                valid, msg = verify_otp(user, otp_input, purpose="account_delete")
+                if valid:
+                    request.session.pop("delete_otp_sent", None)
+                    logout(request)
+                    user.delete()
+                    messages.success(request, "Your account has been permanently deleted.")
+                    return redirect("home")
+                else:
+                    error = msg
+
+    # How many seconds remain before a new code can be requested (for the timer)
+    seconds_remaining = 0
+    otp_sent = request.session.get("delete_otp_sent", False)
+    if not has_password and otp_sent:
+        latest = OTPVerification.objects.filter(
+            user=user, purpose="account_delete"
+        ).order_by("-created_at").first()
+        if latest:
+            seconds_remaining = latest.seconds_until_resend_allowed()
+
+    return render(request, "delete_account.html", {
+        "error":             error,
+        "has_password":      has_password,
+        "otp_sent":          otp_sent,
+        "seconds_remaining": seconds_remaining,
+    })
 
 
 # ADDRESSES

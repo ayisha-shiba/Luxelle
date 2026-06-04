@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="14" fill="#0E0E0E"/>
+  <!-- Serif-style "L" monogram in Luxelle gold -->
+  <path d="M23 17 h7 v24 h13 v6 H23 Z" fill="#C9A26A"/>
+  <!-- subtle gold accent line, echoing the brand heading underline -->
+  <rect x="23" y="49.5" width="20" height="1.6" rx="0.8" fill="#C9A26A" opacity="0.55"/>
+</svg>

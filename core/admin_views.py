@@ -26,30 +26,33 @@ from .utils import (
 logger = logging.getLogger(__name__)
 
 
-
 # ADMIN LOGIN / LOGOUT
 
 @never_cache
 def admin_login_view(request):
-    
-    if request.user.is_authenticated and request.user.is_superuser:
+
+    # Use custom session flags — admin panel never calls Django's login()
+    if request.session.get("_is_admin") and request.session.get("_admin_user_id"):
         return redirect("admin_dashboard")
 
     if request.method == "POST":
-        email = request.POST.get("email", "").strip()
+        email = request.POST.get("email", "").strip().lower()
         password = request.POST.get("password", "")
 
         user = authenticate(request, email=email, password=password)
 
-        if user is not None and user.is_superuser:
+        if user is not None and user.is_staff:
+            request.session.cycle_key()
             request.session["_is_admin"] = True
             request.session["_admin_user_id"] = str(user.id)
+            # Store password hash so admin_required can detect password changes
+            request.session["_admin_pw_hash"] = user.password
             request.session.modified = True
-            logger.info(f"[ADMIN LOGIN] Superuser logged in: {user.email}")
+            logger.info(f"[ADMIN LOGIN] Staff user logged in: {user.email}")
             messages.success(request, "Welcome to the Luxelle Admin Panel.")
             return redirect("admin_dashboard")
         else:
-            messages.error(request, "Wrong password")
+            messages.error(request, "Invalid admin credentials.")
 
     return render(request, "admin_panel/login.html")
 
@@ -72,7 +75,7 @@ def admin_logout_view(request):
 def admin_dashboard_view(request):
     from django.utils import timezone
 
-    non_superusers = CustomUser.objects.filter(is_superuser=False)
+    non_superusers = CustomUser.objects.filter(is_staff=False)
     first_of_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     context = {
@@ -96,7 +99,7 @@ def admin_user_management_view(request):
 
         from django.db.models import Q
         
-        users_qs = CustomUser.objects.filter(is_superuser=False).order_by('-date_joined')
+        users_qs = CustomUser.objects.filter(is_staff=False).order_by('-date_joined')
         if search_query:
             users_qs = users_qs.filter(
                 Q(email__icontains=search_query) |
@@ -141,7 +144,7 @@ def admin_user_profile_view(request):
 def admin_toggle_user_status_view(request, user_id):
 
     try:
-        user        = CustomUser.objects.get(id=user_id, is_superuser=False)
+        user        = CustomUser.objects.get(id=user_id, is_staff=False)
         user.is_active = not user.is_active
         user.save(update_fields=["is_active"])
         action = "unblocked" if user.is_active else "blocked"
@@ -168,7 +171,7 @@ def admin_delete_user_view(request, user_id):
     if request.method not in ("POST", "GET"):
         return redirect('admin_users')
     try:
-        user = CustomUser.objects.get(id=user_id, is_superuser=False)
+        user = CustomUser.objects.get(id=user_id, is_staff=False)
         user_name = user.get_full_name()
         user.delete()
         messages.success(request, f"User {user_name} has been permanently deleted.")
@@ -191,7 +194,7 @@ def admin_forgot_password_view(request):
         messages.error(request, "Please provide an email address.")
         return render(request, "admin_panel/forgot_password.html")
     try:
-        user = CustomUser.objects.get(email=email, is_superuser=True)
+        user = CustomUser.objects.get(email=email, is_staff=True)
     except CustomUser.DoesNotExist:
         messages.success(request, "If an admin account with that email exists, an OTP has been sent.")
         return render(request, "admin_panel/forgot_password.html")
@@ -284,7 +287,7 @@ def admin_reset_password_view(request):
 
     user_id = request.session.get("password_reset_user_id")
     try:
-        user = CustomUser.objects.get(pk=user_id, is_superuser=True)
+        user = CustomUser.objects.get(pk=user_id, is_staff=True)
     except CustomUser.DoesNotExist:
         messages.error(request, "Session expired. Please start again.")
         return redirect("admin_forgot_password")
@@ -296,10 +299,19 @@ def admin_reset_password_view(request):
             user.set_password(form.cleaned_data["new_password"])
             user.save(update_fields=["password"])
 
-            request.session.pop("password_reset_verified", None)
-            request.session.pop("password_reset_user_id",  None)
+            # Clear ALL session data — forces re-login and invalidates any
+            # existing admin session that was using the old password hash
+            for key in (
+                "password_reset_verified",
+                "password_reset_user_id",
+                "_is_admin",
+                "_admin_user_id",
+                "_admin_pw_hash",
+            ):
+                request.session.pop(key, None)
+            request.session.cycle_key()
 
-            messages.success(request, "Password updated successfully. Please log in.")
+            messages.success(request, "Password updated successfully. Please log in with your new password.")
             return redirect("admin_login")
 
     return render(request, "admin_panel/reset_password.html", {"form": form})

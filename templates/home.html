@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Luxelle | Luxury Handbags</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{% static 'image/favicon.svg' %}">
+    <link rel="icon" type="image/x-icon" href="{% static 'image/favicon.ico' %}">
+    <link rel="apple-touch-icon" href="{% static 'image/apple-touch-icon.png' %}">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,6 +19,30 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <!-- Custom CSS -->
     <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    <style>
+        .btn-login-lux {
+            background-color: #C9A26A;
+            color: #1A1A1A;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            text-decoration: none;
+            padding: 10px 26px;
+            border: 1px solid #C9A26A;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+            line-height: 1;
+        }
+        .btn-login-lux:hover {
+            background-color: #b08d5b;
+            border-color: #b08d5b;
+            color: #1A1A1A;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(201, 162, 106, 0.28);
+        }
+    </style>
 </head>
 <body class="bg-lux-beige">
 
@@ -64,12 +92,12 @@
                     <i class="fa-solid fa-bag-shopping fs-5"></i>
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-lux-black text-white small-badge">2</span>
                 </a>
+    {% if request.user.is_authenticated %}
                 <div class="dropdown">
                     <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale dropdown-toggle no-caret" id="accountDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Account">
                         <i class="fa-regular fa-user fs-5"></i>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-3 mt-2" aria-labelledby="accountDropdown">
-    {% if request.user.is_authenticated %}
                         <li><a class="dropdown-item rounded-2 py-2" href="{% url 'profile' %}"><i class="fa-solid fa-user me-2 text-muted"></i>Profile</a></li>
                         <li>
                             <form action="{% url 'logout' %}" method="post" class="d-inline">
@@ -79,12 +107,11 @@
                                 </button>
                             </form>
                         </li>
-{% else %}
-                        <li><a class="dropdown-item rounded-2 py-2" href="{% url 'login' %}"><i class="fa-solid fa-right-to-bracket me-2 text-muted"></i>Sign In</a></li>
-                        <li><a class="dropdown-item rounded-2 py-2" href="{% url 'register' %}"><i class="fa-solid fa-user-plus me-2 text-muted"></i>Sign Up</a></li>
-{% endif %}
                     </ul>
                 </div>
+    {% else %}
+                <a href="{% url 'login' %}" class="btn-login-lux d-inline-flex align-items-center">Login</a>
+    {% endif %}
             </div>
         </div>
     </header>
