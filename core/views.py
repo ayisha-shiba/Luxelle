@@ -711,20 +711,8 @@ def orders_view(request):
     return render(request, "orders.html")
 
 
-# @login_required
-# @never_cache
-# def wishlist_view(request):
-#     return render(request, "wishlist.html")
+@login_required
+@never_cache
+def wishlist_view(request):
+    return render(request, "wishlist.html")
 
-
-
-# @login_required
-# @never_cache
-# def wishlist_view(request):
-#     return render(request, "wishlist.html")
-
-
-# @login_required
-# @never_cache
-# def wishlist_view(request):
-#     return render(request, "wishlist.html")
