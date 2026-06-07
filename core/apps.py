@@ -45,12 +45,28 @@ class CoreConfig(AppConfig):
                 site.name = site_name
                 site.save()
 
-            social_app, _ = SocialApp.objects.get_or_create(
-                provider="google",
-                name="Google",
-                defaults={"client_id": client_id, "secret": client_secret},
-            )
-            if social_app.client_id != client_id or social_app.secret != client_secret:
+            # provider="google" is the single identity for this app. Look up by
+            # provider ONLY (not name) and collapse any stray duplicates so the DB
+            # can never hold two Google apps -> allauth's get_app() stays single.
+            google_apps = list(SocialApp.objects.filter(provider="google").order_by("pk"))
+            if google_apps:
+                social_app = google_apps[0]
+                for dup in google_apps[1:]:
+                    dup.delete()
+            else:
+                social_app = SocialApp.objects.create(
+                    provider="google",
+                    name="Google",
+                    client_id=client_id,
+                    secret=client_secret,
+                )
+
+            if (
+                social_app.name != "Google"
+                or social_app.client_id != client_id
+                or social_app.secret != client_secret
+            ):
+                social_app.name = "Google"
                 social_app.client_id = client_id
                 social_app.secret = client_secret
                 social_app.save()
