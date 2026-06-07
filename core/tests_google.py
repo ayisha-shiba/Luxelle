@@ -15,10 +15,8 @@ class GoogleLoginTest(TestCase):
 
     @patch('allauth.socialaccount.providers.oauth2.views.OAuth2CallbackView.dispatch')
     def test_google_callback(self, mock_dispatch):
-        # We will mock the complete_login behavior
         from allauth.socialaccount.helpers import complete_social_login
-        
-        # Create a mock sociallogin
+
         user = CustomUser(email='newgoogleuser@example.com', first_name='John', last_name='Doe')
         account = SocialAccount(provider='google', uid='google123', extra_data={'email':'newgoogleuser@example.com', 'given_name': 'John', 'family_name': 'Doe'})
         sociallogin = SocialLogin(account=account, user=user)

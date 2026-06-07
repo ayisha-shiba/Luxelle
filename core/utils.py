@@ -9,14 +9,13 @@ from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
-OTP_EXPIRY_MINUTES   = 10  # increased from 1 minute to allow user time
-OTP_RESEND_COOLDOWN  = 60   # seconds — enforced server-side, not by frontend timer
+OTP_EXPIRY_MINUTES   = 10
+OTP_RESEND_COOLDOWN  = 60   # seconds
 SESSION_EXPIRY_MINUTES = 15 
 
 
 
 def generate_otp(length: int = 6) -> str:
-    """Generate a secure numeric OTP of the given length."""
     return "".join(random.choices(string.digits, k=length))
 
 # OTP Create
@@ -95,12 +94,12 @@ def verify_otp(user, otp_input: str, purpose: str) -> tuple[bool, str]:
 
 def send_otp_email(user, otp_code: str, purpose: str) -> bool:
     subjects = {
-        "registration":   "Luxelle — Verify Your Email",
-        "password_reset": "Luxelle — Password Reset OTP",
-        "email_change":   "Luxelle — Confirm Email Change",
-        "account_delete": "Luxelle — Confirm Account Deletion",
+        "registration":   "Luxelle - Verify Your Email",
+        "password_reset": "Luxelle - Password Reset OTP",
+        "email_change":   "Luxelle - Confirm Email Change",
+        "account_delete": "Luxelle - Confirm Account Deletion",
     }
-    subject = subjects.get(purpose, "Luxelle — OTP Verification")
+    subject = subjects.get(purpose, "Luxelle - OTP Verification")
 
     if purpose == "registration":
         body = (
@@ -109,7 +108,7 @@ def send_otp_email(user, otp_code: str, purpose: str) -> bool:
             f"OTP: {otp_code}\n\n"
             f"This OTP is valid for {OTP_EXPIRY_MINUTES} minutes.\n\n"
             f"If you did not create an account, please ignore this email.\n\n"
-            f"— The Luxelle Team"
+            f"- The Luxelle Team"
         )
     elif purpose == "email_change":
         body = (
@@ -118,7 +117,7 @@ def send_otp_email(user, otp_code: str, purpose: str) -> bool:
             f"OTP: {otp_code}\n\n"
             f"This OTP is valid for {OTP_EXPIRY_MINUTES} minutes.\n\n"
             f"If you did not request this change, please ignore this email.\n\n"
-            f"— The Luxelle Team"
+            f"- The Luxelle Team"
         )
     elif purpose == "account_delete":
         body = (
@@ -128,7 +127,7 @@ def send_otp_email(user, otp_code: str, purpose: str) -> bool:
             f"This OTP is valid for {OTP_EXPIRY_MINUTES} minutes.\n\n"
             f"WARNING: Entering this code will permanently erase your account and all data. "
             f"If you did not request this, please ignore this email and change your password.\n\n"
-            f"— The Luxelle Team"
+            f"- The Luxelle Team"
         )
     else:
         body = (
@@ -137,7 +136,7 @@ def send_otp_email(user, otp_code: str, purpose: str) -> bool:
             f"OTP: {otp_code}\n\n"
             f"This OTP is valid for {OTP_EXPIRY_MINUTES} minutes.\n\n"
             f"If you did not request this, please ignore this email.\n\n"
-            f"— The Luxelle Team"
+            f"- The Luxelle Team"
         )
 
     try:

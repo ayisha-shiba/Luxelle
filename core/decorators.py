@@ -11,7 +11,6 @@ from django.contrib import messages
 # ─────────────────────────────────────────────
 
 def _parse_iso(dt_str):
-    """Parse an ISO datetime string and make it timezone-aware. Returns None on failure."""
     if not dt_str:
         return None
     try:
@@ -24,7 +23,6 @@ def _parse_iso(dt_str):
 
 
 def _clear_registration_otp_session(request):
-    """Remove OTP-related keys from registration flow while preserving pending_registration data."""
     for key in (
         "pending_otp",
         "pending_otp_expires_at",
@@ -36,7 +34,6 @@ def _clear_registration_otp_session(request):
 
 
 def _clear_pending_user_otp_session(request):
-    """Remove all pending-user OTP keys from session (password reset / email change)."""
     for key in (
         "pending_user_id",
         "otp_purpose",
@@ -51,15 +48,6 @@ def _clear_pending_user_otp_session(request):
 # ─────────────────────────────────────────────
 
 def anonymous_required(redirect_url="home"):
-    """
-    Redirects already-authenticated users away from login/register pages.
-
-    @never_cache added: prevents the browser from caching the login or
-    register page — without this, hitting Back after logout can show the
-    cached login page in a partially-authenticated state.
-
-    Usage: @anonymous_required()
-    """
     def decorator(view_func):
         @wraps(view_func)
         @never_cache
@@ -72,44 +60,21 @@ def anonymous_required(redirect_url="home"):
 
 
 # ─────────────────────────────────────────────
-# OTP Session Required  (security-hardened)
-# ─────────────────────────────────────────────
+# OTP Session Required# ─────────────────────────────────────────────
 
 def otp_session_required(view_func):
-    """
-    Gate for all OTP verification views.
-
-    Security guarantees (backend-only — frontend cannot bypass these):
-    1. Session must contain either pending_registration (registration flow)
-       or pending_user_id (password-reset / email-change flow).
-       Missing → redirect to register.
-    2. OTP expiry is validated server-side on EVERY request (GET and POST).
-       Expired → session is fully cleared + user is redirected to the
-       correct starting page based on otp_purpose:
-         - "password_reset" → forgot_password
-         - anything else   → register
-    3. @never_cache prevents any browser/proxy from serving a cached copy
-       of the OTP page after the session has been cleared.
-
-    This fixes:
-    - User closes browser → reopens site → lands back on OTP page (stale session)
-    - OTP expires → page still usable if user refreshes
-    - Manual URL access with expired/missing session
-    """
     @wraps(view_func)
     @never_cache
     def wrapper(request, *args, **kwargs):
         has_registration = bool(request.session.get("pending_registration"))
         has_pending_user = bool(request.session.get("pending_user_id"))
 
-        # ── 1. Session must exist ──
         if not has_registration and not has_pending_user:
             messages.error(request, "Session expired. Please start again.")
             return redirect("register")
 
         now = timezone.now()
 
-        # ── 2a. Registration flow: check pending_otp_expires_at ──
         if has_registration:
             expires_at = _parse_iso(request.session.get("pending_otp_expires_at"))
             if expires_at and now > expires_at:
@@ -120,7 +85,6 @@ def otp_session_required(view_func):
                 )
                 return redirect("register")
 
-        # ── 2b. Password-reset / email-change flow: check otp_expires_at ──
         if has_pending_user:
             expires_at = _parse_iso(request.session.get("otp_expires_at"))
             if expires_at and now > expires_at:
@@ -145,13 +109,6 @@ def otp_session_required(view_func):
 # ─────────────────────────────────────────────
 
 def password_reset_session_required(view_func):
-    """
-    Ensures the password-reset OTP has been verified before showing
-    the set-new-password page.
-
-    @never_cache added: prevents the password reset form from being
-    served from cache after the session has been cleared.
-    """
     @wraps(view_func)
     @never_cache
     def wrapper(request, *args, **kwargs):
@@ -171,7 +128,6 @@ from .models import CustomUser
 # Helpers
 
 def _parse_iso(dt_str):
-    """Parse an ISO datetime string and make it timezone-aware. Returns None on failure."""
     if not dt_str:
         return None
     try:
@@ -195,7 +151,6 @@ def _clear_registration_otp_session(request):
 
 
 def _clear_pending_user_otp_session(request):
-    """Remove all pending-user OTP keys from session (password reset / email change)."""
     for key in (
         "pending_user_id",
         "otp_purpose",
@@ -220,8 +175,7 @@ def anonymous_required(redirect_url="home"):
     return decorator
 
 
-# OTP Session Required  (security-hardened)
-
+# OTP Session Required
 def otp_session_required(view_func):
     @wraps(view_func)
     @never_cache
@@ -229,7 +183,6 @@ def otp_session_required(view_func):
         has_registration = bool(request.session.get("pending_registration"))
         has_pending_user = bool(request.session.get("pending_user_id"))
 
-        # ── 1. Session must exist ──
         if not has_registration and not has_pending_user:
             messages.error(request, "Session expired. Please start again.")
             return redirect("register")
@@ -269,7 +222,6 @@ def admin_required(view_func):
             request.session.pop("_admin_pw_hash", None)
             return redirect("admin_login")
 
-        # If the admin's password was changed (e.g. via forgot-password), invalidate the session
         stored_hash = request.session.get("_admin_pw_hash")
         if stored_hash and admin_user.password != stored_hash:
             request.session.flush()

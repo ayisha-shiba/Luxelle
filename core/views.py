@@ -126,7 +126,6 @@ def register_view(request):
 
             class _TempUser:
                 email = registration_data["email"]
-                # Use first part of full name for email template
                 full_name = registration_data.get("full_name", "")
                 first_name = full_name.split(maxsplit=1)[0] if full_name else ""
 
@@ -145,7 +144,7 @@ def register_view(request):
     return render(request, "register.html", {"form": form})
 
 
-# OTP VERIFICATION — Step 2: Verify OTP and CREATE user
+# OTP VERIFICATION
 
 @never_cache
 @otp_session_required
@@ -266,10 +265,8 @@ def login_view(request):
             email    = form.cleaned_data["email"]
             password = form.cleaned_data["password"]
 
-            # Authenticate user
             user = authenticate(request, username=email, password=password)
 
-            # Ensure any admin session flags are removed before normal user login
             if request.session.get('_is_admin'):
                 request.session.pop('_is_admin', None)
                 request.session.pop('_admin_user_id', None)
@@ -280,10 +277,8 @@ def login_view(request):
                 try:
                     existing = CustomUser.objects.get(email=email)
                     if existing.is_staff:
-                        # Admin account — don't reveal reason
                         messages.error(request, "Invalid email or password.")
                     elif not existing.is_active and existing.check_password(password):
-                        # Correct password but account is blocked by admin
                         messages.error(request, "Your account has been suspended. Please contact support.")
                     else:
                         messages.error(request, "Invalid email or password.")
@@ -361,7 +356,6 @@ def forgot_password_view(request):
 @never_cache
 
 def forgot_password_otp_view(request):
-    """Verify the password-reset OTP (server-side expiry check)."""
     user = get_pending_user(request)
     if not user or request.session.get("otp_purpose") != "password_reset":
         messages.error(request, "Session expired. Please request a new OTP.")
@@ -416,7 +410,7 @@ def resend_forgot_password_otp_view(request):
     seconds_remaining = _get_pending_otp_resend_seconds_remaining(request)
     return render(request, "forgot_password_otp.html", {"form": form, "email": user.email, "seconds_remaining": seconds_remaining})
 
-# FORGOT PASSWORD — Step 3: Set New Password
+# SET NEW PASSWORD
 
 @never_cache
 @anonymous_required()
@@ -506,8 +500,6 @@ def profile_edit_view(request):
 @login_required
 
 def change_password_view(request):
-    # Google-only users have no usable password — they "set" one for the first
-    # time instead of "changing" it, so we skip the current-password check.
     has_password = request.user.has_usable_password()
 
     if request.method == "POST":
@@ -582,7 +574,7 @@ def verify_email_otp_view(request):
             user.email = new_email
             user.save(update_fields=["email"])
             login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-            update_session_auth_hash(request, user)  # ensure session auth hash refreshed
+            update_session_auth_hash(request, user)
             clear_pending_user_session(request)
             request.session.pop("pending_new_email", None)
             request.session.save()
@@ -592,7 +584,6 @@ def verify_email_otp_view(request):
         else:
             messages.error(request, error_msg)
 
-    # Seconds left before a new code can be requested (drives the visible timer)
     latest = OTPVerification.objects.filter(
         user=user, purpose="email_change"
     ).order_by("-created_at").first()
@@ -633,13 +624,11 @@ def delete_account_view(request):
     error = None
 
     if request.method == "POST":
-        # Prevent admin (superuser) deletion via normal user interface
         if user.is_superuser:
             messages.error(request, "Admin accounts cannot be deleted from this page.")
             return redirect("profile")
 
         if has_password:
-            # Email/password users: confirm with their password
             password = request.POST.get("password", "")
             if not user.check_password(password):
                 error = "Password incorrect. Account not deleted."
@@ -649,7 +638,6 @@ def delete_account_view(request):
                 messages.success(request, "Your account has been permanently deleted.")
                 return redirect("home")
         else:
-            # Google-only users (no password): confirm with an email OTP
             action = request.POST.get("action")
 
             if action == "send_otp":
@@ -674,7 +662,6 @@ def delete_account_view(request):
                 else:
                     error = msg
 
-    # How many seconds remain before a new code can be requested (for the timer)
     seconds_remaining = 0
     otp_sent = request.session.get("delete_otp_sent", False)
     if not has_password and otp_sent:
@@ -706,7 +693,6 @@ def addresses_view(request):
             try:
                 address      = form.save(commit=False)
                 address.user = request.user
-                # If this is the user's first address, make it default
                 if request.user.addresses.count() == 0:
                     address.is_default = True
                 address.save()
@@ -726,7 +712,6 @@ def addresses_view(request):
 @login_required
 @never_cache
 def address_edit_view(request, address_id):
-    """Edit an existing address (ownership enforced)."""
     address = get_object_or_404(Address, pk=address_id, user=request.user)
     form    = AddressForm(instance=address)
 
@@ -760,7 +745,6 @@ def address_delete_view(request, address_id):
 @login_required
 @never_cache
 def address_set_default_view(request, address_id):
-    """Mark an address as the default (POST only)."""
     address = get_object_or_404(Address, pk=address_id, user=request.user)
     if request.method == "POST":
         address.is_default = True

@@ -130,11 +130,6 @@ SOCIALACCOUNT_AUTO_SIGNUP    = True
 SOCIALACCOUNT_STORE_TOKENS   = True
 SOCIALACCOUNT_QUERY_EMAIL    = True
 SOCIALACCOUNT_LOGIN_ON_GET   = True
-# NOTE: The Google SocialApp is configured in ONE place only — the database
-# (created/maintained by core.apps.CoreConfig._ensure_google_social_app from the
-# GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET env vars). Do NOT add an "APP" key here:
-# allauth merges DB apps + settings apps, so defining the app in both places makes
-# get_app() find two Google apps and raise MultipleObjectsReturned on /login/.
 SOCIALACCOUNT_PROVIDERS = {
     "google": {
         "SCOPE":             ["profile", "email"],
@@ -163,7 +158,6 @@ DATABASES = {
 
 # Sessions
 
-# DB-backed sessions (default) — fine with Postgres
 SESSION_ENGINE           = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_AGE       = 1209600    
 SESSION_COOKIE_HTTPONLY  = True        

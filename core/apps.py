@@ -45,9 +45,6 @@ class CoreConfig(AppConfig):
                 site.name = site_name
                 site.save()
 
-            # provider="google" is the single identity for this app. Look up by
-            # provider ONLY (not name) and collapse any stray duplicates so the DB
-            # can never hold two Google apps -> allauth's get_app() stays single.
             google_apps = list(SocialApp.objects.filter(provider="google").order_by("pk"))
             if google_apps:
                 social_app = google_apps[0]

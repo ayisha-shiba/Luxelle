@@ -64,8 +64,7 @@ def validate_strong_password(password):
         raise ValidationError(errors)
 
 # ─────────────────────────────────────────────
-# Reusable widget helpers  (unchanged)
-# ─────────────────────────────────────────────
+# Reusable widget helpers# ─────────────────────────────────────────────
 
 def _input(placeholder, type_="text", extra_classes=""):
     return forms.TextInput(attrs={
@@ -91,7 +90,6 @@ def _password(placeholder):
 # ─────────────────────────────────────────────
 
 class RegistrationForm(forms.ModelForm):
-    # Explicit field for full name (non-model)
     full_name = forms.CharField(
         label="Full Name",
         widget=_input("Full Name"),
@@ -111,7 +109,6 @@ class RegistrationForm(forms.ModelForm):
 
     class Meta:
         model = CustomUser
-        # Exclude full_name from model fields; it's handled manually above
         fields = ["email", "phone"]
         widgets = {
             "email":      _email("Email address"),
@@ -133,21 +130,15 @@ class RegistrationForm(forms.ModelForm):
     def clean_email(self):
         email = self.cleaned_data.get("email", "").lower()
 
-        # Check if any user with this email (case-insensitive) already exists in the database
         existing_user_qs = CustomUser.objects.filter(email__iexact=email)
         if existing_user_qs.exists():
-            # A verified account that an admin has deactivated = suspended user.
-            # They must not be able to recreate the account.
             if existing_user_qs.filter(is_active=False, is_verified=True).exists():
                 raise ValidationError("This email has been suspended by the admin. Please contact support.")
 
-            # If the existing user is an unverified ghost record (inactive + unverified),
-            # we can safely delete it to allow the user to register/retry.
             ghost_qs = existing_user_qs.filter(is_active=False, is_verified=False)
             if ghost_qs.exists():
                 ghost_qs.delete()
             else:
-                # If they are active OR verified, they are a real user and cannot be deleted
                 raise ValidationError("An account with this email already exists.")
 
         return email
@@ -169,7 +160,6 @@ class RegistrationForm(forms.ModelForm):
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        # Split full_name into first and last name
         full_name = self.cleaned_data.get("full_name", "").strip()
         parts = full_name.split(maxsplit=1)
         if len(parts) == 2:
@@ -179,15 +169,14 @@ class RegistrationForm(forms.ModelForm):
             user.first_name = full_name
             user.last_name = ""
         user.set_password(self.cleaned_data["password1"])
-        user.is_active = False   # Stays inactive until OTP verified
+        user.is_active = False
         if commit:
             user.save()
         return user
 
 
 # ─────────────────────────────────────────────
-# Login Form  (unchanged)
-# ─────────────────────────────────────────────
+# Login Form# ─────────────────────────────────────────────
 
 class LoginForm(forms.Form):
     email = forms.EmailField(
@@ -204,8 +193,7 @@ class LoginForm(forms.Form):
 
 
 # ─────────────────────────────────────────────
-# OTP Verification Form  (unchanged)
-# ─────────────────────────────────────────────
+# OTP Verification Form# ─────────────────────────────────────────────
 
 class OTPVerificationForm(forms.Form):
     otp = forms.CharField(
@@ -250,8 +238,7 @@ class ForgotPasswordForm(forms.Form):
 
 
 # ─────────────────────────────────────────────
-# Set New Password Form  (unchanged)
-# ─────────────────────────────────────────────
+# Set New Password Form# ─────────────────────────────────────────────
 
 class SetNewPasswordForm(forms.Form):
     new_password = forms.CharField(
@@ -274,8 +261,7 @@ class SetNewPasswordForm(forms.Form):
 
 
 # ─────────────────────────────────────────────
-# Change Password Form  (unchanged)
-# ─────────────────────────────────────────────
+# Change Password Form# ─────────────────────────────────────────────
 
 class ChangePasswordForm(forms.Form):
     current_password = forms.CharField(
@@ -337,11 +323,9 @@ class EmailChangeForm(forms.Form):
 
 
 # ─────────────────────────────────────────────
-# Profile Edit Forms  (unchanged)
-# ─────────────────────────────────────────────
+# Profile Edit Forms# ─────────────────────────────────────────────
 
 class ProfileEditForm(forms.ModelForm):
-    # Explicit non-model full_name field for editing
     full_name = forms.CharField(
         label="Full Name",
         widget=_input("Enter your full name"),
@@ -350,7 +334,6 @@ class ProfileEditForm(forms.ModelForm):
 
     class Meta:
         model = CustomUser
-        # Exclude full_name from model fields; handled manually above
         fields = ["phone"]
         widgets = {
             "phone": _input("Phone number", type_="tel"),
@@ -391,7 +374,6 @@ class ProfileEditForm(forms.ModelForm):
             user.first_name = full_name
             user.last_name  = ""
         if commit:
-            # Only update the fields this form owns — never touch password.
             user.save(update_fields=["first_name", "last_name", "phone"])
         return user
 
@@ -406,7 +388,7 @@ class UserProfileForm(forms.ModelForm):
             "bio":           forms.Textarea(attrs={
                 "class":       "form-control",
                 "rows":        3,
-                "placeholder": "Write a short bio…",
+                "placeholder": "Write a short bio",
                 "maxlength":   300,
             }),
             "avatar": forms.FileInput(attrs={"class": "form-control", "accept": "image/*"}),
@@ -437,8 +419,7 @@ class UserProfileForm(forms.ModelForm):
 
 
 # ─────────────────────────────────────────────
-# Address Form  (unchanged)
-# ─────────────────────────────────────────────
+# Address Form# ─────────────────────────────────────────────
 
 class AddressForm(forms.ModelForm):
     class Meta:
@@ -466,7 +447,7 @@ class AddressForm(forms.ModelForm):
         if len(name) < 2:
             raise ValidationError("Full name must be at least 2 characters.")
         if not all(ch.isalpha() or ch.isspace() for ch in name):
-            raise ValidationError("Full name can only contain letters and spaces — no special characters.")
+            raise ValidationError("Full name can only contain letters and spaces.")
         return name
 
     def clean_phone(self):

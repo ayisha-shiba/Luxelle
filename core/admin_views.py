@@ -10,8 +10,9 @@ from django.views.decorators.cache import never_cache
 from django.urls import reverse
 from .decorators import admin_required
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db.models import Q
 from .forms import SetNewPasswordForm
-from .models import CustomUser
+from .models import CustomUser, Category
 from .utils import (
     OTP_EXPIRY_MINUTES,
     check_resend_cooldown,
@@ -31,7 +32,6 @@ logger = logging.getLogger(__name__)
 @never_cache
 def admin_login_view(request):
 
-    # Use custom session flags — admin panel never calls Django's login()
     if request.session.get("_is_admin") and request.session.get("_admin_user_id"):
         return redirect("admin_dashboard")
 
@@ -45,7 +45,6 @@ def admin_login_view(request):
             request.session.cycle_key()
             request.session["_is_admin"] = True
             request.session["_admin_user_id"] = str(user.id)
-            # Store password hash so admin_required can detect password changes
             request.session["_admin_pw_hash"] = user.password
             request.session.modified = True
             logger.info(f"[ADMIN LOGIN] Staff user logged in: {user.email}")
@@ -93,7 +92,6 @@ def admin_dashboard_view(request):
 @admin_required
 def admin_user_management_view(request):
         from django.utils import timezone
-        # Get query parameters
         search_query = request.GET.get('search', '').strip()
         status_filter = request.GET.get('status', '')  
 
@@ -162,12 +160,6 @@ def admin_toggle_user_status_view(request, user_id):
 @admin_required
 @never_cache
 def admin_delete_user_view(request, user_id):
-    """Delete a non‑superuser and stay in admin panel.
-
-    Accepts both GET and POST (GET for convenience in UI). Performs the delete,
-    adds a success message and redirects back to the user‑management view.
-    """
-    # Allow GET for backward compatibility; POST is preferred.
     if request.method not in ("POST", "GET"):
         return redirect('admin_users')
     try:
@@ -182,7 +174,7 @@ def admin_delete_user_view(request, user_id):
     return redirect('admin_users')
 
 
-# ADMIN FORGOT PASSWORD — Step 1: Request OTP
+# ADMIN FORGOT PASSWORD - REQUEST OTP
 
 
 def admin_forgot_password_view(request):
@@ -207,11 +199,8 @@ def admin_forgot_password_view(request):
     if not email_sent:
         messages.warning(request, "OTP generated, but email could not be sent. Proceeding with verification.")
 
-    # Cycle session key to avoid fixation attacks
     request.session.cycle_key()
-    # Store OTP details in session after setting pending user
     set_pending_user_session(request, user.id, purpose="password_reset")
-    # Save OTP info for testing and verification
     request.session["pending_otp"] = otp_obj.otp
     request.session["pending_otp_expires_at"] = (otp_obj.created_at + timedelta(minutes=OTP_EXPIRY_MINUTES)).isoformat()
     request.session["pending_otp_sent_at"] = otp_obj.created_at.isoformat()
@@ -221,7 +210,7 @@ def admin_forgot_password_view(request):
     return redirect('admin_forgot_password_otp')
 
 
-# ADMIN FORGOT PASSWORD — Step 2: Verify OTP
+# ADMIN FORGOT PASSWORD - VERIFY OTP
 
 @never_cache
 def admin_forgot_password_otp_view(request):
@@ -250,7 +239,7 @@ def admin_forgot_password_otp_view(request):
     return render(request, "admin_panel/otp.html", {"email": user.email})
 
 
-# ADMIN FORGOT PASSWORD — Resend OTP
+# ADMIN FORGOT PASSWORD - RESEND OTP
 
 @never_cache
 def admin_resend_forgot_password_otp_view(request):
@@ -276,7 +265,7 @@ def admin_resend_forgot_password_otp_view(request):
     return redirect("admin_forgot_password_otp")
 
 
-# ADMIN FORGOT PASSWORD — Step 3: Reset Password
+# ADMIN FORGOT PASSWORD - RESET PASSWORD
 
 @never_cache
 def admin_reset_password_view(request):
@@ -299,8 +288,6 @@ def admin_reset_password_view(request):
             user.set_password(form.cleaned_data["new_password"])
             user.save(update_fields=["password"])
 
-            # Clear ALL session data — forces re-login and invalidates any
-            # existing admin session that was using the old password hash
             for key in (
                 "password_reset_verified",
                 "password_reset_user_id",
@@ -315,3 +302,32 @@ def admin_reset_password_view(request):
             return redirect("admin_login")
 
     return render(request, "admin_panel/reset_password.html", {"form": form})
+
+
+#ADMIN CATEGORY MANAGEMENT
+
+@admin_required
+def admin_category_list_view(request):
+    search_query = request.GET.get("search", "").strip()
+    categories = Category.objects.filter(is_deleted=False)
+    if search_query:
+        categories = categories.filter(Q(name__icontains=search_query))
+    categories = categories.order_by("-created_at")
+
+    paginator   = Paginator(categories, 5)
+    page_number = request.GET.get("page")
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    context = {
+        "categories":   page_obj.object_list,
+        "page_obj":     page_obj,
+        "is_paginated": page_obj.has_other_pages(),
+        "search_query": search_query,
+    }
+    return render(request, "admin_panel/category_list.html", context)
+    

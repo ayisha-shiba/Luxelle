@@ -70,7 +70,7 @@
             <!-- Six digit input blocks -->
             <form id="otpVerifyPageForm" method="POST" action="{% url 'verify_otp' %}">
                 {% csrf_token %}
-                <!-- Hidden field that Django's OTPVerificationForm actually reads -->
+                <!-- Hidden OTP field -->
                 <input type="hidden" name="otp" id="otpHiddenField" value="{{ form.otp.value|default_if_none:'' }}">
 
                 <div class="d-flex justify-content-center gap-2" id="otpPageInputs">
