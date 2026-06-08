@@ -350,6 +350,42 @@ body {
 }
 
 /* =========================================
+   Auth pages: fit within one screen (desktop)
+   Banner stays full-height; the form panel scrolls
+   internally only if the card is taller than the viewport.
+   ========================================= */
+@media (min-width: 992px) {
+    .login-wrapper .row.vh-100 {
+        overflow: hidden;
+    }
+    .form-section {
+        height: 100vh;
+        overflow-y: auto;
+        flex-direction: column;
+        justify-content: flex-start !important;
+        padding-top: 1.5rem !important;
+        padding-bottom: 1.5rem !important;
+    }
+    /* auto top/bottom margins center the card when it fits,
+       and collapse to 0 when it overflows (so nothing is clipped) */
+    .form-section .login-card {
+        margin-top: auto !important;
+        margin-bottom: auto !important;
+        padding: 1.75rem 2.25rem !important;
+    }
+    .login-card .brand-logo {
+        font-size: 2.1rem;
+    }
+    .login-card .text-center {
+        padding-bottom: 0.25rem;
+        margin-bottom: 1rem !important;
+    }
+    .login-card .form-floating {
+        margin-bottom: 0.85rem !important;
+    }
+}
+
+/* =========================================
    Premium Homepage Elements
    ========================================= */
 
