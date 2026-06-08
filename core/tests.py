@@ -36,8 +36,7 @@ class RegistrationFlowTest(TestCase):
 
     def test_registration_and_otp_redirection(self):
         form_data = {
-            'first_name': 'Test',
-            'last_name': 'User',
+            'full_name': 'Test User',
             'email': 'testuser@example.com',
             'phone': '+91 98765 43210',
             'password1': 'StrongPass!123',
@@ -52,8 +51,7 @@ class RegistrationFlowTest(TestCase):
 
     def test_registration_form_rejects_invalid_phone(self):
         form_data = {
-            'first_name': 'Test',
-            'last_name': 'User',
+            'full_name': 'Test User',
             'email': 'invalidphone@example.com',
             'phone': '123-abc-4567',
             'password1': 'StrongPass!123',
@@ -66,8 +64,7 @@ class RegistrationFlowTest(TestCase):
 
     def test_registration_form_accepts_formatted_phone_and_normalizes_it(self):
         form_data = {
-            'first_name': 'Test',
-            'last_name': 'User',
+            'full_name': 'Test User',
             'email': 'validphone@example.com',
             'phone': '+91 98765-43210',
             'password1': 'StrongPass!123',
@@ -79,8 +76,7 @@ class RegistrationFlowTest(TestCase):
 
     def test_resend_otp_keeps_user_on_verify_page_and_preserves_session(self):
         form_data = {
-            'first_name': 'Test',
-            'last_name': 'User',
+            'full_name': 'Test User',
             'email': 'resendtest@example.com',
             'phone': '9876543210',
             'password1': 'StrongPass!123',
@@ -99,12 +95,11 @@ class RegistrationFlowTest(TestCase):
         self.assertEqual(self.client.session.get('pending_registration')['email'], 'resendtest@example.com')
         self.assertEqual(self.client.session.get('pending_registration')['phone'], '9876543210')
         self.assertIsNotNone(self.client.session.get('pending_otp'))
-        self.assertContains(response, 'OTP sent successfully.')
+        self.assertContains(response, 'OTP resent successfully.')
 
     def test_verify_otp_invalid_preserves_resend_timer_state(self):
         form_data = {
-            'first_name': 'Test',
-            'last_name': 'User',
+            'full_name': 'Test User',
             'email': 'timerstate@example.com',
             'phone': '9876543210',
             'password1': 'StrongPass!123',
@@ -124,8 +119,7 @@ class RegistrationFlowTest(TestCase):
 
     def test_registration_form_rejects_invalid_mobile_prefix(self):
         form_data = {
-            'first_name': 'Test',
-            'last_name': 'User',
+            'full_name': 'Test User',
             'email': 'invalidprefix@example.com',
             'phone': '1234567899',
             'password1': 'StrongPass!123',
@@ -138,8 +132,7 @@ class RegistrationFlowTest(TestCase):
 
     def test_change_email_link_redirects_to_register(self):
         form_data = {
-            'first_name': 'Test',
-            'last_name': 'User',
+            'full_name': 'Test User',
             'email': 'testchange@example.com',
             'phone': '9876543210',
             'password1': 'StrongPass!123',
@@ -152,8 +145,7 @@ class RegistrationFlowTest(TestCase):
 
     def test_resend_otp_after_otp_expires(self):
         form_data = {
-            'first_name': 'Test',
-            'last_name': 'User',
+            'full_name': 'Test User',
             'email': 'expiredotp@example.com',
             'phone': '9876543210',
             'password1': 'StrongPass!123',
@@ -179,4 +171,4 @@ class RegistrationFlowTest(TestCase):
         new_otp = self.client.session.get('pending_otp')
         self.assertIsNotNone(new_otp)
 
-        self.assertContains(response, 'OTP sent successfully.')
+        self.assertContains(response, 'OTP resent successfully.')

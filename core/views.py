@@ -1,6 +1,7 @@
 
 
 import logging
+import math
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -83,7 +84,7 @@ def _get_pending_otp_resend_seconds_remaining(request):
             sent_at = timezone.make_aware(sent_at)
         elapsed = (timezone.now() - sent_at).total_seconds()
         cooldown = OTPVerification.RESEND_COOLDOWN_SECONDS
-        remaining = int(cooldown - elapsed)
+        remaining = math.ceil(cooldown - elapsed)
         return max(0, remaining)
     except (ValueError, TypeError):
         return 0

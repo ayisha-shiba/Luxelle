@@ -10,11 +10,6 @@ class CoreConfig(AppConfig):
     name = "core"
 
     def ready(self):
-        from django.contrib.sessions.models import Session
-        for s in Session.objects.all():
-            data = s.get_decoded()
-            if not data.get('_is_admin'):
-                s.delete()
         from django.db.models.signals import post_migrate
 
         post_migrate.connect(self._ensure_google_social_app, sender=self, weak=False)
