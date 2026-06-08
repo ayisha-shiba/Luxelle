@@ -10,8 +10,10 @@ django.setup()
 
 from core.models import CustomUser
 
-email = 'ayishashiba.p@gmail.com'
-new_password = 'Ayisha@123'
+email = os.environ.get('ADMIN_EMAIL')
+new_password = os.environ.get('ADMIN_PASSWORD')
+if not email or not new_password:
+    sys.exit('Set ADMIN_EMAIL and ADMIN_PASSWORD environment variables before running this script.')
 
 try:
     admin_user = CustomUser.objects.get(email=email)

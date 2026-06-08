@@ -1,6 +1,7 @@
 import os
-import django
 import sys
+import django
+
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(BASE_DIR)
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myproject.settings')
@@ -8,7 +9,13 @@ django.setup()
 
 from django.contrib.auth import get_user_model
 
-def ensure_admin_user(email='ayishashiba.p@gmail.com', password='Ayisha@123'):
+
+def ensure_admin_user(email=None, password=None):
+    email = email or os.environ.get('ADMIN_EMAIL')
+    password = password or os.environ.get('ADMIN_PASSWORD')
+    if not email or not password:
+        sys.exit('Set ADMIN_EMAIL and ADMIN_PASSWORD environment variables before running this script.')
+
     User = get_user_model()
     try:
         user = User.objects.get(email=email)
@@ -27,6 +34,7 @@ def ensure_admin_user(email='ayishashiba.p@gmail.com', password='Ayisha@123'):
             is_active=True,
         )
         print('Admin user created.')
+
 
 if __name__ == '__main__':
     ensure_admin_user()
