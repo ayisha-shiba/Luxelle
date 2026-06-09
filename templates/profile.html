@@ -455,7 +455,7 @@
                     <div class="avatar-ring mb-3">
                         <div class="avatar-border-outer">
                             <div class="avatar-border-inner">
-                                <img src="{% if user.profile.avatar %}{{ user.profile.avatar.url }}{% else %}{% static 'image/ayisha_avatar.png' %}{% endif %}" alt="{{ user.get_full_name }}" class="profile-avatar-img">
+                                <img src="{% if user.profile.avatar %}{{ user.profile.avatar.url }}{% else %}{% static 'image/default_avatar.svg' %}{% endif %}" alt="{{ user.get_full_name }}" class="profile-avatar-img">
                             </div>
                         </div>
                     </div>

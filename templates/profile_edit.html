@@ -400,7 +400,7 @@
                         <div class="avatar-ring">
                             <div class="avatar-border-outer">
                                 <div class="avatar-border-inner">
-                                    <img src="{% if profile.avatar %}{{ profile.avatar.url }}{% else %}{% static 'image/ayisha_avatar.png' %}{% endif %}" alt="{{ user.get_full_name }}" class="profile-avatar-img" id="avatarPreviewImg">
+                                    <img src="{% if profile.avatar %}{{ profile.avatar.url }}{% else %}{% static 'image/default_avatar.svg' %}{% endif %}" alt="{{ user.get_full_name }}" class="profile-avatar-img" id="avatarPreviewImg">
                                 </div>
                                 <!-- Pencil edit overlay yellow button -->
                                 <div class="pencil-edit-overlay" id="changePhotoOverlay" title="Upload New Photo">
@@ -459,7 +459,7 @@
                             <!-- Date of Birth -->
                             <div class="col-12 col-md-6">
                                 <label class="form-label-lux">DATE OF BIRTH</label>
-                                <input type="date" name="date_of_birth" class="form-control form-input-lux {% if profile_form.date_of_birth.errors %}is-invalid{% endif %}" value="{% if profile_form.date_of_birth.value %}{{ profile_form.date_of_birth.value|date:'Y-m-d' }}{% elif profile.date_of_birth %}{{ profile.date_of_birth|date:'Y-m-d' }}{% endif %}">
+                                <input type="date" name="date_of_birth" max="{% now 'Y-m-d' %}" class="form-control form-input-lux {% if profile_form.date_of_birth.errors %}is-invalid{% endif %}" value="{% if profile_form.date_of_birth.value %}{{ profile_form.date_of_birth.value|date:'Y-m-d' }}{% elif profile.date_of_birth %}{{ profile.date_of_birth|date:'Y-m-d' }}{% endif %}">
                                 {% if profile_form.date_of_birth.errors %}
                                     <div class="invalid-feedback d-block font-inter small mt-1 text-danger">
                                         {% for error in profile_form.date_of_birth.errors %}{{ error }}{% endfor %}
@@ -590,7 +590,7 @@
 
             // "Remove Photo" action setting fallback avatar preview and signaling server
             removePhotoBtn.addEventListener('click', function() {
-                avatarPreviewImg.src = "{% static 'image/ayisha_avatar.png' %}";
+                avatarPreviewImg.src = "{% static 'image/default_avatar.svg' %}";
                 avatarFileInput.value = ''; // Reset file input
                 clearAvatarInput.value = 'true'; // Signals server to delete model avatar file
             });
