@@ -11,8 +11,10 @@ from django.urls import reverse
 from .decorators import admin_required
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q, Min, Sum
-from .forms import SetNewPasswordForm, CategoryForm
-from .models import CustomUser, Category, Product, Brand
+from django.db import transaction
+import random
+from .forms import SetNewPasswordForm, CategoryForm, ProductForm, ProductVariantForm
+from .models import CustomUser, Category, Product, Brand, Material, ProductVariant, VariantImage
 from .utils import (
     OTP_EXPIRY_MINUTES,
     check_resend_cooldown,
@@ -542,4 +544,73 @@ def admin_product_toggle_status_view(request, product_id):
     state = "active" if product.is_listed else "inactive"
     messages.success(request, f"Product '{product.name}' is now {state}.")
     return redirect(request.META.get("HTTP_REFERER") or "admin_products")
+
+
+def _generate_unique_sku(product):
+    base = (product.slug or "prod").upper().replace("-", "")[:8]
+    while True:
+        sku = f"{base}-{random.randint(1000, 9999)}"
+        if not ProductVariant.objects.filter(sku=sku).exists():
+            return sku
+
+
+def _apply_inline_new(data):
+    """If a '<field>_new' value was supplied, create the related row (case-insensitive)
+    and point the prefixed FK field at it (ProductForm uses 'p-', variant uses 'v-')."""
+    new_brand = data.get("brand_new", "").strip()
+    if new_brand:
+        brand = (Brand.objects.filter(name__iexact=new_brand, is_deleted=False).first()
+                 or Brand.objects.create(name=new_brand))
+        data["p-brand"] = str(brand.id)
+    for field in ("strap_material", "case_material"):
+        new_val = data.get(f"{field}_new", "").strip()
+        if new_val:
+            material = (Material.objects.filter(name__iexact=new_val).first()
+                        or Material.objects.create(name=new_val))
+            data[f"v-{field}"] = str(material.id)
+    return data
+
+
+@admin_required
+def admin_product_add_view(request):
+    product_form = ProductForm(prefix="p")
+    variant_form = ProductVariantForm(prefix="v")
+
+    if request.method == "POST":
+        data = _apply_inline_new(request.POST.copy())
+        product_form = ProductForm(data, prefix="p")
+        variant_form = ProductVariantForm(data, prefix="v")
+        images       = request.FILES.getlist("images")
+
+        extra_errors = []
+        if len(images) < 3:
+            extra_errors.append("Please upload at least 3 product images.")
+
+        if product_form.is_valid() and variant_form.is_valid() and not extra_errors:
+            with transaction.atomic():
+                product = product_form.save()
+                variant = variant_form.save(commit=False)
+                variant.product    = product
+                variant.is_default = True
+                if not variant.sku:
+                    variant.sku = _generate_unique_sku(product)
+                variant.save()
+                for index, img in enumerate(images):
+                    VariantImage.objects.create(variant=variant, image=img, is_primary=(index == 0))
+            messages.success(request, f"Product '{product.name}' created successfully.")
+            return redirect("admin_products")
+
+        for err in extra_errors:
+            messages.error(request, err)
+
+    context = {
+        "mode":          "add",
+        "product_form":  product_form,
+        "variant_form":  variant_form,
+        "categories":    Category.objects.filter(is_deleted=False).order_by("name"),
+        "brands":        Brand.objects.filter(is_deleted=False).order_by("name"),
+        "materials":     Material.objects.all().order_by("name"),
+        "gender_choices": Product.GENDER_CHOICES,
+    }
+    return render(request, "admin_panel/product_form.html", context)
     

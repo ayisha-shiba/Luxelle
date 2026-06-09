@@ -1,0 +1,300 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle Admin - {% if mode == 'edit' %}Edit{% else %}Add{% endif %} Product</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/admin_common.css' %}" rel="stylesheet">
+    <style>
+        .alert { margin-bottom: 1.25rem; border-radius: 8px; padding: 1rem 1.25rem; }
+        .alert-success { background-color: rgba(39,174,96,0.1); border:1px solid rgba(39,174,96,0.3); color:#27ae60; }
+        .alert-error { background-color: rgba(231,76,60,0.1); border:1px solid rgba(231,76,60,0.3); color:#e74c3c; }
+        .alert-error div { margin:2px 0; }
+
+        .form-card { background:#0f0f0f; border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:2rem; max-width:860px; }
+        .section-title { color:#c5a059; font-size:0.78rem; letter-spacing:0.12em; text-transform:uppercase; font-weight:700; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:0.5rem; margin:1.75rem 0 1.1rem; }
+        .section-title:first-of-type { margin-top:0; }
+
+        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+        .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; }
+        .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; }
+        @media (max-width: 720px){ .grid-2,.grid-3,.grid-4{ grid-template-columns:1fr; } }
+
+        .fg { margin-bottom:1rem; }
+        .fg label { display:block; font-size:0.72rem; letter-spacing:0.06em; text-transform:uppercase; color:#aaa; margin-bottom:0.4rem; font-weight:600; }
+        .fg .req { color:#e74c3c; }
+        .fg input[type=text], .fg input[type=number], .fg select, .fg textarea {
+            width:100%; background:#161616; border:1px solid rgba(255,255,255,0.12); border-radius:8px;
+            padding:0.7rem 0.9rem; color:#fff; font-size:0.88rem; font-family:'Inter',sans-serif; }
+        .fg input:focus, .fg select:focus, .fg textarea:focus { outline:none; border-color:#c5a059; }
+        .fg select option { background:#161616; }
+
+        .toggle-row { display:flex; align-items:center; justify-content:space-between; background:#161616; border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:0.9rem 1.1rem; margin-bottom:0.75rem; }
+        .toggle-row .t-title { font-size:0.9rem; color:#fff; font-weight:600; }
+        .toggle-row .t-sub { font-size:0.72rem; color:#888; }
+        .switch { position:relative; display:inline-block; width:46px; height:24px; }
+        .switch input { display:none; }
+        .switch .sl { position:absolute; cursor:pointer; inset:0; background:#4a4a4a; border-radius:999px; transition:.2s; }
+        .switch .sl::before { content:''; position:absolute; height:18px; width:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+        .switch input:checked + .sl { background:#27ae60; }
+        .switch input:checked + .sl::before { transform:translateX(22px); }
+
+        .note-bar { background:rgba(197,160,89,0.1); border:1px solid rgba(197,160,89,0.3); color:#c5a059; border-radius:8px; padding:0.6rem 0.9rem; font-size:0.78rem; margin-bottom:1.1rem; }
+        .inline-new { display:flex; gap:0.5rem; align-items:center; }
+        .inline-new select { flex:1; }
+        .mini-btn { background:rgba(52,152,219,0.15); color:#3498db; border:1px solid rgba(52,152,219,0.3); border-radius:8px; padding:0.45rem 0.7rem; font-size:0.78rem; cursor:pointer; white-space:nowrap; }
+        .mini-btn:hover { background:rgba(52,152,219,0.25); }
+
+        .img-drop { border:2px dashed rgba(255,255,255,0.15); border-radius:12px; padding:1.5rem; text-align:center; cursor:pointer; color:#888; }
+        .img-drop:hover { border-color:#c5a059; color:#c5a059; }
+        .img-grid { display:flex; flex-wrap:wrap; gap:0.6rem; margin-top:0.8rem; }
+        .img-grid img { width:74px; height:74px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.12); }
+        .img-hint { font-size:0.75rem; margin-top:0.5rem; }
+        .img-hint.err { color:#e74c3c; }
+        .img-hint.ok { color:#27ae60; }
+
+        .form-actions { display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.75rem; border-top:1px solid rgba(255,255,255,0.08); padding-top:1.25rem; }
+        .field-err { color:#e74c3c; font-size:0.72rem; margin-top:0.3rem; }
+    </style>
+</head>
+<body>
+    {% include 'admin_panel/partials/sidebar.html' with active='products' %}
+
+    <main class="main">
+        <div class="top-bar">
+            <div><h1 class="page-title">{% if mode == 'edit' %}Edit{% else %}Add{% endif %} Product</h1><p class="page-sub">Create a product with its default variant.</p></div>
+            <div class="top-actions"><a href="{% url 'admin_products' %}" class="top-btn"><i class="fa-solid fa-arrow-left"></i> Back</a></div>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        {% if product_form.errors or variant_form.errors %}
+            <div class="alert alert-error">
+                <strong>Please fix the following:</strong>
+                {% for field in product_form %}{% for e in field.errors %}<div>• {{ field.label }}: {{ e }}</div>{% endfor %}{% endfor %}
+                {% for e in product_form.non_field_errors %}<div>• {{ e }}</div>{% endfor %}
+                {% for field in variant_form %}{% for e in field.errors %}<div>• {{ field.label }}: {{ e }}</div>{% endfor %}{% endfor %}
+                {% for e in variant_form.non_field_errors %}<div>• {{ e }}</div>{% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="POST" enctype="multipart/form-data" class="form-card" id="productForm">
+            {% csrf_token %}
+
+            <!-- BASIC INFORMATION -->
+            <div class="section-title">Basic Information</div>
+            <div class="fg">
+                <label>Product Name <span class="req">*</span></label>
+                <input type="text" name="p-name" value="{{ product_form.name.value|default:'' }}" placeholder="e.g. Heritage Automatic 42mm" required>
+            </div>
+            <div class="grid-2">
+                <div class="fg">
+                    <label>Category <span class="req">*</span></label>
+                    <select name="p-category" required>
+                        <option value="">Select category</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if product_form.category.value|stringformat:'s' == cat.id|stringformat:'s' %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="fg">
+                    <label>Gender</label>
+                    <select name="p-gender">
+                        {% for val, lbl in gender_choices %}
+                            <option value="{{ val }}" {% if product_form.gender.value == val %}selected{% endif %}>{{ lbl }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="fg">
+                <label>Brand</label>
+                <div class="inline-new">
+                    <select name="p-brand" id="brandSelect">
+                        <option value="">Select brand</option>
+                        {% for b in brands %}
+                            <option value="{{ b.id }}" {% if product_form.brand.value|stringformat:'s' == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" class="mini-btn" onclick="toggleNew('brandNew', this)">+ New</button>
+                </div>
+                <input type="text" name="brand_new" id="brandNew" placeholder="New brand name" style="display:none; margin-top:0.5rem;">
+            </div>
+            <div class="fg">
+                <label>Description</label>
+                <textarea name="p-description" rows="3" placeholder="Product description...">{{ product_form.description.value|default:'' }}</textarea>
+            </div>
+            <div class="fg" style="max-width:240px;">
+                <label>Status</label>
+                <select name="p-is_listed">
+                    <option value="true"  {% if product_form.is_listed.value %}selected{% endif %}>Active</option>
+                    <option value="false" {% if not product_form.is_listed.value %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+
+            <!-- VISIBILITY -->
+            <div class="section-title">Visibility</div>
+            <div class="toggle-row">
+                <div><div class="t-title">Featured Product</div><div class="t-sub">Show in featured section</div></div>
+                <label class="switch"><input type="checkbox" name="p-is_featured" {% if product_form.is_featured.value %}checked{% endif %}><span class="sl"></span></label>
+            </div>
+            <div class="toggle-row">
+                <div><div class="t-title">Deal of the Day</div><div class="t-sub">Highlight as daily deal</div></div>
+                <label class="switch"><input type="checkbox" name="p-is_deal_of_day" {% if product_form.is_deal_of_day.value %}checked{% endif %}><span class="sl"></span></label>
+            </div>
+
+            <!-- DEFAULT VARIANT -->
+            <div class="note-bar"><strong>DEFAULT VARIANT</strong> — required; a product cannot be created without this.</div>
+
+            <div class="section-title">Colors</div>
+            <div class="grid-3">
+                <div class="fg"><label>Strap Color</label><input type="text" name="v-strap_color" value="{{ variant_form.strap_color.value|default:'' }}" placeholder="#000000 or Black"></div>
+                <div class="fg"><label>Dial Color</label><input type="text" name="v-dial_color" value="{{ variant_form.dial_color.value|default:'' }}" placeholder="#000000 or Black"></div>
+                <div class="fg"><label>Case Color</label><input type="text" name="v-case_color" value="{{ variant_form.case_color.value|default:'' }}" placeholder="#000000 or Gold"></div>
+            </div>
+
+            <div class="section-title">Materials</div>
+            <div class="grid-2">
+                <div class="fg">
+                    <label>Strap Material</label>
+                    <div class="inline-new">
+                        <select name="v-strap_material">
+                            <option value="">Select...</option>
+                            {% for m in materials %}<option value="{{ m.id }}" {% if variant_form.strap_material.value|stringformat:'s' == m.id|stringformat:'s' %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
+                        </select>
+                        <button type="button" class="mini-btn" onclick="toggleNew('strapMatNew', this)">+ New</button>
+                    </div>
+                    <input type="text" name="strap_material_new" id="strapMatNew" placeholder="New material" style="display:none; margin-top:0.5rem;">
+                </div>
+                <div class="fg">
+                    <label>Case Material</label>
+                    <div class="inline-new">
+                        <select name="v-case_material">
+                            <option value="">Select...</option>
+                            {% for m in materials %}<option value="{{ m.id }}" {% if variant_form.case_material.value|stringformat:'s' == m.id|stringformat:'s' %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
+                        </select>
+                        <button type="button" class="mini-btn" onclick="toggleNew('caseMatNew', this)">+ New</button>
+                    </div>
+                    <input type="text" name="case_material_new" id="caseMatNew" placeholder="New material" style="display:none; margin-top:0.5rem;">
+                </div>
+            </div>
+
+            <div class="section-title">Specifications</div>
+            <div class="grid-4">
+                <div class="fg"><label>Size</label><input type="text" name="v-size" value="{{ variant_form.size.value|default:'' }}" placeholder="e.g. 42mm"></div>
+                <div class="fg"><label>MRP / Original (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0" name="v-original_price" value="{{ variant_form.original_price.value|default:'' }}" required></div>
+                <div class="fg"><label>Sale Price (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0" name="v-sale_price" value="{{ variant_form.sale_price.value|default:'' }}" required></div>
+                <div class="fg"><label>Stock <span class="req">*</span></label><input type="number" min="0" name="v-stock" value="{{ variant_form.stock.value|default:'' }}" required></div>
+            </div>
+
+            <div class="grid-2">
+                <div class="fg" style="max-width:240px;">
+                    <label>Variant Status</label>
+                    <select name="v-is_listed">
+                        <option value="true"  {% if variant_form.is_listed.value %}selected{% endif %}>Active</option>
+                        <option value="false" {% if not variant_form.is_listed.value %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+            </div>
+            <div class="fg">
+                <label>SKU <span style="color:#777;text-transform:none;letter-spacing:0;">(auto-generated, editable)</span></label>
+                <div class="inline-new">
+                    <input type="text" name="v-sku" id="skuInput" value="{{ variant_form.sku.value|default:'' }}" placeholder="Auto-generated if left blank">
+                    <button type="button" class="mini-btn" onclick="regenSku()"><i class="fa-solid fa-rotate"></i> Regen</button>
+                </div>
+            </div>
+            <div class="fg">
+                <label>Variant Name <span class="req">*</span></label>
+                <input type="text" name="v-variant_name" id="variantName" value="{{ variant_form.variant_name.value|default:'' }}" placeholder="e.g. Black Leather 42mm" required>
+            </div>
+            <div class="toggle-row">
+                <div><div class="t-title">Offer Product</div><div class="t-sub">Mark this variant as special offer</div></div>
+                <label class="switch"><input type="checkbox" name="v-is_offer" {% if variant_form.is_offer.value %}checked{% endif %}><span class="sl"></span></label>
+            </div>
+
+            <div class="section-title">Variant Images <span style="color:#777;text-transform:none;letter-spacing:0;">(min 3 required)</span></div>
+            <div class="img-drop" onclick="document.getElementById('imgInput').click()">
+                <i class="fa-solid fa-folder-open" style="font-size:1.6rem; color:#c5a059;"></i>
+                <div style="margin-top:0.5rem;">Click to select images</div>
+                <div style="font-size:0.72rem;">JPG, PNG, WEBP — select multiple (min 3)</div>
+            </div>
+            <input type="file" name="images" id="imgInput" multiple accept="image/*" class="d-none" onchange="previewImages(this)">
+            <div class="img-grid" id="imgPreview"></div>
+            <div class="img-hint err" id="imgCount">0 images selected — at least 3 required</div>
+
+            <div class="form-actions">
+                <a href="{% url 'admin_products' %}" class="mbtn mbtn-cancel">Cancel</a>
+                <button type="submit" class="mbtn mbtn-gold">{% if mode == 'edit' %}Save Changes{% else %}Add Product{% endif %}</button>
+            </div>
+        </form>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function toggleNew(inputId, btn) {
+            const el = document.getElementById(inputId);
+            const show = el.style.display === 'none';
+            el.style.display = show ? 'block' : 'none';
+            if (show) el.focus();
+        }
+
+        function previewImages(input) {
+            const grid = document.getElementById('imgPreview');
+            const hint = document.getElementById('imgCount');
+            grid.innerHTML = '';
+            const files = Array.from(input.files);
+            files.forEach(f => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    grid.appendChild(img);
+                };
+                reader.readAsDataURL(f);
+            });
+            const n = files.length;
+            hint.textContent = `${n} image${n === 1 ? '' : 's'} selected` + (n < 3 ? ' — at least 3 required' : ' ✓');
+            hint.className = 'img-hint ' + (n < 3 ? 'err' : 'ok');
+        }
+
+        function slug(s) { return (s || '').toString().trim().toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 8) || 'PROD'; }
+        function regenSku() {
+            const base = slug(document.querySelector('[name=p-name]').value);
+            document.getElementById('skuInput').value = `${base}-${Math.floor(1000 + Math.random() * 9000)}`;
+        }
+
+        // Auto-suggest variant name from colors + size (only if user hasn't typed one)
+        function suggestVariantName() {
+            const vn = document.getElementById('variantName');
+            if (vn.dataset.touched) return;
+            const strap = document.querySelector('[name=v-strap_color]').value.trim();
+            const size  = document.querySelector('[name=v-size]').value.trim();
+            const parts = [strap, size].filter(Boolean);
+            if (parts.length) vn.value = parts.join(' ');
+        }
+        ['v-strap_color', 'v-size'].forEach(n => {
+            const el = document.querySelector(`[name=${n}]`);
+            if (el) el.addEventListener('input', suggestVariantName);
+        });
+        const vnEl = document.getElementById('variantName');
+        if (vnEl) vnEl.addEventListener('input', () => { vnEl.dataset.touched = '1'; });
+
+        // Block submit if fewer than 3 images (add mode only)
+        const IS_ADD = {% if mode == 'edit' %}false{% else %}true{% endif %};
+        document.getElementById('productForm').addEventListener('submit', function(e) {
+            const n = document.getElementById('imgInput').files.length;
+            if (IS_ADD && n < 3) {
+                e.preventDefault();
+                alert('Please select at least 3 product images.');
+            }
+        });
+    </script>
+</body>
+</html>

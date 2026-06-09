@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 import re
 
-from .models import CustomUser, UserProfile, Address, Category
+from .models import CustomUser, UserProfile, Address, Category, Product, ProductVariant
 
 PHONE_NORMALIZATION_REGEX = re.compile(r"[^\d+]")
 PHONE_ALLOWED_CHARS_REGEX = re.compile(r"^\+?[0-9\-\s\(\)]{10,20}$")
@@ -538,3 +538,60 @@ class CategoryForm(forms.ModelForm):
             if hasattr(image, "content_type") and image.content_type not in allowed:
                 raise ValidationError("Only JPEG, PNG, or WebP images are allowed.")
         return image
+
+
+# ─────────────────────────────────────────────
+# Product Forms (Admin)
+# ─────────────────────────────────────────────
+
+class ProductForm(forms.ModelForm):
+    class Meta:
+        model  = Product
+        fields = ["name", "category", "gender", "brand", "description",
+                  "is_listed", "is_featured", "is_deal_of_day"]
+
+    def clean_name(self):
+        name = self.cleaned_data.get("name", "").strip()
+        if len(name) < 2:
+            raise ValidationError("Product name must be at least 2 characters.")
+        return name
+
+
+class ProductVariantForm(forms.ModelForm):
+    class Meta:
+        model  = ProductVariant
+        fields = ["variant_name", "sku", "strap_color", "dial_color", "case_color",
+                  "strap_material", "case_material", "size",
+                  "original_price", "sale_price", "stock", "is_offer", "is_listed"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["sku"].required = False  # auto-generated when left blank
+
+    def clean_variant_name(self):
+        name = self.cleaned_data.get("variant_name", "").strip()
+        if len(name) < 2:
+            raise ValidationError("Variant name must be at least 2 characters.")
+        return name
+
+    def clean_sku(self):
+        sku = self.cleaned_data.get("sku", "").strip()
+        if sku:
+            qs = ProductVariant.objects.filter(sku__iexact=sku)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise ValidationError("This SKU is already in use.")
+        return sku
+
+    def clean(self):
+        cleaned = super().clean()
+        op = cleaned.get("original_price")
+        sp = cleaned.get("sale_price")
+        if op is not None and op <= 0:
+            self.add_error("original_price", "MRP must be greater than 0.")
+        if sp is not None and sp <= 0:
+            self.add_error("sale_price", "Sale price must be greater than 0.")
+        if op and sp and sp > op:
+            self.add_error("sale_price", "Sale price cannot be greater than the MRP.")
+        return cleaned

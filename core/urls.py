@@ -54,6 +54,7 @@ urlpatterns = [
     path("admin-panel/categories/<int:category_id>/toggle-visibility/", admin_views.admin_category_toggle_visibility_view, name="admin_category_toggle_visibility"),
 
     path("admin-panel/products/", admin_views.admin_product_list_view, name="admin_products"),
+    path("admin-panel/products/add/", admin_views.admin_product_add_view, name="admin_product_add"),
     path("admin-panel/products/<int:product_id>/delete/", admin_views.admin_product_delete_view, name="admin_product_delete"),
     path("admin-panel/products/<int:product_id>/restore/", admin_views.admin_product_restore_view, name="admin_product_restore"),
     path("admin-panel/products/<int:product_id>/toggle-status/", admin_views.admin_product_toggle_status_view, name="admin_product_toggle_status"),
