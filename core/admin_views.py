@@ -10,9 +10,9 @@ from django.views.decorators.cache import never_cache
 from django.urls import reverse
 from .decorators import admin_required
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.db.models import Q
+from django.db.models import Q, Min, Sum
 from .forms import SetNewPasswordForm, CategoryForm
-from .models import CustomUser, Category
+from .models import CustomUser, Category, Product, Brand
 from .utils import (
     OTP_EXPIRY_MINUTES,
     check_resend_cooldown,
@@ -423,4 +423,123 @@ def admin_category_toggle_visibility_view(request, category_id):
     state = "visible" if category.is_listed else "hidden"
     messages.success(request, f"Category '{category.name}' is now {state}.")
     return redirect(request.META.get("HTTP_REFERER") or "admin_categories")
+
+
+# ADMIN PRODUCT MANAGEMENT
+
+SORT_OPTIONS = {
+    "latest":     "-created_at",
+    "oldest":     "created_at",
+    "price_low":  "min_price",
+    "price_high": "-min_price",
+    "name_az":    "name",
+    "name_za":    "-name",
+}
+
+
+@admin_required
+def admin_product_list_view(request):
+    search_query = request.GET.get("search", "").strip()
+    status       = request.GET.get("status", "all")
+    sort         = request.GET.get("sort", "latest")
+    category_id  = request.GET.get("category", "").strip()
+    brand_id     = request.GET.get("brand", "").strip()
+
+    products = Product.objects.select_related("category", "brand").prefetch_related("variants__images")
+
+    if status == "active":
+        products = products.filter(is_deleted=False, is_listed=True)
+    elif status == "inactive":
+        products = products.filter(is_deleted=False, is_listed=False)
+    elif status == "trash":
+        products = products.filter(is_deleted=True)
+    else:
+        status = "all"
+        products = products.filter(is_deleted=False)
+
+    if search_query:
+        products = products.filter(
+            Q(name__icontains=search_query) |
+            Q(brand__name__icontains=search_query) |
+            Q(variants__sku__icontains=search_query)
+        ).distinct()
+
+    if category_id.isdigit():
+        products = products.filter(category_id=category_id)
+    if brand_id.isdigit():
+        products = products.filter(brand_id=brand_id)
+
+    products = products.annotate(min_price=Min("variants__sale_price"))
+    products = products.order_by(SORT_OPTIONS.get(sort, "-created_at"))
+
+    paginator   = Paginator(products, 10)
+    page_number = request.GET.get("page")
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    active_qs    = Product.objects.filter(is_deleted=False)
+    out_of_stock = (active_qs
+                    .annotate(total_stock=Sum("variants__stock", filter=Q(variants__is_deleted=False)))
+                    .filter(Q(total_stock=0) | Q(total_stock__isnull=True))
+                    .count())
+
+    context = {
+        "products":           page_obj.object_list,
+        "page_obj":           page_obj,
+        "is_paginated":       page_obj.has_other_pages(),
+        "search_query":       search_query,
+        "status":             status,
+        "sort":               sort,
+        "category_id":        category_id,
+        "brand_id":           brand_id,
+        "categories":         Category.objects.filter(is_deleted=False).order_by("name"),
+        "brands":             Brand.objects.filter(is_deleted=False).order_by("name"),
+        "total_count":        active_qs.count(),
+        "active_count":       active_qs.filter(is_listed=True).count(),
+        "inactive_count":     active_qs.filter(is_listed=False).count(),
+        "out_of_stock_count": out_of_stock,
+        "trash_count":        Product.objects.filter(is_deleted=True).count(),
+    }
+    return render(request, "admin_panel/product_list.html", context)
+
+
+@admin_required
+def admin_product_delete_view(request, product_id):
+    product = Product.objects.filter(id=product_id, is_deleted=False).first()
+    if not product:
+        messages.error(request, "Product not found.")
+        return redirect("admin_products")
+    product.is_deleted = True
+    product.save(update_fields=["is_deleted"])
+    messages.success(request, f"Product '{product.name}' has been moved to Trash.")
+    return redirect("admin_products")
+
+
+@admin_required
+def admin_product_restore_view(request, product_id):
+    product = Product.objects.filter(id=product_id, is_deleted=True).first()
+    if not product:
+        messages.error(request, "Product not found in Trash.")
+        return redirect(f"{reverse('admin_products')}?status=trash")
+    product.is_deleted = False
+    product.save(update_fields=["is_deleted"])
+    messages.success(request, f"Product '{product.name}' has been restored.")
+    return redirect(f"{reverse('admin_products')}?status=trash")
+
+
+@admin_required
+def admin_product_toggle_status_view(request, product_id):
+    product = Product.objects.filter(id=product_id, is_deleted=False).first()
+    if not product:
+        messages.error(request, "Product not found.")
+        return redirect("admin_products")
+    product.is_listed = not product.is_listed
+    product.save(update_fields=["is_listed"])
+    state = "active" if product.is_listed else "inactive"
+    messages.success(request, f"Product '{product.name}' is now {state}.")
+    return redirect(request.META.get("HTTP_REFERER") or "admin_products")
     
