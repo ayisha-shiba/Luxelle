@@ -11,7 +11,7 @@ from django.urls import reverse
 from .decorators import admin_required
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q
-from .forms import SetNewPasswordForm
+from .forms import SetNewPasswordForm, CategoryForm
 from .models import CustomUser, Category
 from .utils import (
     OTP_EXPIRY_MINUTES,
@@ -216,7 +216,6 @@ def admin_forgot_password_view(request):
 def admin_forgot_password_otp_view(request):
 
     user = get_pending_user(request)
-    logger.debug("OTP view session data: %s", request.session.items())
     if not user or request.session.get("otp_purpose") != "password_reset":
         messages.error(request, "Session expired. Please request a new OTP.")
         return redirect("admin_forgot_password")
@@ -330,4 +329,50 @@ def admin_category_list_view(request):
         "search_query": search_query,
     }
     return render(request, "admin_panel/category_list.html", context)
+
+
+@admin_required
+def admin_category_add_view(request):
+    if request.method == "POST":
+        form = CategoryForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Category added successfully.")
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, error)
+    return redirect("admin_categories")
+
+
+@admin_required
+def admin_category_edit_view(request, category_id):
+    category = Category.objects.filter(id=category_id, is_deleted=False).first()
+    if not category:
+        messages.error(request, "Category not found.")
+        return redirect("admin_categories")
+
+    if request.method == "POST":
+        form = CategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Category updated successfully.")
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, error)
+    return redirect("admin_categories")
+
+
+@admin_required
+def admin_category_delete_view(request, category_id):
+    category = Category.objects.filter(id=category_id, is_deleted=False).first()
+    if not category:
+        messages.error(request, "Category not found.")
+        return redirect("admin_categories")
+
+    category.is_deleted = True
+    category.save(update_fields=["is_deleted"])
+    messages.success(request, f"Category '{category.name}' has been deleted.")
+    return redirect("admin_categories")
     

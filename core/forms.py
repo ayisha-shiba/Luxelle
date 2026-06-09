@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 import re
 
-from .models import CustomUser, UserProfile, Address
+from .models import CustomUser, UserProfile, Address, Category
 
 PHONE_NORMALIZATION_REGEX = re.compile(r"[^\d+]")
 PHONE_ALLOWED_CHARS_REGEX = re.compile(r"^\+?[0-9\-\s\(\)]{10,20}$")
@@ -494,3 +494,36 @@ class AddressForm(forms.ModelForm):
         if len(code) < 4 or len(code) > 10:
             raise ValidationError("Postal code must be between 4 and 10 digits.")
         return code
+
+
+# ─────────────────────────────────────────────
+# Category Form (Admin)
+# ─────────────────────────────────────────────
+
+class CategoryForm(forms.ModelForm):
+    class Meta:
+        model  = Category
+        fields = ["name", "description", "is_listed"]
+        widgets = {
+            "name":        _input("Category name"),
+            "description": forms.Textarea(attrs={
+                "class":       "form-control",
+                "rows":        3,
+                "placeholder": "Short description (optional)",
+                "maxlength":   500,
+            }),
+            "is_listed":   forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+    def clean_name(self):
+        name = self.cleaned_data.get("name", "").strip()
+        if len(name) < 2:
+            raise ValidationError("Category name must be at least 2 characters.")
+        if not all(ch.isalnum() or ch.isspace() or ch in "&-" for ch in name):
+            raise ValidationError("Category name can only contain letters, numbers, spaces, & and -.")
+        qs = Category.objects.filter(name__iexact=name, is_deleted=False)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise ValidationError("A category with this name already exists.")
+        return name

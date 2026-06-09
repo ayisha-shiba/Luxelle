@@ -106,34 +106,7 @@
     </style>
 </head>
 <body>
-    <aside class="sidebar">
-        <div class="sidebar-brand"><h2>LUXELLE</h2><span>Admin Control Panel</span></div>
-        <nav class="sidebar-nav">
-            <div class="nav-section">
-                <div class="nav-section-title">Main</div>
-                <a href="{% url 'admin_dashboard' %}" class="nav-item"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
-                <a href="{% url 'admin_users' %}" class="nav-item active"><i class="fa-solid fa-users"></i> User Management</a>
-                <a class="nav-item"><i class="fa-solid fa-bag-shopping"></i> Orders</a>
-                <a class="nav-item"><i class="fa-solid fa-boxes-stacked"></i> Products</a>
-            </div>
-            <div class="nav-section">
-                <div class="nav-section-title">Analytics</div>
-                <a class="nav-item"><i class="fa-solid fa-chart-line"></i> Revenue</a>
-                <a class="nav-item"><i class="fa-solid fa-bullseye"></i> Marketing</a>
-            </div>
-            <div class="nav-section">
-                <div class="nav-section-title">Settings</div>
-                <a class="nav-item"><i class="fa-solid fa-gear"></i> Configuration</a>
-                <a class="nav-item"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
-            </div>
-        </nav>
-        <div class="sidebar-footer">
-            <div class="admin-profile">
-                <div class="admin-avatar">AS</div>
-                <div><div class="admin-name">Ayisha Shiba</div><div class="admin-role">Super Admin</div></div>
-            </div>
-        </div>
-    </aside>
+    {% include 'admin_panel/partials/sidebar.html' with active='users' %}
 
     <main class="main">
         <div class="top-bar">

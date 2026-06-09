@@ -46,6 +46,11 @@ urlpatterns = [
     path("admin-panel/users/<uuid:user_id>/toggle-status/", admin_views.admin_toggle_user_status_view, name="admin_toggle_user_status"),
     path("admin-panel/users/<uuid:user_id>/delete/", admin_views.admin_delete_user_view, name="admin_delete_user"),
 
+    path("admin-panel/categories/", admin_views.admin_category_list_view, name="admin_categories"),
+    path("admin-panel/categories/add/", admin_views.admin_category_add_view, name="admin_category_add"),
+    path("admin-panel/categories/<int:category_id>/edit/", admin_views.admin_category_edit_view, name="admin_category_edit"),
+    path("admin-panel/categories/<int:category_id>/delete/", admin_views.admin_category_delete_view, name="admin_category_delete"),
+
     path("admin-panel/forgot-password/", admin_views.admin_forgot_password_view, name="admin_forgot_password"),
     path("admin-panel/forgot-password/otp/", admin_views.admin_forgot_password_otp_view, name="admin_forgot_password_otp"),
     path("admin-panel/forgot-password/resend/", admin_views.admin_resend_forgot_password_otp_view, name="admin_resend_forgot_password_otp"),
