@@ -14,20 +14,39 @@
         .alert-success { background-color: rgba(39,174,96,0.1); border:1px solid rgba(39,174,96,0.3); color:#27ae60; }
         .alert-error { background-color: rgba(231,76,60,0.1); border:1px solid rgba(231,76,60,0.3); color:#e74c3c; }
 
-        .action-btns { display:flex; gap:0.75rem; align-items:center; }
+        .action-btns { display:flex; gap:0.6rem; align-items:center; }
         .act-btn { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:6px; border:none; cursor:pointer; font-size:0.9rem; transition:all .3s cubic-bezier(.16,1,.3,1); text-decoration:none; color:white; }
         .act-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.2); }
         .act-btn-edit { background-color:#3498db; }
         .act-btn-edit:hover { background-color:#2980b9; }
         .act-btn-del { background-color:#e74c3c; }
         .act-btn-del:hover { background-color:#c0392b; }
+        .act-btn-restore { background-color:#27ae60; }
+        .act-btn-restore:hover { background-color:#219150; }
         .act-btn i { pointer-events:none; }
+
+        .cat-thumb { width:44px; height:44px; border-radius:10px; object-fit:cover; background:#1a1a1a; border:1px solid rgba(255,255,255,0.08); }
 
         .badge-listed { background:rgba(39,174,96,0.12); color:#27ae60; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.75rem; font-weight:600; }
         .badge-unlisted { background:rgba(149,165,166,0.15); color:#95a5a6; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.75rem; font-weight:600; }
+        .badge-trash { background:rgba(231,76,60,0.12); color:#e74c3c; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.75rem; font-weight:600; }
+
+        /* Visibility toggle switch */
+        .vis-toggle { display:inline-flex; align-items:center; gap:0.55rem; text-decoration:none; }
+        .vis-switch { width:42px; height:22px; border-radius:999px; background:#4a4a4a; position:relative; transition:background .2s; display:inline-block; flex-shrink:0; }
+        .vis-switch.on { background:#27ae60; }
+        .vis-switch::after { content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; transition:left .2s; }
+        .vis-switch.on::after { left:22px; }
+        .vis-label { font-size:0.82rem; color:#cfcfcf; }
+
+        /* Filter + search row */
+        .filter-bar { display:flex; gap:0.75rem; align-items:center; }
+        .filter-bar .search-box { position:relative; flex:1; }
+        .search-clear { position:absolute; right:0.9rem; top:50%; transform:translateY(-50%); color:#888; text-decoration:none; font-size:0.9rem; }
+        .search-clear:hover { color:#e74c3c; }
 
         /* Add / Edit form modal */
-        .form-modal-box { background:#0b0b0b; border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:2rem; max-width:480px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.8); text-align:left; }
+        .form-modal-box { background:#0b0b0b; border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:2rem; max-width:520px; width:92%; box-shadow:0 20px 60px rgba(0,0,0,0.8); text-align:left; max-height:90vh; overflow-y:auto; }
         .form-modal-box h3 { font-family:'Playfair Display',serif; font-size:1.4rem; color:#fff; margin:0 0 1.5rem; }
         .form-group { margin-bottom:1.2rem; }
         .form-group > label { display:block; font-size:0.8rem; letter-spacing:0.05em; text-transform:uppercase; color:#aaa; margin-bottom:0.5rem; }
@@ -37,9 +56,12 @@
         .form-check-row input { width:18px; height:18px; }
         .form-check-row label { margin:0; text-transform:none; letter-spacing:0; color:#ddd; font-size:0.85rem; }
 
-        .search-box { position:relative; }
-        .search-clear { position:absolute; right:0.9rem; top:50%; transform:translateY(-50%); color:#888; text-decoration:none; font-size:0.9rem; }
-        .search-clear:hover { color:#e74c3c; }
+        /* Image upload */
+        .img-upload-row { display:flex; align-items:center; gap:1rem; }
+        .img-preview { width:84px; height:84px; border-radius:12px; object-fit:cover; background:#161616; border:1px solid rgba(255,255,255,0.12); flex-shrink:0; }
+        .img-pick-btn { background:rgba(255,255,255,0.06); color:#fff; border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:0.55rem 1rem; font-size:0.82rem; cursor:pointer; }
+        .img-pick-btn:hover { border-color:#c5a059; color:#c5a059; }
+        .img-hint { font-size:0.72rem; color:#777; margin-top:0.35rem; }
     </style>
 </head>
 <body>
@@ -48,7 +70,8 @@
     <main class="main">
         <div class="top-bar">
             <div><h1 class="page-title">Category Management</h1><p class="page-sub">Organize your product categories.</p></div>
-            <div class="top-actions">
+            <div class="top-actions" style="display:flex; gap:0.75rem;">
+                <a href="?status=trash" class="top-btn {% if status == 'trash' %}top-btn-gold{% endif %}"><i class="fa-solid fa-trash"></i> Trash{% if trash_count %} ({{ trash_count }}){% endif %}</a>
                 <div class="top-btn top-btn-gold" onclick="openAddModal()" style="cursor:pointer;"><i class="fa-solid fa-plus"></i> Add Category</div>
             </div>
         </div>
@@ -67,10 +90,16 @@
                 <i class="fa-solid fa-magnifying-glass"></i>
                 <input type="text" name="search" value="{{ search_query|default:'' }}" placeholder="Search categories by name..." onkeydown="if(event.key==='Enter'){this.form.submit();}">
                 {% if search_query %}
-                    <a href="{% url 'admin_categories' %}" class="search-clear" title="Clear search"><i class="fa-solid fa-xmark"></i></a>
+                    <a href="?status={{ status }}" class="search-clear" title="Clear search"><i class="fa-solid fa-xmark"></i></a>
                 {% endif %}
-                <button type="submit" style="display:none;"></button>
             </div>
+            <select class="filter-select" name="status" onchange="this.form.submit()">
+                <option value="all"     {% if status == 'all' %}selected{% endif %}>All</option>
+                <option value="visible" {% if status == 'visible' %}selected{% endif %}>Visible</option>
+                <option value="hidden"  {% if status == 'hidden' %}selected{% endif %}>Hidden</option>
+                <option value="trash"   {% if status == 'trash' %}selected{% endif %}>Trash</option>
+            </select>
+            <button type="submit" class="top-btn top-btn-gold"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
         </form>
 
         <div class="panel">
@@ -78,9 +107,8 @@
                 <thead>
                     <tr>
                         <th>Category</th>
-                        <th>Slug</th>
-                        <th>Status</th>
-                        <th>Created</th>
+                        <th>Description</th>
+                        <th>Visibility</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -90,38 +118,46 @@
                             <tr>
                                 <td>
                                     <div class="user-cell">
-                                        <div class="user-thumb-init">{{ category.name|slice:":1"|upper }}</div>
+                                        <img class="cat-thumb" src="{% if category.image %}{{ category.image.url }}{% else %}{% static 'image/default_category.svg' %}{% endif %}" alt="{{ category.name }}">
                                         <div><div class="user-name">{{ category.name }}</div></div>
                                     </div>
                                 </td>
-                                <td>{{ category.slug }}</td>
+                                <td style="color:#aaa; max-width:320px;">{{ category.description|default:"—"|truncatechars:60 }}</td>
                                 <td>
-                                    {% if category.is_listed %}
-                                        <span class="badge-listed">Listed</span>
+                                    {% if status == 'trash' %}
+                                        <span class="badge-trash">In Trash</span>
                                     {% else %}
-                                        <span class="badge-unlisted">Unlisted</span>
+                                        <a href="{% url 'admin_category_toggle_visibility' category.id %}" class="vis-toggle" title="Toggle visibility">
+                                            <span class="vis-switch {% if category.is_listed %}on{% endif %}"></span>
+                                            <span class="vis-label">{% if category.is_listed %}Visible{% else %}Hidden{% endif %}</span>
+                                        </a>
                                     {% endif %}
                                 </td>
-                                <td>{{ category.created_at|date:"M d, Y" }}</td>
                                 <td>
                                     <div class="action-btns">
-                                        <button class="act-btn act-btn-edit" title="Edit"
-                                            onclick="openEditModal('{{ category.id }}', '{{ category.name|escapejs }}', '{{ category.description|escapejs }}', {{ category.is_listed|yesno:'true,false' }})">
-                                            <i class="fa-solid fa-pen"></i>
-                                        </button>
-                                        <button class="act-btn act-btn-del" title="Delete"
-                                            onclick="openDeleteModal('{{ category.id }}', '{{ category.name|escapejs }}')">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
+                                        {% if status == 'trash' %}
+                                            <a href="{% url 'admin_category_restore' category.id %}" class="act-btn act-btn-restore" title="Restore">
+                                                <i class="fa-solid fa-rotate-left"></i>
+                                            </a>
+                                        {% else %}
+                                            <button class="act-btn act-btn-edit" title="Edit"
+                                                onclick="openEditModal('{{ category.id }}', '{{ category.name|escapejs }}', '{{ category.description|escapejs }}', {{ category.is_listed|yesno:'true,false' }}, '{% if category.image %}{{ category.image.url }}{% else %}{% static 'image/default_category.svg' %}{% endif %}')">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </button>
+                                            <button class="act-btn act-btn-del" title="Delete"
+                                                onclick="openDeleteModal('{{ category.id }}', '{{ category.name|escapejs }}')">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        {% endif %}
                                     </div>
                                 </td>
                             </tr>
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="5" style="text-align:center; padding:2rem; color:#888;">
+                            <td colspan="4" style="text-align:center; padding:2rem; color:#888;">
                                 <i class="fa-solid fa-inbox" style="font-size:2rem; margin-bottom:1rem; display:block;"></i>
-                                No categories found.
+                                {% if status == 'trash' %}Trash is empty.{% else %}No categories found.{% endif %}
                             </td>
                         </tr>
                     {% endif %}
@@ -135,17 +171,17 @@
                 {% if is_paginated %}
                 <ul class="pagination pagination-sm mb-0">
                     {% if page_obj.has_previous %}
-                    <li class="page-item"><a class="page-link text-lux-black" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Prev</a></li>
+                    <li class="page-item"><a class="page-link text-lux-black" href="?page={{ page_obj.previous_page_number }}&status={{ status }}{% if search_query %}&search={{ search_query }}{% endif %}">Prev</a></li>
                     {% endif %}
                     {% for num in page_obj.paginator.page_range %}
                         {% if page_obj.number == num %}
                             <li class="page-item active"><span class="page-link bg-lux-black text-white border-lux-black">{{ num }}</span></li>
                         {% else %}
-                            <li class="page-item"><a class="page-link text-lux-black" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a></li>
+                            <li class="page-item"><a class="page-link text-lux-black" href="?page={{ num }}&status={{ status }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ num }}</a></li>
                         {% endif %}
                     {% endfor %}
                     {% if page_obj.has_next %}
-                    <li class="page-item"><a class="page-link text-lux-black" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">Next</a></li>
+                    <li class="page-item"><a class="page-link text-lux-black" href="?page={{ page_obj.next_page_number }}&status={{ status }}{% if search_query %}&search={{ search_query }}{% endif %}">Next</a></li>
                     {% endif %}
                 </ul>
                 {% endif %}
@@ -157,8 +193,19 @@
     <div class="modal-overlay" id="addModal">
         <div class="form-modal-box">
             <h3>Add Category</h3>
-            <form method="POST" action="{% url 'admin_category_add' %}">
+            <form method="POST" action="{% url 'admin_category_add' %}" enctype="multipart/form-data">
                 {% csrf_token %}
+                <div class="form-group">
+                    <label>Category Image</label>
+                    <div class="img-upload-row">
+                        <img id="addImgPreview" class="img-preview" src="{% static 'image/default_category.svg' %}" alt="preview">
+                        <div>
+                            <button type="button" class="img-pick-btn" onclick="document.getElementById('addImageInput').click()">Choose Image</button>
+                            <div class="img-hint">JPEG / PNG / WebP, under 2 MB.</div>
+                        </div>
+                    </div>
+                    <input type="file" name="image" id="addImageInput" accept="image/*" class="d-none" onchange="previewImage(this, 'addImgPreview')">
+                </div>
                 <div class="form-group">
                     <label>Category Name</label>
                     <input type="text" name="name" required maxlength="100" placeholder="e.g. Tote Bags">
@@ -169,7 +216,7 @@
                 </div>
                 <div class="form-group form-check-row">
                     <input type="checkbox" name="is_listed" id="addIsListed" checked>
-                    <label for="addIsListed">Listed (visible to customers)</label>
+                    <label for="addIsListed">Visible to customers</label>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="mbtn mbtn-cancel" onclick="closeAddModal()">Cancel</button>
@@ -183,8 +230,19 @@
     <div class="modal-overlay" id="editModal">
         <div class="form-modal-box">
             <h3>Edit Category</h3>
-            <form method="POST" id="editForm" action="">
+            <form method="POST" id="editForm" action="" enctype="multipart/form-data">
                 {% csrf_token %}
+                <div class="form-group">
+                    <label>Category Image</label>
+                    <div class="img-upload-row">
+                        <img id="editImgPreview" class="img-preview" src="" alt="preview">
+                        <div>
+                            <button type="button" class="img-pick-btn" onclick="document.getElementById('editImageInput').click()">Change Image</button>
+                            <div class="img-hint">Leave unchanged to keep the current image.</div>
+                        </div>
+                    </div>
+                    <input type="file" name="image" id="editImageInput" accept="image/*" class="d-none" onchange="previewImage(this, 'editImgPreview')">
+                </div>
                 <div class="form-group">
                     <label>Category Name</label>
                     <input type="text" name="name" id="editName" required maxlength="100">
@@ -195,7 +253,7 @@
                 </div>
                 <div class="form-group form-check-row">
                     <input type="checkbox" name="is_listed" id="editIsListed">
-                    <label for="editIsListed">Listed (visible to customers)</label>
+                    <label for="editIsListed">Visible to customers</label>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="mbtn mbtn-cancel" onclick="closeEditModal()">Cancel</button>
@@ -210,24 +268,40 @@
         <div class="modal-box">
             <div class="modal-icon"><i class="fa-solid fa-trash-can"></i></div>
             <h3 class="modal-title">Delete Category?</h3>
-            <p class="modal-desc">This will remove <strong id="delName"></strong> from your catalog. You can re-create it later if needed.</p>
+            <p class="modal-desc">This moves <strong id="delName"></strong> to Trash. You can restore it later from the Trash section.</p>
             <div class="modal-actions">
                 <button class="mbtn mbtn-cancel" onclick="closeDeleteModal()">Cancel</button>
-                <a href="#" class="mbtn mbtn-danger" id="confirmDeleteBtn">Delete</a>
+                <a href="#" class="mbtn mbtn-danger" id="confirmDeleteBtn">Move to Trash</a>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function openAddModal() { document.getElementById('addModal').classList.add('show'); }
+        function previewImage(input, targetId) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => { document.getElementById(targetId).src = e.target.result; };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        const DEFAULT_CAT_IMG = "{% static 'image/default_category.svg' %}";
+
+        function openAddModal() {
+            document.getElementById('addImgPreview').src = DEFAULT_CAT_IMG;
+            document.getElementById('addImageInput').value = '';
+            document.getElementById('addModal').classList.add('show');
+        }
         function closeAddModal() { document.getElementById('addModal').classList.remove('show'); }
 
-        function openEditModal(id, name, description, isListed) {
+        function openEditModal(id, name, description, isListed, imageUrl) {
             document.getElementById('editForm').action = `/admin-panel/categories/${id}/edit/`;
             document.getElementById('editName').value = name;
             document.getElementById('editDescription').value = description;
             document.getElementById('editIsListed').checked = isListed;
+            document.getElementById('editImgPreview').src = imageUrl || DEFAULT_CAT_IMG;
+            document.getElementById('editImageInput').value = '';
             document.getElementById('editModal').classList.add('show');
         }
         function closeEditModal() { document.getElementById('editModal').classList.remove('show'); }

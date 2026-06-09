@@ -503,7 +503,7 @@ class AddressForm(forms.ModelForm):
 class CategoryForm(forms.ModelForm):
     class Meta:
         model  = Category
-        fields = ["name", "description", "is_listed"]
+        fields = ["name", "description", "is_listed", "image"]
         widgets = {
             "name":        _input("Category name"),
             "description": forms.Textarea(attrs={
@@ -513,6 +513,7 @@ class CategoryForm(forms.ModelForm):
                 "maxlength":   500,
             }),
             "is_listed":   forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "image":       forms.FileInput(attrs={"class": "form-control", "accept": "image/*"}),
         }
 
     def clean_name(self):
@@ -527,3 +528,13 @@ class CategoryForm(forms.ModelForm):
         if qs.exists():
             raise ValidationError("A category with this name already exists.")
         return name
+
+    def clean_image(self):
+        image = self.cleaned_data.get("image")
+        if image and hasattr(image, "size"):
+            if image.size > 2 * 1024 * 1024:
+                raise ValidationError("Image must be under 2 MB.")
+            allowed = ["image/jpeg", "image/png", "image/webp"]
+            if hasattr(image, "content_type") and image.content_type not in allowed:
+                raise ValidationError("Only JPEG, PNG, or WebP images are allowed.")
+        return image

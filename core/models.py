@@ -169,8 +169,8 @@ class Address(models.Model):
 
 class Category(models.Model):
     name        = models.CharField(max_length=100)
-    slug        = models.SlugField(max_length=120, blank=True)
     description = models.TextField(blank=True)
+    image       = models.ImageField(upload_to="categories/", blank=True, null=True)
     is_listed   = models.BooleanField(default=True)
     is_deleted  = models.BooleanField(default=False)
     created_at  = models.DateTimeField(auto_now_add=True)
@@ -185,25 +185,15 @@ class Category(models.Model):
                 condition=models.Q(is_deleted=False),
                 name="uniq_active_category_name",
             ),
-            models.UniqueConstraint(
-                fields=["slug"],
-                condition=models.Q(is_deleted=False),
-                name="uniq_active_category_slug",
-            ),
         ]
 
     def __str__(self):
         return self.name
 
-    def save(self, *args, **kwargs):
-        base_slug = slugify(self.name)
-        slug = base_slug
-        counter = 1
-        while Category.objects.filter(slug=slug, is_deleted=False).exclude(pk=self.pk).exists():
-            slug = f"{base_slug}-{counter}"
-            counter += 1
-        self.slug = slug
-        super().save(*args, **kwargs)
+    def image_url(self):
+        if self.image:
+            return self.image.url
+        return "/static/image/default_category.svg"
         
 class Product(models.Model):
     name        = models.CharField(max_length=200)

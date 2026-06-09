@@ -308,7 +308,19 @@ def admin_reset_password_view(request):
 @admin_required
 def admin_category_list_view(request):
     search_query = request.GET.get("search", "").strip()
-    categories = Category.objects.filter(is_deleted=False)
+    status       = request.GET.get("status", "all")
+
+    categories = Category.objects.all()
+    if status == "visible":
+        categories = categories.filter(is_deleted=False, is_listed=True)
+    elif status == "hidden":
+        categories = categories.filter(is_deleted=False, is_listed=False)
+    elif status == "trash":
+        categories = categories.filter(is_deleted=True)
+    else:
+        status = "all"
+        categories = categories.filter(is_deleted=False)
+
     if search_query:
         categories = categories.filter(Q(name__icontains=search_query))
     categories = categories.order_by("-created_at")
@@ -327,6 +339,8 @@ def admin_category_list_view(request):
         "page_obj":     page_obj,
         "is_paginated": page_obj.has_other_pages(),
         "search_query": search_query,
+        "status":       status,
+        "trash_count":  Category.objects.filter(is_deleted=True).count(),
     }
     return render(request, "admin_panel/category_list.html", context)
 
@@ -334,7 +348,7 @@ def admin_category_list_view(request):
 @admin_required
 def admin_category_add_view(request):
     if request.method == "POST":
-        form = CategoryForm(request.POST)
+        form = CategoryForm(request.POST, request.FILES)
         if form.is_valid():
             form.save()
             messages.success(request, "Category added successfully.")
@@ -353,7 +367,7 @@ def admin_category_edit_view(request, category_id):
         return redirect("admin_categories")
 
     if request.method == "POST":
-        form = CategoryForm(request.POST, instance=category)
+        form = CategoryForm(request.POST, request.FILES, instance=category)
         if form.is_valid():
             form.save()
             messages.success(request, "Category updated successfully.")
@@ -373,6 +387,40 @@ def admin_category_delete_view(request, category_id):
 
     category.is_deleted = True
     category.save(update_fields=["is_deleted"])
-    messages.success(request, f"Category '{category.name}' has been deleted.")
+    messages.success(request, f"Category '{category.name}' has been moved to Trash.")
     return redirect("admin_categories")
+
+
+@admin_required
+def admin_category_restore_view(request, category_id):
+    category = Category.objects.filter(id=category_id, is_deleted=True).first()
+    if not category:
+        messages.error(request, "Category not found in Trash.")
+        return redirect(f"{reverse('admin_categories')}?status=trash")
+
+    if Category.objects.filter(name__iexact=category.name, is_deleted=False).exists():
+        messages.error(
+            request,
+            f"Cannot restore '{category.name}' — an active category with this name already exists. Rename or remove it first.",
+        )
+        return redirect(f"{reverse('admin_categories')}?status=trash")
+
+    category.is_deleted = False
+    category.save(update_fields=["is_deleted"])
+    messages.success(request, f"Category '{category.name}' has been restored.")
+    return redirect(f"{reverse('admin_categories')}?status=trash")
+
+
+@admin_required
+def admin_category_toggle_visibility_view(request, category_id):
+    category = Category.objects.filter(id=category_id, is_deleted=False).first()
+    if not category:
+        messages.error(request, "Category not found.")
+        return redirect("admin_categories")
+
+    category.is_listed = not category.is_listed
+    category.save(update_fields=["is_listed"])
+    state = "visible" if category.is_listed else "hidden"
+    messages.success(request, f"Category '{category.name}' is now {state}.")
+    return redirect(request.META.get("HTTP_REFERER") or "admin_categories")
     

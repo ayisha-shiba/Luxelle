@@ -50,6 +50,8 @@ urlpatterns = [
     path("admin-panel/categories/add/", admin_views.admin_category_add_view, name="admin_category_add"),
     path("admin-panel/categories/<int:category_id>/edit/", admin_views.admin_category_edit_view, name="admin_category_edit"),
     path("admin-panel/categories/<int:category_id>/delete/", admin_views.admin_category_delete_view, name="admin_category_delete"),
+    path("admin-panel/categories/<int:category_id>/restore/", admin_views.admin_category_restore_view, name="admin_category_restore"),
+    path("admin-panel/categories/<int:category_id>/toggle-visibility/", admin_views.admin_category_toggle_visibility_view, name="admin_category_toggle_visibility"),
 
     path("admin-panel/forgot-password/", admin_views.admin_forgot_password_view, name="admin_forgot_password"),
     path("admin-panel/forgot-password/otp/", admin_views.admin_forgot_password_otp_view, name="admin_forgot_password_otp"),
