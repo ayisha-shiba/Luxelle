@@ -5,7 +5,7 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import redirect, render
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.urls import reverse
 from .decorators import admin_required
@@ -569,6 +569,30 @@ def _apply_inline_new(data):
                         or Material.objects.create(name=val))
             data[key] = str(material.id)
     return data
+
+
+@admin_required
+def admin_brand_add_ajax(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request."}, status=400)
+    name = request.POST.get("name", "").strip()
+    if len(name) < 2:
+        return JsonResponse({"error": "Brand name must be at least 2 characters."}, status=400)
+    brand = (Brand.objects.filter(name__iexact=name, is_deleted=False).first()
+             or Brand.objects.create(name=name))
+    return JsonResponse({"id": brand.id, "name": brand.name})
+
+
+@admin_required
+def admin_material_add_ajax(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request."}, status=400)
+    name = request.POST.get("name", "").strip()
+    if len(name) < 2:
+        return JsonResponse({"error": "Material name must be at least 2 characters."}, status=400)
+    material = (Material.objects.filter(name__iexact=name).first()
+                or Material.objects.create(name=name))
+    return JsonResponse({"id": material.id, "name": material.name})
 
 
 @admin_required

@@ -59,6 +59,9 @@
 
         .form-actions { display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.75rem; border-top:1px solid rgba(255,255,255,0.08); padding-top:1.25rem; }
         .field-err { color:#e74c3c; font-size:0.72rem; margin-top:0.3rem; }
+
+        .qa-box { background:#0b0b0b; border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:1.75rem; max-width:420px; width:90%; text-align:left; box-shadow:0 20px 60px rgba(0,0,0,0.8); }
+        .qa-box h3 { font-family:'Playfair Display',serif; color:#fff; font-size:1.2rem; margin:0 0 1.2rem; }
     </style>
 </head>
 <body>
@@ -123,7 +126,7 @@
                             <option value="{{ b.id }}" {% if product_form.brand.value|stringformat:'s' == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
                         {% endfor %}
                     </select>
-                    <button type="button" class="mini-btn" onclick="addNewOption('brandSelect','brand')">+ New</button>
+                    <button type="button" class="mini-btn" onclick="openQuickAdd('brand','brandSelect')">+ New</button>
                 </div>
             </div>
             <div class="fg">
@@ -168,7 +171,7 @@
                             <option value="">Select...</option>
                             {% for m in materials %}<option value="{{ m.id }}" {% if variant_form.strap_material.value|stringformat:'s' == m.id|stringformat:'s' %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
                         </select>
-                        <button type="button" class="mini-btn" onclick="addNewOption('strapMatSelect','material')">+ New</button>
+                        <button type="button" class="mini-btn" onclick="openQuickAdd('material','strapMatSelect')">+ New</button>
                     </div>
                 </div>
                 <div class="fg">
@@ -178,7 +181,7 @@
                             <option value="">Select...</option>
                             {% for m in materials %}<option value="{{ m.id }}" {% if variant_form.case_material.value|stringformat:'s' == m.id|stringformat:'s' %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
                         </select>
-                        <button type="button" class="mini-btn" onclick="addNewOption('caseMatSelect','material')">+ New</button>
+                        <button type="button" class="mini-btn" onclick="openQuickAdd('material','caseMatSelect')">+ New</button>
                     </div>
                 </div>
             </div>
@@ -233,16 +236,74 @@
         </form>
     </main>
 
+    <!-- Quick Add (Brand / Material) Modal -->
+    <div class="modal-overlay" id="quickAddModal">
+        <div class="qa-box">
+            <h3 id="quickAddTitle">Add Brand</h3>
+            <div class="fg">
+                <label id="quickAddLabel">Brand Name</label>
+                <input type="text" id="quickAddInput" placeholder="Enter name" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('quickAddSubmit').click();}">
+                <div class="field-err" id="quickAddErr" style="display:none;"></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="mbtn mbtn-cancel" onclick="closeQuickAdd()">Cancel</button>
+                <button type="button" class="mbtn mbtn-gold" id="quickAddSubmit">Add</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function addNewOption(selectId, label) {
-            const name = (prompt('Enter new ' + label + ' name:') || '').trim();
-            if (!name) return;
-            const sel = document.getElementById(selectId);
-            let opt = Array.from(sel.options).find(o => o.text.toLowerCase() === name.toLowerCase());
-            if (!opt) { opt = new Option(name, name, true, true); sel.add(opt); }
-            sel.value = opt.value;
+        let qaType = null, qaTargetSelect = null;
+
+        function openQuickAdd(type, selectId) {
+            qaType = type; qaTargetSelect = selectId;
+            const label = (type === 'brand') ? 'Brand' : 'Material';
+            document.getElementById('quickAddTitle').textContent = 'Add ' + label;
+            document.getElementById('quickAddLabel').textContent = label + ' Name';
+            const inp = document.getElementById('quickAddInput');
+            inp.value = '';
+            document.getElementById('quickAddErr').style.display = 'none';
+            document.getElementById('quickAddModal').classList.add('show');
+            setTimeout(() => inp.focus(), 50);
         }
+        function closeQuickAdd() { document.getElementById('quickAddModal').classList.remove('show'); }
+
+        function addOptionToSelect(selectId, id, name, select) {
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            let opt = Array.from(sel.options).find(o => o.value === String(id));
+            if (!opt) { opt = new Option(name, id, false, false); sel.add(opt); }
+            if (select) sel.value = String(id);
+        }
+
+        document.getElementById('quickAddSubmit').addEventListener('click', function () {
+            const name = document.getElementById('quickAddInput').value.trim();
+            const errBox = document.getElementById('quickAddErr');
+            if (name.length < 2) { errBox.textContent = 'Please enter at least 2 characters.'; errBox.style.display = 'block'; return; }
+            const url = (qaType === 'brand') ? '/admin-panel/brands/add-ajax/' : '/admin-panel/materials/add-ajax/';
+            const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'name=' + encodeURIComponent(name)
+            })
+            .then(r => r.json().then(d => ({ ok: r.ok, d })))
+            .then(({ ok, d }) => {
+                if (!ok || d.error) { errBox.textContent = d.error || 'Could not add.'; errBox.style.display = 'block'; return; }
+                addOptionToSelect(qaTargetSelect, d.id, d.name, true);
+                if (qaType === 'material') {
+                    const other = qaTargetSelect === 'strapMatSelect' ? 'caseMatSelect' : 'strapMatSelect';
+                    addOptionToSelect(other, d.id, d.name, false);
+                }
+                closeQuickAdd();
+            })
+            .catch(() => { errBox.textContent = 'Something went wrong.'; errBox.style.display = 'block'; });
+        });
+
+        document.querySelectorAll('.modal-overlay').forEach(m => {
+            m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
+        });
 
         function previewImages(input) {
             const grid = document.getElementById('imgPreview');
