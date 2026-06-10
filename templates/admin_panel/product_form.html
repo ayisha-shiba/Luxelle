@@ -115,13 +115,14 @@
             <div class="section-title">Basic Information</div>
             <div class="fg">
                 <label>Product Name <span class="req">*</span></label>
-                <input type="text" name="p-name" value="{{ product_form.name.value|default:'' }}" placeholder="e.g. Classic Leather Tote" required>
+                <input type="text" name="p-name" maxlength="150" value="{{ product_form.name.value|default:'' }}" placeholder="e.g. Classic Leather Tote" required>
+                {% if product_form.name.errors %}<div class="field-err">{{ product_form.name.errors.0 }}</div>{% endif %}
             </div>
             <div class="grid-2">
                 <div class="fg">
-                    <label>Brand</label>
+                    <label>Brand <span class="req">*</span></label>
                     <div class="inline-new">
-                        <select name="p-brand" id="brandSelect">
+                        <select name="p-brand" id="brandSelect" required>
                             <option value="">Select brand</option>
                             {% for b in brands %}
                                 <option value="{{ b.id }}" {% if product_form.brand.value|stringformat:'s' == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
@@ -129,6 +130,7 @@
                         </select>
                         <button type="button" class="mini-btn" onclick="openQuickAdd('brand','brandSelect')">+ New</button>
                     </div>
+                    {% if product_form.brand.errors %}<div class="field-err">{{ product_form.brand.errors.0 }}</div>{% endif %}
                 </div>
                 <div class="fg">
                     <label>Category <span class="req">*</span></label>
@@ -138,52 +140,58 @@
                             <option value="{{ cat.id }}" {% if product_form.category.value|stringformat:'s' == cat.id|stringformat:'s' %}selected{% endif %}>{{ cat.name }}</option>
                         {% endfor %}
                     </select>
+                    {% if product_form.category.errors %}<div class="field-err">{{ product_form.category.errors.0 }}</div>{% endif %}
                 </div>
             </div>
             <div class="fg">
-                <label>Short Description</label>
-                <input type="text" name="p-short_description" value="{{ product_form.short_description.value|default:'' }}" placeholder="One-line summary shown on listings">
+                <label>Short Description <span class="req">*</span></label>
+                <input type="text" name="p-short_description" maxlength="250" value="{{ product_form.short_description.value|default:'' }}" placeholder="One-line summary (20–250 characters)" required>
+                {% if product_form.short_description.errors %}<div class="field-err">{{ product_form.short_description.errors.0 }}</div>{% endif %}
             </div>
             <div class="fg">
-                <label>Full Description</label>
-                <textarea name="p-description" rows="4" placeholder="Detailed product description...">{{ product_form.description.value|default:'' }}</textarea>
+                <label>Full Description <span class="req">*</span></label>
+                <textarea name="p-description" rows="4" maxlength="3000" placeholder="Detailed product description (at least 50 characters)" required>{{ product_form.description.value|default:'' }}</textarea>
+                {% if product_form.description.errors %}<div class="field-err">{{ product_form.description.errors.0 }}</div>{% endif %}
             </div>
 
             <!-- VARIANT INFORMATION -->
             <div class="section-title">Variant Information</div>
             <div class="grid-2">
                 <div class="fg">
-                    <label>Color</label>
+                    <label>Color <span class="req">*</span></label>
                     <div class="color-row">
                         <span id="colorSwatch" class="color-swatch" style="background: {{ variant_form.color_hex.value|default:'#000000' }};"></span>
                         <input type="color" name="v-color_hex" id="colorHex" class="color-input" value="{{ variant_form.color_hex.value|default:'#000000' }}" title="Pick a colour">
-                        <input type="text" name="v-color" value="{{ variant_form.color.value|default:'' }}" placeholder="Colour name (e.g. Black)">
+                        <input type="text" name="v-color" maxlength="50" value="{{ variant_form.color.value|default:'' }}" placeholder="Colour name (e.g. Black)">
                     </div>
+                    {% if variant_form.color_hex.errors %}<div class="field-err">{{ variant_form.color_hex.errors.0 }}</div>{% endif %}
                 </div>
                 <div class="fg">
-                    <label>Material</label>
+                    <label>Material <span class="req">*</span></label>
                     <div class="inline-new">
-                        <select name="v-material" id="materialSelect">
+                        <select name="v-material" id="materialSelect" required>
                             <option value="">Select material</option>
                             {% for m in materials %}<option value="{{ m.id }}" {% if variant_form.material.value|stringformat:'s' == m.id|stringformat:'s' %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
                         </select>
                         <button type="button" class="mini-btn" onclick="openQuickAdd('material','materialSelect')">+ New</button>
                     </div>
+                    {% if variant_form.material.errors %}<div class="field-err">{{ variant_form.material.errors.0 }}</div>{% endif %}
                 </div>
             </div>
             <div class="fg" style="max-width:240px;">
                 <label>Size <span style="color:#777;text-transform:none;letter-spacing:0;">(optional)</span></label>
                 {{ variant_form.size }}
+                {% if variant_form.size.errors %}<div class="field-err">{{ variant_form.size.errors.0 }}</div>{% endif %}
             </div>
 
             <!-- PRICING -->
             <div class="section-title">Pricing</div>
             <div class="grid-4">
-                <div class="fg"><label>Original Price (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0" name="v-original_price" value="{{ variant_form.original_price.value|default:'' }}" required></div>
-                <div class="fg"><label>Sale Price (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0" name="v-sale_price" value="{{ variant_form.sale_price.value|default:'' }}" required></div>
-                <div class="fg"><label>Stock <span class="req">*</span></label><input type="number" min="0" name="v-stock" value="{{ variant_form.stock.value|default:'' }}" required></div>
+                <div class="fg"><label>Original Price (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0.01" max="1000000" name="v-original_price" value="{{ variant_form.original_price.value|default:'' }}" required>{% if variant_form.original_price.errors %}<div class="field-err">{{ variant_form.original_price.errors.0 }}</div>{% endif %}</div>
+                <div class="fg"><label>Sale Price (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0.01" name="v-sale_price" value="{{ variant_form.sale_price.value|default:'' }}" required>{% if variant_form.sale_price.errors %}<div class="field-err">{{ variant_form.sale_price.errors.0 }}</div>{% endif %}</div>
+                <div class="fg"><label>Stock <span class="req">*</span></label><input type="number" min="0" max="9999" name="v-stock" value="{{ variant_form.stock.value|default:'' }}" required>{% if variant_form.stock.errors %}<div class="field-err">{{ variant_form.stock.errors.0 }}</div>{% endif %}</div>
                 <div class="fg">
-                    <label>Status</label>
+                    <label>Status <span class="req">*</span></label>
                     <select name="p-is_listed">
                         <option value="true"  {% if product_form.is_listed.value %}selected{% endif %}>Active</option>
                         <option value="false" {% if not product_form.is_listed.value %}selected{% endif %}>Inactive</option>
@@ -193,28 +201,29 @@
             <div class="fg">
                 <label>SKU <span style="color:#777;text-transform:none;letter-spacing:0;">(auto-generated, editable)</span></label>
                 <div class="inline-new">
-                    <input type="text" name="v-sku" id="skuInput" value="{{ variant_form.sku.value|default:'' }}" placeholder="Auto-generated if left blank">
+                    <input type="text" name="v-sku" id="skuInput" maxlength="50" value="{{ variant_form.sku.value|default:'' }}" placeholder="Auto-generated if left blank">
                     <button type="button" class="mini-btn" onclick="regenSku()"><i class="fa-solid fa-rotate"></i> Regen</button>
                 </div>
+                {% if variant_form.sku.errors %}<div class="field-err">{{ variant_form.sku.errors.0 }}</div>{% endif %}
             </div>
 
             <!-- DIMENSIONS -->
             <div class="section-title">Dimensions (cm)</div>
             <div class="grid-3">
-                <div class="fg"><label>Width</label>{{ variant_form.width_cm }}</div>
-                <div class="fg"><label>Height</label>{{ variant_form.height_cm }}</div>
-                <div class="fg"><label>Depth</label>{{ variant_form.depth_cm }}</div>
+                <div class="fg"><label>Width <span class="req">*</span></label>{{ variant_form.width_cm }}{% if variant_form.width_cm.errors %}<div class="field-err">{{ variant_form.width_cm.errors.0 }}</div>{% endif %}</div>
+                <div class="fg"><label>Height <span class="req">*</span></label>{{ variant_form.height_cm }}{% if variant_form.height_cm.errors %}<div class="field-err">{{ variant_form.height_cm.errors.0 }}</div>{% endif %}</div>
+                <div class="fg"><label>Depth <span class="req">*</span></label>{{ variant_form.depth_cm }}{% if variant_form.depth_cm.errors %}<div class="field-err">{{ variant_form.depth_cm.errors.0 }}</div>{% endif %}</div>
             </div>
 
             <!-- PRODUCT DETAILS -->
             <div class="section-title">Product Details</div>
             <div class="grid-3">
-                <div class="fg"><label>Closure Type</label>{{ variant_form.closure_type }}</div>
-                <div class="fg"><label>Compartments</label>{{ variant_form.compartments }}</div>
-                <div class="fg"><label>Pattern</label>{{ variant_form.pattern }}</div>
+                <div class="fg"><label>Closure Type <span class="req">*</span></label>{{ variant_form.closure_type }}{% if variant_form.closure_type.errors %}<div class="field-err">{{ variant_form.closure_type.errors.0 }}</div>{% endif %}</div>
+                <div class="fg"><label>Compartments <span class="req">*</span></label>{{ variant_form.compartments }}{% if variant_form.compartments.errors %}<div class="field-err">{{ variant_form.compartments.errors.0 }}</div>{% endif %}</div>
+                <div class="fg"><label>Pattern <span class="req">*</span></label>{{ variant_form.pattern }}{% if variant_form.pattern.errors %}<div class="field-err">{{ variant_form.pattern.errors.0 }}</div>{% endif %}</div>
             </div>
 
-            <div class="section-title">Product Images <span style="color:#777;text-transform:none;letter-spacing:0;">(min 3 — first image is the main image)</span></div>
+            <div class="section-title">Product Images <span style="color:#777;text-transform:none;letter-spacing:0;">(1–5 images — first is the main image)</span></div>
             {% if existing_images %}
             <div style="margin-bottom:0.5rem; font-size:0.74rem; color:#888;">Current images — tick to remove:</div>
             <div class="img-grid" style="margin-bottom:1rem;">
@@ -229,11 +238,11 @@
             <div class="img-drop" onclick="document.getElementById('imgInput').click()">
                 <i class="fa-solid fa-crop-simple" style="font-size:1.6rem; color:#c5a059;"></i>
                 <div style="margin-top:0.5rem;">Click to select images</div>
-                <div style="font-size:0.72rem;">JPG, PNG, WEBP — you'll crop each one (min 3)</div>
+                <div style="font-size:0.72rem;">JPG, JPEG, PNG, WEBP — max 5 MB each — you'll crop each one (1–5)</div>
             </div>
             <input type="file" name="images" id="imgInput" multiple accept="image/jpeg,image/png,image/webp" class="d-none" onchange="handleSelectedFiles(this)">
             <div class="img-grid" id="imgPreview"></div>
-            <div class="img-hint err" id="imgCount">0 images selected — at least 3 required</div>
+            <div class="img-hint err" id="imgCount">No images selected — at least 1 required</div>
 
             <div class="form-actions">
                 <a href="{% url 'admin_products' %}" class="mbtn mbtn-cancel">Cancel</a>
@@ -423,8 +432,12 @@
             const removed = document.querySelectorAll('input[name=delete_images]:checked').length;
             const total   = (IS_ADD ? 0 : EXISTING_IMG_COUNT) - removed + newN;
             const hint    = document.getElementById('imgCount');
-            hint.textContent = total + ' image' + (total === 1 ? '' : 's') + ' total' + (total < 3 ? ' — at least 3 required' : ' ✓');
-            hint.className   = 'img-hint ' + (total < 3 ? 'err' : 'ok');
+            const ok      = total >= 1 && total <= 5;
+            let suffix    = ' ✓';
+            if (total < 1) suffix = ' — at least 1 required';
+            else if (total > 5) suffix = ' — maximum 5 allowed';
+            hint.textContent = total + ' image' + (total === 1 ? '' : 's') + ' total' + suffix;
+            hint.className   = 'img-hint ' + (ok ? 'ok' : 'err');
         }
 
         updateImageHint();
@@ -433,9 +446,12 @@
             const newN    = document.getElementById('imgInput').files.length;
             const removed = document.querySelectorAll('input[name=delete_images]:checked').length;
             const total   = (IS_ADD ? 0 : EXISTING_IMG_COUNT) - removed + newN;
-            if (total < 3) {
+            if (total < 1) {
                 e.preventDefault();
-                alert('A product must have at least 3 images.');
+                alert('Please add at least 1 product image.');
+            } else if (total > 5) {
+                e.preventDefault();
+                alert('You can upload a maximum of 5 images.');
             }
         });
     </script>

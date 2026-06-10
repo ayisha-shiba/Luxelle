@@ -17,6 +17,20 @@ from django.core.files.base import ContentFile
 from PIL import Image, ImageOps
 import random
 import io
+import re
+import hashlib
+
+NAME_ALPHA_RE = re.compile(r"^[A-Za-z ]+$")
+
+
+def _validate_name_field(name, label):
+    if len(name) < 2:
+        return f"{label} name must be at least 2 characters."
+    if len(name) > 50:
+        return f"{label} name cannot exceed 50 characters."
+    if not NAME_ALPHA_RE.match(name):
+        return f"{label} name can only contain letters and spaces."
+    return None
 from .forms import SetNewPasswordForm, CategoryForm, ProductForm, ProductVariantForm
 from .models import CustomUser, Category, Product, Brand, Material, ProductVariant, VariantImage
 from .utils import (
@@ -569,11 +583,16 @@ def _build_variant_name(variant, product):
 
 PRODUCT_IMAGE_SIZE  = (800, 800)
 ALLOWED_IMG_FORMATS = {"JPEG", "PNG", "WEBP"}
+MAX_IMAGE_BYTES     = 5 * 1024 * 1024
+MIN_IMAGE_DIM       = 200
 
 
 def process_product_image(uploaded_file):
-    """Validate format, square-crop without distortion (cover), resize to a uniform
-    size and re-encode as an optimized JPEG. Raises ValidationError on bad input."""
+    """Validate format/size/dimensions, square-crop without distortion (cover), resize to a
+    uniform size and re-encode as an optimized JPEG. Raises ValidationError on bad input."""
+    name = getattr(uploaded_file, "name", "image")
+    if getattr(uploaded_file, "size", 0) > MAX_IMAGE_BYTES:
+        raise ValidationError(f"\"{name}\" is larger than 5 MB.")
     try:
         uploaded_file.seek(0)
         img = Image.open(uploaded_file)
@@ -581,7 +600,9 @@ def process_product_image(uploaded_file):
         if fmt == "JPG":
             fmt = "JPEG"
         if fmt not in ALLOWED_IMG_FORMATS:
-            raise ValidationError("Only JPG, PNG, or WEBP images are allowed.")
+            raise ValidationError("Only JPG, JPEG, PNG, or WEBP images are allowed.")
+        if img.width < MIN_IMAGE_DIM or img.height < MIN_IMAGE_DIM:
+            raise ValidationError(f"Images must be at least {MIN_IMAGE_DIM}x{MIN_IMAGE_DIM}px.")
         img = img.convert("RGB")
         img = ImageOps.fit(img, PRODUCT_IMAGE_SIZE, Image.LANCZOS)
         buffer = io.BytesIO()
@@ -591,8 +612,25 @@ def process_product_image(uploaded_file):
         raise
     except Exception:
         raise ValidationError("Could not process the image. Please upload a valid JPG, PNG, or WEBP file.")
-    base = (getattr(uploaded_file, "name", "") or "image").rsplit(".", 1)[0]
+    base = (name or "image").rsplit(".", 1)[0]
     return ContentFile(buffer.read(), name=f"{base}.jpg")
+
+
+def _process_images(uploaded_files):
+    """Process a batch of uploads with dedupe. Returns (processed_list, error_or_None)."""
+    processed, hashes = [], set()
+    for img in uploaded_files:
+        try:
+            cf = process_product_image(img)
+        except ValidationError as exc:
+            return processed, exc.messages[0]
+        digest = hashlib.md5(cf.read()).hexdigest()
+        cf.seek(0)
+        if digest in hashes:
+            return processed, "Duplicate images detected — please upload distinct images."
+        hashes.add(digest)
+        processed.append(cf)
+    return processed, None
 
 
 def _apply_inline_new(data):
@@ -611,8 +649,9 @@ def admin_brand_add_ajax(request):
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request."}, status=400)
     name = request.POST.get("name", "").strip()
-    if len(name) < 2:
-        return JsonResponse({"error": "Brand name must be at least 2 characters."}, status=400)
+    err = _validate_name_field(name, "Brand")
+    if err:
+        return JsonResponse({"error": err}, status=400)
     brand = (Brand.objects.filter(name__iexact=name, is_deleted=False).first()
              or Brand.objects.create(name=name))
     return JsonResponse({"id": brand.id, "name": brand.name})
@@ -623,8 +662,9 @@ def admin_material_add_ajax(request):
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request."}, status=400)
     name = request.POST.get("name", "").strip()
-    if len(name) < 2:
-        return JsonResponse({"error": "Material name must be at least 2 characters."}, status=400)
+    err = _validate_name_field(name, "Material")
+    if err:
+        return JsonResponse({"error": err}, status=400)
     material = (Material.objects.filter(name__iexact=name).first()
                 or Material.objects.create(name=name))
     return JsonResponse({"id": material.id, "name": material.name})
@@ -642,16 +682,15 @@ def admin_product_add_view(request):
         images       = request.FILES.getlist("images")
 
         extra_errors = []
-        if len(images) < 3:
-            extra_errors.append("Please upload at least 3 product images.")
+        if len(images) < 1:
+            extra_errors.append("Please upload at least 1 product image.")
+        elif len(images) > 5:
+            extra_errors.append("You can upload a maximum of 5 images.")
         processed_images = []
         if not extra_errors:
-            for img in images:
-                try:
-                    processed_images.append(process_product_image(img))
-                except ValidationError as exc:
-                    extra_errors.append(exc.messages[0])
-                    break
+            processed_images, img_err = _process_images(images)
+            if img_err:
+                extra_errors.append(img_err)
 
         if product_form.is_valid() and variant_form.is_valid() and not extra_errors:
             with transaction.atomic():
@@ -701,16 +740,15 @@ def admin_product_edit_view(request, product_id):
         total_after    = existing_after + len(new_images)
 
         extra_errors = []
-        if total_after < 3:
-            extra_errors.append("A product must keep at least 3 images.")
+        if total_after < 1:
+            extra_errors.append("A product must keep at least 1 image.")
+        elif total_after > 5:
+            extra_errors.append("A product can have a maximum of 5 images.")
         processed_images = []
         if not extra_errors:
-            for img in new_images:
-                try:
-                    processed_images.append(process_product_image(img))
-                except ValidationError as exc:
-                    extra_errors.append(exc.messages[0])
-                    break
+            processed_images, img_err = _process_images(new_images)
+            if img_err:
+                extra_errors.append(img_err)
 
         if product_form.is_valid() and variant_form.is_valid() and not extra_errors:
             with transaction.atomic():

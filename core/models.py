@@ -299,9 +299,9 @@ class ProductVariant(models.Model):
     size           = models.CharField(max_length=10, choices=SIZE_CHOICES, blank=True)
 
     # Dimensions (cm)
-    width_cm       = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
-    height_cm      = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
-    depth_cm       = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
+    width_cm       = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    height_cm      = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    depth_cm       = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
 
     # Bag details
     closure_type   = models.CharField(max_length=20, choices=CLOSURE_CHOICES, blank=True)
