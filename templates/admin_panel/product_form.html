@@ -110,9 +110,21 @@
             <div class="section-title">Basic Information</div>
             <div class="fg">
                 <label>Product Name <span class="req">*</span></label>
-                <input type="text" name="p-name" value="{{ product_form.name.value|default:'' }}" placeholder="e.g. Heritage Automatic 42mm" required>
+                <input type="text" name="p-name" value="{{ product_form.name.value|default:'' }}" placeholder="e.g. Classic Leather Tote" required>
             </div>
             <div class="grid-2">
+                <div class="fg">
+                    <label>Brand</label>
+                    <div class="inline-new">
+                        <select name="p-brand" id="brandSelect">
+                            <option value="">Select brand</option>
+                            {% for b in brands %}
+                                <option value="{{ b.id }}" {% if product_form.brand.value|stringformat:'s' == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="mini-btn" onclick="openQuickAdd('brand','brandSelect')">+ New</button>
+                    </div>
+                </div>
                 <div class="fg">
                     <label>Category <span class="req">*</span></label>
                     <select name="p-category" required>
@@ -122,98 +134,35 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="fg">
-                    <label>Gender</label>
-                    <select name="p-gender">
-                        {% for val, lbl in gender_choices %}
-                            <option value="{{ val }}" {% if product_form.gender.value == val %}selected{% endif %}>{{ lbl }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
             </div>
             <div class="fg">
-                <label>Brand</label>
-                <div class="inline-new">
-                    <select name="p-brand" id="brandSelect">
-                        <option value="">Select brand</option>
-                        {% for b in brands %}
-                            <option value="{{ b.id }}" {% if product_form.brand.value|stringformat:'s' == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
-                        {% endfor %}
-                    </select>
-                    <button type="button" class="mini-btn" onclick="openQuickAdd('brand','brandSelect')">+ New</button>
-                </div>
+                <label>Short Description</label>
+                <input type="text" name="p-short_description" value="{{ product_form.short_description.value|default:'' }}" placeholder="One-line summary shown on listings">
             </div>
             <div class="fg">
-                <label>Description</label>
-                <textarea name="p-description" rows="3" placeholder="Product description...">{{ product_form.description.value|default:'' }}</textarea>
-            </div>
-            <div class="fg" style="max-width:240px;">
-                <label>Status</label>
-                <select name="p-is_listed">
-                    <option value="true"  {% if product_form.is_listed.value %}selected{% endif %}>Active</option>
-                    <option value="false" {% if not product_form.is_listed.value %}selected{% endif %}>Inactive</option>
-                </select>
+                <label>Full Description</label>
+                <textarea name="p-description" rows="4" placeholder="Detailed product description...">{{ product_form.description.value|default:'' }}</textarea>
             </div>
 
-            <!-- VISIBILITY -->
-            <div class="section-title">Visibility</div>
-            <div class="toggle-row">
-                <div><div class="t-title">Featured Product</div><div class="t-sub">Show in featured section</div></div>
-                <label class="switch"><input type="checkbox" name="p-is_featured" {% if product_form.is_featured.value %}checked{% endif %}><span class="sl"></span></label>
-            </div>
-            <div class="toggle-row">
-                <div><div class="t-title">Deal of the Day</div><div class="t-sub">Highlight as daily deal</div></div>
-                <label class="switch"><input type="checkbox" name="p-is_deal_of_day" {% if product_form.is_deal_of_day.value %}checked{% endif %}><span class="sl"></span></label>
-            </div>
-
-            <!-- DEFAULT VARIANT -->
-            <div class="note-bar"><strong>DEFAULT VARIANT</strong> — required; a product cannot be created without this.</div>
-
-            <div class="section-title">Variant Attributes</div>
+            <!-- VARIANT INFORMATION -->
+            <div class="section-title">Variant Information</div>
             <div class="grid-3">
                 <div class="fg"><label>Color</label>{{ variant_form.color }}</div>
                 <div class="fg"><label>Material</label>{{ variant_form.material }}</div>
                 <div class="fg"><label>Size <span style="color:#777;text-transform:none;letter-spacing:0;">(optional)</span></label>{{ variant_form.size }}</div>
             </div>
 
-            <div class="section-title">Dimensions (cm)</div>
-            <div class="grid-3">
-                <div class="fg"><label>Width</label>{{ variant_form.width_cm }}</div>
-                <div class="fg"><label>Height</label>{{ variant_form.height_cm }}</div>
-                <div class="fg"><label>Depth</label>{{ variant_form.depth_cm }}</div>
-            </div>
-
-            <div class="section-title">Bag Details</div>
-            <div class="grid-3">
-                <div class="fg"><label>Closure Type</label>{{ variant_form.closure_type }}</div>
-                <div class="fg"><label>Carry Style</label>{{ variant_form.carry_style }}</div>
-                <div class="fg"><label>Compartments</label>{{ variant_form.compartments }}</div>
-            </div>
-            <div class="grid-2">
-                <div class="fg"><label>Pattern</label>{{ variant_form.pattern }}</div>
-                <div class="fg"><label>Weight (g)</label>{{ variant_form.weight_g }}</div>
-            </div>
-
-            <div class="section-title">Additional Details</div>
-            <div class="grid-2">
-                <div class="fg"><label>Country of Origin</label>{{ variant_form.country_of_origin }}</div>
-                <div class="fg"><label>Warranty</label>{{ variant_form.warranty }}</div>
-            </div>
-            <div class="toggle-row">
-                <div><div class="t-title">Dust Bag Included</div><div class="t-sub">Ships with a protective dust bag</div></div>
-                <label class="switch"><input type="checkbox" name="v-dust_bag_included" {% if variant_form.dust_bag_included.value %}checked{% endif %}><span class="sl"></span></label>
-            </div>
-
-            <div class="section-title">Pricing &amp; Stock</div>
+            <!-- PRICING -->
+            <div class="section-title">Pricing</div>
             <div class="grid-4">
-                <div class="fg"><label>MRP / Original (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0" name="v-original_price" value="{{ variant_form.original_price.value|default:'' }}" required></div>
+                <div class="fg"><label>Original Price (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0" name="v-original_price" value="{{ variant_form.original_price.value|default:'' }}" required></div>
                 <div class="fg"><label>Sale Price (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0" name="v-sale_price" value="{{ variant_form.sale_price.value|default:'' }}" required></div>
                 <div class="fg"><label>Stock <span class="req">*</span></label><input type="number" min="0" name="v-stock" value="{{ variant_form.stock.value|default:'' }}" required></div>
                 <div class="fg">
-                    <label>Variant Status</label>
-                    <select name="v-is_listed">
-                        <option value="true"  {% if variant_form.is_listed.value %}selected{% endif %}>Active</option>
-                        <option value="false" {% if not variant_form.is_listed.value %}selected{% endif %}>Inactive</option>
+                    <label>Status</label>
+                    <select name="p-is_listed">
+                        <option value="true"  {% if product_form.is_listed.value %}selected{% endif %}>Active</option>
+                        <option value="false" {% if not product_form.is_listed.value %}selected{% endif %}>Inactive</option>
                     </select>
                 </div>
             </div>
@@ -224,16 +173,24 @@
                     <button type="button" class="mini-btn" onclick="regenSku()"><i class="fa-solid fa-rotate"></i> Regen</button>
                 </div>
             </div>
-            <div class="fg">
-                <label>Variant Name <span class="req">*</span></label>
-                <input type="text" name="v-variant_name" id="variantName" value="{{ variant_form.variant_name.value|default:'' }}" placeholder="e.g. Black Leather 42mm" required>
-            </div>
-            <div class="toggle-row">
-                <div><div class="t-title">Offer Product</div><div class="t-sub">Mark this variant as special offer</div></div>
-                <label class="switch"><input type="checkbox" name="v-is_offer" {% if variant_form.is_offer.value %}checked{% endif %}><span class="sl"></span></label>
+
+            <!-- DIMENSIONS -->
+            <div class="section-title">Dimensions (cm)</div>
+            <div class="grid-3">
+                <div class="fg"><label>Width</label>{{ variant_form.width_cm }}</div>
+                <div class="fg"><label>Height</label>{{ variant_form.height_cm }}</div>
+                <div class="fg"><label>Depth</label>{{ variant_form.depth_cm }}</div>
             </div>
 
-            <div class="section-title">Variant Images <span style="color:#777;text-transform:none;letter-spacing:0;">(min 3 required)</span></div>
+            <!-- PRODUCT DETAILS -->
+            <div class="section-title">Product Details</div>
+            <div class="grid-3">
+                <div class="fg"><label>Closure Type</label>{{ variant_form.closure_type }}</div>
+                <div class="fg"><label>Compartments</label>{{ variant_form.compartments }}</div>
+                <div class="fg"><label>Pattern</label>{{ variant_form.pattern }}</div>
+            </div>
+
+            <div class="section-title">Product Images <span style="color:#777;text-transform:none;letter-spacing:0;">(min 3 — first image is the main image)</span></div>
             {% if existing_images %}
             <div style="margin-bottom:0.5rem; font-size:0.74rem; color:#888;">Current images — tick to remove:</div>
             <div class="img-grid" style="margin-bottom:1rem;">
@@ -431,27 +388,6 @@
             document.getElementById('skuInput').value = `${base}-${Math.floor(1000 + Math.random() * 9000)}`;
         }
 
-        // Auto-suggest variant name from colors + size (only if user hasn't typed one)
-        function suggestVariantName() {
-            const vn = document.getElementById('variantName');
-            if (vn.dataset.touched) return;
-            const color = (document.querySelector('[name=v-color]') || {}).value || '';
-            const matSel = document.querySelector('[name=v-material]');
-            let mat = '';
-            if (matSel && matSel.selectedIndex >= 0) {
-                const t = matSel.options[matSel.selectedIndex].text;
-                if (t && t.indexOf('---') === -1) mat = t;
-            }
-            const parts = [color.trim(), mat.trim()].filter(Boolean);
-            if (parts.length) vn.value = parts.join(' ');
-        }
-        const _colorEl = document.querySelector('[name=v-color]');
-        if (_colorEl) _colorEl.addEventListener('input', suggestVariantName);
-        const _matEl = document.querySelector('[name=v-material]');
-        if (_matEl) _matEl.addEventListener('change', suggestVariantName);
-        const vnEl = document.getElementById('variantName');
-        if (vnEl) vnEl.addEventListener('input', () => { vnEl.dataset.touched = '1'; });
-
         // Image counting: total = existing (minus removed) + newly selected; must stay >= 3
         const IS_ADD = {% if mode == 'edit' %}false{% else %}true{% endif %};
         const EXISTING_IMG_COUNT = {{ existing_images|length|default:0 }};
@@ -465,7 +401,6 @@
             hint.className   = 'img-hint ' + (total < 3 ? 'err' : 'ok');
         }
 
-        if (vnEl && vnEl.value.trim()) vnEl.dataset.touched = '1';
         updateImageHint();
 
         document.getElementById('productForm').addEventListener('submit', function (e) {

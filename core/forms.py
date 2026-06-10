@@ -547,8 +547,10 @@ class CategoryForm(forms.ModelForm):
 class ProductForm(forms.ModelForm):
     class Meta:
         model  = Product
-        fields = ["name", "category", "gender", "brand", "description",
-                  "is_listed", "is_featured", "is_deal_of_day"]
+        fields = ["name", "short_description", "description", "category", "brand", "is_listed"]
+        widgets = {
+            "short_description": forms.TextInput(attrs={"placeholder": "One-line summary shown on listings"}),
+        }
 
     def clean_name(self):
         name = self.cleaned_data.get("name", "").strip()
@@ -560,29 +562,21 @@ class ProductForm(forms.ModelForm):
 class ProductVariantForm(forms.ModelForm):
     class Meta:
         model  = ProductVariant
-        fields = ["variant_name", "sku", "color", "material", "size",
+        fields = ["sku", "color", "material", "size",
                   "width_cm", "height_cm", "depth_cm",
-                  "closure_type", "carry_style", "compartments", "pattern", "weight_g",
-                  "country_of_origin", "dust_bag_included", "warranty",
-                  "original_price", "sale_price", "stock", "is_offer", "is_listed"]
+                  "closure_type", "compartments", "pattern",
+                  "original_price", "sale_price", "stock"]
         widgets = {
             "color":        forms.TextInput(attrs={"placeholder": "Black, Brown, Beige"}),
             "width_cm":     forms.NumberInput(attrs={"placeholder": "30", "step": "0.1", "min": "0"}),
             "height_cm":    forms.NumberInput(attrs={"placeholder": "22", "step": "0.1", "min": "0"}),
             "depth_cm":     forms.NumberInput(attrs={"placeholder": "12", "step": "0.1", "min": "0"}),
             "compartments": forms.NumberInput(attrs={"placeholder": "3", "min": "0"}),
-            "weight_g":     forms.NumberInput(attrs={"placeholder": "800", "min": "0"}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["sku"].required = False  # auto-generated when left blank
-
-    def clean_variant_name(self):
-        name = self.cleaned_data.get("variant_name", "").strip()
-        if len(name) < 2:
-            raise ValidationError("Variant name must be at least 2 characters.")
-        return name
 
     def clean_sku(self):
         sku = self.cleaned_data.get("sku", "").strip()

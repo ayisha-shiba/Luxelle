@@ -558,6 +558,15 @@ def _generate_unique_sku(product):
             return sku
 
 
+def _build_variant_name(variant, product):
+    parts = []
+    if variant.color:
+        parts.append(variant.color.strip())
+    if variant.material:
+        parts.append(variant.get_material_display())
+    return " ".join(p for p in parts if p).strip() or product.name
+
+
 PRODUCT_IMAGE_SIZE  = (800, 800)
 ALLOWED_IMG_FORMATS = {"JPEG", "PNG", "WEBP"}
 
@@ -636,8 +645,9 @@ def admin_product_add_view(request):
             with transaction.atomic():
                 product = product_form.save()
                 variant = variant_form.save(commit=False)
-                variant.product    = product
-                variant.is_default = True
+                variant.product      = product
+                variant.is_default   = True
+                variant.variant_name = _build_variant_name(variant, product)
                 if not variant.sku:
                     variant.sku = _generate_unique_sku(product)
                 variant.save()
@@ -694,8 +704,9 @@ def admin_product_edit_view(request, product_id):
             with transaction.atomic():
                 product = product_form.save()
                 v = variant_form.save(commit=False)
-                v.product    = product
-                v.is_default = True
+                v.product      = product
+                v.is_default   = True
+                v.variant_name = _build_variant_name(v, product)
                 if not v.sku:
                     v.sku = _generate_unique_sku(product)
                 v.save()

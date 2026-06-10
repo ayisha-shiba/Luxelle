@@ -222,10 +222,11 @@ class Product(models.Model):
         ("unisex", "Unisex"),
     ]
 
-    name           = models.CharField(max_length=200)
-    slug           = models.SlugField(max_length=220, unique=True, blank=True)
-    description    = models.TextField(blank=True)
-    category       = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
+    name              = models.CharField(max_length=200)
+    slug              = models.SlugField(max_length=220, unique=True, blank=True)
+    short_description = models.CharField(max_length=255, blank=True)
+    description       = models.TextField(blank=True)
+    category          = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
     brand          = models.ForeignKey("Brand", on_delete=models.PROTECT, related_name="products", null=True, blank=True)
     gender         = models.CharField(max_length=10, choices=GENDER_CHOICES, default="unisex")
     is_listed      = models.BooleanField(default=True)
@@ -278,27 +279,10 @@ class ProductVariant(models.Model):
         ("turnlock", "Turn Lock"),
         ("opentop",  "Open Top"),
     ]
-    CARRY_CHOICES = [
-        ("tote",      "Tote Bag"),
-        ("shoulder",  "Shoulder Bag"),
-        ("crossbody", "Crossbody Bag"),
-        ("tophandle", "Top Handle Bag"),
-        ("clutch",    "Clutch"),
-    ]
     PATTERN_CHOICES = [
         ("plain",   "Plain"),
         ("quilted", "Quilted"),
         ("printed", "Printed"),
-    ]
-    COUNTRY_CHOICES = [
-        ("india",  "India"),
-        ("italy",  "Italy"),
-        ("france", "France"),
-    ]
-    WARRANTY_CHOICES = [
-        ("none", "No Warranty"),
-        ("6m",   "6 Months"),
-        ("1y",   "1 Year"),
     ]
 
     product        = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="variants")
@@ -317,15 +301,8 @@ class ProductVariant(models.Model):
 
     # Bag details
     closure_type   = models.CharField(max_length=20, choices=CLOSURE_CHOICES, blank=True)
-    carry_style    = models.CharField(max_length=20, choices=CARRY_CHOICES, blank=True)
     compartments   = models.PositiveIntegerField(null=True, blank=True)
     pattern        = models.CharField(max_length=20, choices=PATTERN_CHOICES, blank=True)
-    weight_g       = models.PositiveIntegerField(null=True, blank=True)
-
-    # Additional details
-    country_of_origin = models.CharField(max_length=20, choices=COUNTRY_CHOICES, blank=True)
-    dust_bag_included = models.BooleanField(default=False)
-    warranty          = models.CharField(max_length=10, choices=WARRANTY_CHOICES, blank=True)
 
     # Pricing & stock
     original_price = models.DecimalField(max_digits=10, decimal_places=2)
