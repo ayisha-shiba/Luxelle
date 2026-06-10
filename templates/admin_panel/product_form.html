@@ -8,6 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
     <link href="{% static 'css/admin_common.css' %}" rel="stylesheet">
     <style>
         .alert { margin-bottom: 1.25rem; border-radius: 8px; padding: 1rem 1.25rem; }
@@ -66,6 +68,14 @@
         .existing-img { display:inline-flex; flex-direction:column; align-items:center; gap:3px; }
         .existing-img img { width:74px; height:74px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.12); }
         .existing-img .rm-tag { font-size:0.64rem; color:#e74c3c; display:flex; align-items:center; gap:3px; cursor:pointer; }
+
+        .crop-box { background:#0b0b0b; border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:1.5rem; max-width:560px; width:92%; box-shadow:0 20px 60px rgba(0,0,0,0.85); }
+        .crop-box h3 { font-family:'Playfair Display',serif; color:#fff; font-size:1.2rem; margin:0 0 1rem; }
+        .crop-area { max-height:60vh; background:#000; border-radius:8px; overflow:hidden; }
+        .crop-area img { max-width:100%; display:block; }
+        .new-img { position:relative; display:inline-block; }
+        .new-img img { width:74px; height:74px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.12); }
+        .new-img .rm-x { position:absolute; top:-6px; right:-6px; width:18px; height:18px; background:#e74c3c; color:#fff; border-radius:50%; font-size:12px; line-height:18px; text-align:center; cursor:pointer; }
     </style>
 </head>
 <body>
@@ -236,11 +246,11 @@
             </div>
             {% endif %}
             <div class="img-drop" onclick="document.getElementById('imgInput').click()">
-                <i class="fa-solid fa-folder-open" style="font-size:1.6rem; color:#c5a059;"></i>
+                <i class="fa-solid fa-crop-simple" style="font-size:1.6rem; color:#c5a059;"></i>
                 <div style="margin-top:0.5rem;">Click to select images</div>
-                <div style="font-size:0.72rem;">JPG, PNG, WEBP — select multiple (min 3)</div>
+                <div style="font-size:0.72rem;">JPG, PNG, WEBP — you'll crop each one (min 3)</div>
             </div>
-            <input type="file" name="images" id="imgInput" multiple accept="image/*" class="d-none" onchange="previewImages(this)">
+            <input type="file" name="images" id="imgInput" multiple accept="image/jpeg,image/png,image/webp" class="d-none" onchange="handleSelectedFiles(this)">
             <div class="img-grid" id="imgPreview"></div>
             <div class="img-hint err" id="imgCount">0 images selected — at least 3 required</div>
 
@@ -263,6 +273,18 @@
             <div class="modal-actions">
                 <button type="button" class="mbtn mbtn-cancel" onclick="closeQuickAdd()">Cancel</button>
                 <button type="button" class="mbtn mbtn-gold" id="quickAddSubmit">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Crop Image Modal -->
+    <div class="modal-overlay" id="cropModal">
+        <div class="crop-box">
+            <h3>Crop Image <span style="font-size:0.72rem;color:#888;font-family:Inter,sans-serif;">(drag to adjust — square)</span></h3>
+            <div class="crop-area"><img id="cropImage" alt="to crop"></div>
+            <div class="modal-actions">
+                <button type="button" class="mbtn mbtn-cancel" onclick="cropSkip()">Skip this image</button>
+                <button type="button" class="mbtn mbtn-gold" onclick="cropConfirm()">Crop &amp; Add</button>
             </div>
         </div>
     </div>
@@ -317,23 +339,89 @@
         });
 
         document.querySelectorAll('.modal-overlay').forEach(m => {
-            m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
+            m.addEventListener('click', e => { if (e.target === m && m.id !== 'cropModal') m.classList.remove('show'); });
         });
 
-        function previewImages(input) {
+        // ── Image cropping flow (Cropper.js) ──────────────────────────────
+        let croppedFiles = [];   // the square-cropped Files that will be uploaded
+        let cropQueue    = [];   // originals waiting to be cropped
+        let cropper      = null;
+        let currentName  = '';
+        const OK_TYPES   = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+        function handleSelectedFiles(input) {
+            cropQueue = cropQueue.concat(Array.from(input.files));
+            input.value = '';           // clear so re-selecting the same file works
+            processNextCrop();
+        }
+
+        function processNextCrop() {
+            if (cropQueue.length === 0) { syncInputFiles(); return; }
+            const file = cropQueue[0];
+            if (!OK_TYPES.includes(file.type)) {
+                alert('"' + file.name + '" is not a supported image (JPG, PNG, WEBP).');
+                cropQueue.shift();
+                return processNextCrop();
+            }
+            currentName = file.name;
+            const reader = new FileReader();
+            reader.onload = e => {
+                const cropImg = document.getElementById('cropImage');
+                cropImg.src = e.target.result;
+                document.getElementById('cropModal').classList.add('show');
+                if (cropper) cropper.destroy();
+                cropper = new Cropper(cropImg, { aspectRatio: 1, viewMode: 1, autoCropArea: 1, background: false, movable: true, zoomable: true });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function closeCropModal() {
+            document.getElementById('cropModal').classList.remove('show');
+            if (cropper) { cropper.destroy(); cropper = null; }
+        }
+
+        function cropConfirm() {
+            if (!cropper) return;
+            cropper.getCroppedCanvas({ width: 800, height: 800, imageSmoothingQuality: 'high' }).toBlob(blob => {
+                const base = (currentName || 'image').replace(/\.[^.]+$/, '');
+                croppedFiles.push(new File([blob], base + '.jpg', { type: 'image/jpeg' }));
+                cropQueue.shift();
+                closeCropModal();
+                renderNewPreviews();
+                processNextCrop();
+            }, 'image/jpeg', 0.92);
+        }
+
+        function cropSkip() {
+            cropQueue.shift();
+            closeCropModal();
+            processNextCrop();
+        }
+
+        function renderNewPreviews() {
             const grid = document.getElementById('imgPreview');
-            const hint = document.getElementById('imgCount');
             grid.innerHTML = '';
-            const files = Array.from(input.files);
-            files.forEach(f => {
-                const reader = new FileReader();
-                reader.onload = e => {
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    grid.appendChild(img);
-                };
-                reader.readAsDataURL(f);
+            croppedFiles.forEach((f, i) => {
+                const wrap = document.createElement('div');
+                wrap.className = 'new-img';
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(f);
+                const rm = document.createElement('span');
+                rm.className = 'rm-x';
+                rm.textContent = '×';
+                rm.title = 'Remove';
+                rm.onclick = () => { croppedFiles.splice(i, 1); renderNewPreviews(); };
+                wrap.appendChild(img);
+                wrap.appendChild(rm);
+                grid.appendChild(wrap);
             });
+            syncInputFiles();
+        }
+
+        function syncInputFiles() {
+            const dt = new DataTransfer();
+            croppedFiles.forEach(f => dt.items.add(f));
+            document.getElementById('imgInput').files = dt.files;
             updateImageHint();
         }
 

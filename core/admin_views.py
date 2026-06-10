@@ -12,7 +12,11 @@ from .decorators import admin_required
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q, Min, Sum
 from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
+from PIL import Image, ImageOps
 import random
+import io
 from .forms import SetNewPasswordForm, CategoryForm, ProductForm, ProductVariantForm
 from .models import CustomUser, Category, Product, Brand, Material, ProductVariant, VariantImage
 from .utils import (
@@ -554,6 +558,34 @@ def _generate_unique_sku(product):
             return sku
 
 
+PRODUCT_IMAGE_SIZE  = (800, 800)
+ALLOWED_IMG_FORMATS = {"JPEG", "PNG", "WEBP"}
+
+
+def process_product_image(uploaded_file):
+    """Validate format, square-crop without distortion (cover), resize to a uniform
+    size and re-encode as an optimized JPEG. Raises ValidationError on bad input."""
+    try:
+        uploaded_file.seek(0)
+        img = Image.open(uploaded_file)
+        fmt = (img.format or "").upper()
+        if fmt == "JPG":
+            fmt = "JPEG"
+        if fmt not in ALLOWED_IMG_FORMATS:
+            raise ValidationError("Only JPG, PNG, or WEBP images are allowed.")
+        img = img.convert("RGB")
+        img = ImageOps.fit(img, PRODUCT_IMAGE_SIZE, Image.LANCZOS)
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=85, optimize=True)
+        buffer.seek(0)
+    except ValidationError:
+        raise
+    except Exception:
+        raise ValidationError("Could not process the image. Please upload a valid JPG, PNG, or WEBP file.")
+    base = (getattr(uploaded_file, "name", "") or "image").rsplit(".", 1)[0]
+    return ContentFile(buffer.read(), name=f"{base}.jpg")
+
+
 def _apply_inline_new(data):
     """A newly-added brand/material arrives as a NON-numeric select value (the typed name).
     Create the row (case-insensitive get-or-create) and replace the value with its id."""
@@ -609,6 +641,14 @@ def admin_product_add_view(request):
         extra_errors = []
         if len(images) < 3:
             extra_errors.append("Please upload at least 3 product images.")
+        processed_images = []
+        if not extra_errors:
+            for img in images:
+                try:
+                    processed_images.append(process_product_image(img))
+                except ValidationError as exc:
+                    extra_errors.append(exc.messages[0])
+                    break
 
         if product_form.is_valid() and variant_form.is_valid() and not extra_errors:
             with transaction.atomic():
@@ -619,8 +659,8 @@ def admin_product_add_view(request):
                 if not variant.sku:
                     variant.sku = _generate_unique_sku(product)
                 variant.save()
-                for index, img in enumerate(images):
-                    VariantImage.objects.create(variant=variant, image=img, is_primary=(index == 0))
+                for index, cf in enumerate(processed_images):
+                    VariantImage.objects.create(variant=variant, image=cf, is_primary=(index == 0))
             messages.success(request, f"Product '{product.name}' created successfully.")
             return redirect("admin_products")
 
@@ -660,6 +700,14 @@ def admin_product_edit_view(request, product_id):
         extra_errors = []
         if total_after < 3:
             extra_errors.append("A product must keep at least 3 images.")
+        processed_images = []
+        if not extra_errors:
+            for img in new_images:
+                try:
+                    processed_images.append(process_product_image(img))
+                except ValidationError as exc:
+                    extra_errors.append(exc.messages[0])
+                    break
 
         if product_form.is_valid() and variant_form.is_valid() and not extra_errors:
             with transaction.atomic():
@@ -672,8 +720,8 @@ def admin_product_edit_view(request, product_id):
                 v.save()
                 if delete_ids:
                     VariantImage.objects.filter(variant=v, id__in=delete_ids).delete()
-                for img in new_images:
-                    VariantImage.objects.create(variant=v, image=img)
+                for cf in processed_images:
+                    VariantImage.objects.create(variant=v, image=cf)
                 if not v.images.filter(is_primary=True).exists():
                     first = v.images.first()
                     if first:
