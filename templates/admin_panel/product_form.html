@@ -62,6 +62,10 @@
 
         .qa-box { background:#0b0b0b; border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:1.75rem; max-width:420px; width:90%; text-align:left; box-shadow:0 20px 60px rgba(0,0,0,0.8); }
         .qa-box h3 { font-family:'Playfair Display',serif; color:#fff; font-size:1.2rem; margin:0 0 1.2rem; }
+
+        .existing-img { display:inline-flex; flex-direction:column; align-items:center; gap:3px; }
+        .existing-img img { width:74px; height:74px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.12); }
+        .existing-img .rm-tag { font-size:0.64rem; color:#e74c3c; display:flex; align-items:center; gap:3px; cursor:pointer; }
     </style>
 </head>
 <body>
@@ -220,6 +224,17 @@
             </div>
 
             <div class="section-title">Variant Images <span style="color:#777;text-transform:none;letter-spacing:0;">(min 3 required)</span></div>
+            {% if existing_images %}
+            <div style="margin-bottom:0.5rem; font-size:0.74rem; color:#888;">Current images — tick to remove:</div>
+            <div class="img-grid" style="margin-bottom:1rem;">
+                {% for im in existing_images %}
+                <label class="existing-img">
+                    <img src="{{ im.image.url }}">
+                    <span class="rm-tag"><input type="checkbox" name="delete_images" value="{{ im.id }}" onchange="updateImageHint()"> remove</span>
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
             <div class="img-drop" onclick="document.getElementById('imgInput').click()">
                 <i class="fa-solid fa-folder-open" style="font-size:1.6rem; color:#c5a059;"></i>
                 <div style="margin-top:0.5rem;">Click to select images</div>
@@ -319,9 +334,7 @@
                 };
                 reader.readAsDataURL(f);
             });
-            const n = files.length;
-            hint.textContent = `${n} image${n === 1 ? '' : 's'} selected` + (n < 3 ? ' — at least 3 required' : ' ✓');
-            hint.className = 'img-hint ' + (n < 3 ? 'err' : 'ok');
+            updateImageHint();
         }
 
         function slug(s) { return (s || '').toString().trim().toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 8) || 'PROD'; }
@@ -346,13 +359,29 @@
         const vnEl = document.getElementById('variantName');
         if (vnEl) vnEl.addEventListener('input', () => { vnEl.dataset.touched = '1'; });
 
-        // Block submit if fewer than 3 images (add mode only)
+        // Image counting: total = existing (minus removed) + newly selected; must stay >= 3
         const IS_ADD = {% if mode == 'edit' %}false{% else %}true{% endif %};
-        document.getElementById('productForm').addEventListener('submit', function(e) {
-            const n = document.getElementById('imgInput').files.length;
-            if (IS_ADD && n < 3) {
+        const EXISTING_IMG_COUNT = {{ existing_images|length|default:0 }};
+
+        function updateImageHint() {
+            const newN    = document.getElementById('imgInput').files.length;
+            const removed = document.querySelectorAll('input[name=delete_images]:checked').length;
+            const total   = (IS_ADD ? 0 : EXISTING_IMG_COUNT) - removed + newN;
+            const hint    = document.getElementById('imgCount');
+            hint.textContent = total + ' image' + (total === 1 ? '' : 's') + ' total' + (total < 3 ? ' — at least 3 required' : ' ✓');
+            hint.className   = 'img-hint ' + (total < 3 ? 'err' : 'ok');
+        }
+
+        if (vnEl && vnEl.value.trim()) vnEl.dataset.touched = '1';
+        updateImageHint();
+
+        document.getElementById('productForm').addEventListener('submit', function (e) {
+            const newN    = document.getElementById('imgInput').files.length;
+            const removed = document.querySelectorAll('input[name=delete_images]:checked').length;
+            const total   = (IS_ADD ? 0 : EXISTING_IMG_COUNT) - removed + newN;
+            if (total < 3) {
                 e.preventDefault();
-                alert('Please select at least 3 product images.');
+                alert('A product must have at least 3 images.');
             }
         });
     </script>

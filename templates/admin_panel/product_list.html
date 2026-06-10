@@ -158,7 +158,7 @@
                                         {% if status == 'trash' %}
                                             <a href="{% url 'admin_product_restore' product.id %}" class="act-btn act-btn-restore" title="Restore"><i class="fa-solid fa-rotate-left"></i></a>
                                         {% else %}
-                                            <a href="#" class="act-btn act-btn-edit" title="Edit" onclick="alert('The Edit Product form is being built in the next step.'); return false;"><i class="fa-solid fa-pen"></i></a>
+                                            <a href="{% url 'admin_product_edit' product.id %}" class="act-btn act-btn-edit" title="Edit"><i class="fa-solid fa-pen"></i></a>
                                             <button class="act-btn act-btn-del" title="Delete" onclick="openDeleteModal('{{ product.id }}', '{{ product.name|escapejs }}')"><i class="fa-solid fa-trash"></i></button>
                                         {% endif %}
                                     </div>

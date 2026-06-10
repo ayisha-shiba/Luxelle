@@ -637,4 +637,68 @@ def admin_product_add_view(request):
         "gender_choices": Product.GENDER_CHOICES,
     }
     return render(request, "admin_panel/product_form.html", context)
+
+
+@admin_required
+def admin_product_edit_view(request, product_id):
+    product = Product.objects.filter(id=product_id, is_deleted=False).first()
+    if not product:
+        messages.error(request, "Product not found.")
+        return redirect("admin_products")
+    variant = product.default_variant
+
+    if request.method == "POST":
+        data         = _apply_inline_new(request.POST.copy())
+        product_form = ProductForm(data, prefix="p", instance=product)
+        variant_form = ProductVariantForm(data, prefix="v", instance=variant)
+        new_images   = request.FILES.getlist("images")
+        delete_ids   = request.POST.getlist("delete_images")
+
+        existing_after = variant.images.exclude(id__in=delete_ids).count() if variant else 0
+        total_after    = existing_after + len(new_images)
+
+        extra_errors = []
+        if total_after < 3:
+            extra_errors.append("A product must keep at least 3 images.")
+
+        if product_form.is_valid() and variant_form.is_valid() and not extra_errors:
+            with transaction.atomic():
+                product = product_form.save()
+                v = variant_form.save(commit=False)
+                v.product    = product
+                v.is_default = True
+                if not v.sku:
+                    v.sku = _generate_unique_sku(product)
+                v.save()
+                if delete_ids:
+                    VariantImage.objects.filter(variant=v, id__in=delete_ids).delete()
+                for img in new_images:
+                    VariantImage.objects.create(variant=v, image=img)
+                if not v.images.filter(is_primary=True).exists():
+                    first = v.images.first()
+                    if first:
+                        first.is_primary = True
+                        first.save(update_fields=["is_primary"])
+            messages.success(request, f"Product '{product.name}' updated successfully.")
+            return redirect("admin_products")
+
+        for err in extra_errors:
+            messages.error(request, err)
+    else:
+        product_form = ProductForm(prefix="p", instance=product)
+        variant_form = ProductVariantForm(prefix="v", instance=variant)
+
+    context = {
+        "mode":            "edit",
+        "product":         product,
+        "variant":         variant,
+        "existing_images": variant.images.all() if variant else [],
+        "product_form":    product_form,
+        "variant_form":    variant_form,
+        "categories":      Category.objects.filter(is_deleted=False).order_by("name"),
+        "brands":          Brand.objects.filter(is_deleted=False).order_by("name"),
+        "materials":       Material.objects.all().order_by("name"),
+        "gender_choices":  Product.GENDER_CHOICES,
+    }
+    return render(request, "admin_panel/product_form.html", context)
     
