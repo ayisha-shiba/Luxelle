@@ -18,7 +18,7 @@ from PIL import Image, ImageOps
 import random
 import io
 from .forms import SetNewPasswordForm, CategoryForm, ProductForm, ProductVariantForm
-from .models import CustomUser, Category, Product, Brand, ProductVariant, VariantImage
+from .models import CustomUser, Category, Product, Brand, Material, ProductVariant, VariantImage
 from .utils import (
     OTP_EXPIRY_MINUTES,
     check_resend_cooldown,
@@ -562,8 +562,8 @@ def _build_variant_name(variant, product):
     parts = []
     if variant.color:
         parts.append(variant.color.strip())
-    if variant.material:
-        parts.append(variant.get_material_display())
+    if variant.material_id:
+        parts.append(variant.material.name)
     return " ".join(p for p in parts if p).strip() or product.name
 
 
@@ -619,6 +619,18 @@ def admin_brand_add_ajax(request):
 
 
 @admin_required
+def admin_material_add_ajax(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request."}, status=400)
+    name = request.POST.get("name", "").strip()
+    if len(name) < 2:
+        return JsonResponse({"error": "Material name must be at least 2 characters."}, status=400)
+    material = (Material.objects.filter(name__iexact=name).first()
+                or Material.objects.create(name=name))
+    return JsonResponse({"id": material.id, "name": material.name})
+
+
+@admin_required
 def admin_product_add_view(request):
     product_form = ProductForm(prefix="p")
     variant_form = ProductVariantForm(prefix="v")
@@ -665,7 +677,7 @@ def admin_product_add_view(request):
         "variant_form":  variant_form,
         "categories":    Category.objects.filter(is_deleted=False).order_by("name"),
         "brands":        Brand.objects.filter(is_deleted=False).order_by("name"),
-        "gender_choices": Product.GENDER_CHOICES,
+        "materials":     Material.objects.all().order_by("name"),
     }
     return render(request, "admin_panel/product_form.html", context)
 
@@ -737,7 +749,7 @@ def admin_product_edit_view(request, product_id):
         "variant_form":    variant_form,
         "categories":      Category.objects.filter(is_deleted=False).order_by("name"),
         "brands":          Brand.objects.filter(is_deleted=False).order_by("name"),
-        "gender_choices":  Product.GENDER_CHOICES,
+        "materials":       Material.objects.all().order_by("name"),
     }
     return render(request, "admin_panel/product_form.html", context)
     

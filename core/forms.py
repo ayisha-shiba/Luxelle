@@ -562,7 +562,7 @@ class ProductForm(forms.ModelForm):
 class ProductVariantForm(forms.ModelForm):
     class Meta:
         model  = ProductVariant
-        fields = ["sku", "color", "material", "size",
+        fields = ["sku", "color", "color_hex", "material", "size",
                   "width_cm", "height_cm", "depth_cm",
                   "closure_type", "compartments", "pattern",
                   "original_price", "sale_price", "stock"]

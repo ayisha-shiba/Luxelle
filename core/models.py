@@ -215,6 +215,17 @@ class Brand(models.Model):
         return self.name
 
 
+class Material(models.Model):
+    name       = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Product(models.Model):
     GENDER_CHOICES = [
         ("men",    "Men"),
@@ -260,14 +271,6 @@ class Product(models.Model):
 
 
 class ProductVariant(models.Model):
-    MATERIAL_CHOICES = [
-        ("leather",  "Leather"),
-        ("calfskin", "Calfskin Leather"),
-        ("pebbled",  "Pebbled Leather"),
-        ("saffiano", "Saffiano Leather"),
-        ("canvas",   "Canvas"),
-        ("vegan",    "Vegan Leather"),
-    ]
     SIZE_CHOICES = [
         ("small",  "Small"),
         ("medium", "Medium"),
@@ -291,7 +294,8 @@ class ProductVariant(models.Model):
 
     # Attributes
     color          = models.CharField(max_length=50, blank=True)
-    material       = models.CharField(max_length=20, choices=MATERIAL_CHOICES, blank=True)
+    color_hex      = models.CharField(max_length=7, blank=True)
+    material       = models.ForeignKey("Material", on_delete=models.SET_NULL, related_name="variants", null=True, blank=True)
     size           = models.CharField(max_length=10, choices=SIZE_CHOICES, blank=True)
 
     # Dimensions (cm)

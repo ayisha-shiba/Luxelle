@@ -1,12 +1,13 @@
 from django.contrib import admin
 from .models import (
     Address, CustomUser, Category, Product,
-    Brand, ProductVariant, VariantImage,
+    Brand, Material, ProductVariant, VariantImage,
 )
 
 admin.site.register(Address)
 admin.site.register(CustomUser)
 admin.site.register(Brand)
+admin.site.register(Material)
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):

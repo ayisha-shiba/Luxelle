@@ -76,6 +76,11 @@
         .new-img { position:relative; display:inline-block; }
         .new-img img { width:74px; height:74px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.12); }
         .new-img .rm-x { position:absolute; top:-6px; right:-6px; width:18px; height:18px; background:#e74c3c; color:#fff; border-radius:50%; font-size:12px; line-height:18px; text-align:center; cursor:pointer; }
+
+        .color-row { display:flex; gap:0.5rem; align-items:center; }
+        .color-swatch { width:34px; height:34px; border-radius:50%; border:1px solid rgba(255,255,255,0.25); flex-shrink:0; }
+        .color-input { width:46px; height:38px; padding:2px; background:#161616; border:1px solid rgba(255,255,255,0.12); border-radius:8px; cursor:pointer; flex-shrink:0; }
+        .color-row input[type=text] { flex:1; }
     </style>
 </head>
 <body>
@@ -146,10 +151,29 @@
 
             <!-- VARIANT INFORMATION -->
             <div class="section-title">Variant Information</div>
-            <div class="grid-3">
-                <div class="fg"><label>Color</label>{{ variant_form.color }}</div>
-                <div class="fg"><label>Material</label>{{ variant_form.material }}</div>
-                <div class="fg"><label>Size <span style="color:#777;text-transform:none;letter-spacing:0;">(optional)</span></label>{{ variant_form.size }}</div>
+            <div class="grid-2">
+                <div class="fg">
+                    <label>Color</label>
+                    <div class="color-row">
+                        <span id="colorSwatch" class="color-swatch" style="background: {{ variant_form.color_hex.value|default:'#000000' }};"></span>
+                        <input type="color" name="v-color_hex" id="colorHex" class="color-input" value="{{ variant_form.color_hex.value|default:'#000000' }}" title="Pick a colour">
+                        <input type="text" name="v-color" value="{{ variant_form.color.value|default:'' }}" placeholder="Colour name (e.g. Black)">
+                    </div>
+                </div>
+                <div class="fg">
+                    <label>Material</label>
+                    <div class="inline-new">
+                        <select name="v-material" id="materialSelect">
+                            <option value="">Select material</option>
+                            {% for m in materials %}<option value="{{ m.id }}" {% if variant_form.material.value|stringformat:'s' == m.id|stringformat:'s' %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
+                        </select>
+                        <button type="button" class="mini-btn" onclick="openQuickAdd('material','materialSelect')">+ New</button>
+                    </div>
+                </div>
+            </div>
+            <div class="fg" style="max-width:240px;">
+                <label>Size <span style="color:#777;text-transform:none;letter-spacing:0;">(optional)</span></label>
+                {{ variant_form.size }}
             </div>
 
             <!-- PRICING -->
@@ -286,10 +310,6 @@
             .then(({ ok, d }) => {
                 if (!ok || d.error) { errBox.textContent = d.error || 'Could not add.'; errBox.style.display = 'block'; return; }
                 addOptionToSelect(qaTargetSelect, d.id, d.name, true);
-                if (qaType === 'material') {
-                    const other = qaTargetSelect === 'strapMatSelect' ? 'caseMatSelect' : 'strapMatSelect';
-                    addOptionToSelect(other, d.id, d.name, false);
-                }
                 closeQuickAdd();
             })
             .catch(() => { errBox.textContent = 'Something went wrong.'; errBox.style.display = 'block'; });
@@ -387,6 +407,12 @@
             const base = slug(document.querySelector('[name=p-name]').value);
             document.getElementById('skuInput').value = `${base}-${Math.floor(1000 + Math.random() * 9000)}`;
         }
+
+        // Colour picker -> live swatch
+        const _colorHex = document.getElementById('colorHex');
+        if (_colorHex) _colorHex.addEventListener('input', () => {
+            document.getElementById('colorSwatch').style.background = _colorHex.value;
+        });
 
         // Image counting: total = existing (minus removed) + newly selected; must stay >= 3
         const IS_ADD = {% if mode == 'edit' %}false{% else %}true{% endif %};
