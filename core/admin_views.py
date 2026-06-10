@@ -18,7 +18,7 @@ from PIL import Image, ImageOps
 import random
 import io
 from .forms import SetNewPasswordForm, CategoryForm, ProductForm, ProductVariantForm
-from .models import CustomUser, Category, Product, Brand, Material, ProductVariant, VariantImage
+from .models import CustomUser, Category, Product, Brand, ProductVariant, VariantImage
 from .utils import (
     OTP_EXPIRY_MINUTES,
     check_resend_cooldown,
@@ -587,19 +587,13 @@ def process_product_image(uploaded_file):
 
 
 def _apply_inline_new(data):
-    """A newly-added brand/material arrives as a NON-numeric select value (the typed name).
-    Create the row (case-insensitive get-or-create) and replace the value with its id."""
+    """A newly-added brand arrives as a NON-numeric select value (the typed name).
+    Create it (case-insensitive get-or-create) and replace the value with its id."""
     brand_val = data.get("p-brand", "").strip()
     if brand_val and not brand_val.isdigit():
         brand = (Brand.objects.filter(name__iexact=brand_val, is_deleted=False).first()
                  or Brand.objects.create(name=brand_val))
         data["p-brand"] = str(brand.id)
-    for key in ("v-strap_material", "v-case_material"):
-        val = data.get(key, "").strip()
-        if val and not val.isdigit():
-            material = (Material.objects.filter(name__iexact=val).first()
-                        or Material.objects.create(name=val))
-            data[key] = str(material.id)
     return data
 
 
@@ -613,18 +607,6 @@ def admin_brand_add_ajax(request):
     brand = (Brand.objects.filter(name__iexact=name, is_deleted=False).first()
              or Brand.objects.create(name=name))
     return JsonResponse({"id": brand.id, "name": brand.name})
-
-
-@admin_required
-def admin_material_add_ajax(request):
-    if request.method != "POST":
-        return JsonResponse({"error": "Invalid request."}, status=400)
-    name = request.POST.get("name", "").strip()
-    if len(name) < 2:
-        return JsonResponse({"error": "Material name must be at least 2 characters."}, status=400)
-    material = (Material.objects.filter(name__iexact=name).first()
-                or Material.objects.create(name=name))
-    return JsonResponse({"id": material.id, "name": material.name})
 
 
 @admin_required
@@ -673,7 +655,6 @@ def admin_product_add_view(request):
         "variant_form":  variant_form,
         "categories":    Category.objects.filter(is_deleted=False).order_by("name"),
         "brands":        Brand.objects.filter(is_deleted=False).order_by("name"),
-        "materials":     Material.objects.all().order_by("name"),
         "gender_choices": Product.GENDER_CHOICES,
     }
     return render(request, "admin_panel/product_form.html", context)
@@ -745,7 +726,6 @@ def admin_product_edit_view(request, product_id):
         "variant_form":    variant_form,
         "categories":      Category.objects.filter(is_deleted=False).order_by("name"),
         "brands":          Brand.objects.filter(is_deleted=False).order_by("name"),
-        "materials":       Material.objects.all().order_by("name"),
         "gender_choices":  Product.GENDER_CHOICES,
     }
     return render(request, "admin_panel/product_form.html", context)

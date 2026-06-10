@@ -560,9 +560,19 @@ class ProductForm(forms.ModelForm):
 class ProductVariantForm(forms.ModelForm):
     class Meta:
         model  = ProductVariant
-        fields = ["variant_name", "sku", "strap_color", "dial_color", "case_color",
-                  "strap_material", "case_material", "size",
+        fields = ["variant_name", "sku", "color", "material", "size",
+                  "width_cm", "height_cm", "depth_cm",
+                  "closure_type", "carry_style", "compartments", "pattern", "weight_g",
+                  "country_of_origin", "dust_bag_included", "warranty",
                   "original_price", "sale_price", "stock", "is_offer", "is_listed"]
+        widgets = {
+            "color":        forms.TextInput(attrs={"placeholder": "Black, Brown, Beige"}),
+            "width_cm":     forms.NumberInput(attrs={"placeholder": "30", "step": "0.1", "min": "0"}),
+            "height_cm":    forms.NumberInput(attrs={"placeholder": "22", "step": "0.1", "min": "0"}),
+            "depth_cm":     forms.NumberInput(attrs={"placeholder": "12", "step": "0.1", "min": "0"}),
+            "compartments": forms.NumberInput(attrs={"placeholder": "3", "min": "0"}),
+            "weight_g":     forms.NumberInput(attrs={"placeholder": "800", "min": "0"}),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

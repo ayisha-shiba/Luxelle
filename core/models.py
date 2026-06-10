@@ -215,17 +215,6 @@ class Brand(models.Model):
         return self.name
 
 
-class Material(models.Model):
-    name       = models.CharField(max_length=100, unique=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["name"]
-
-    def __str__(self):
-        return self.name
-
-
 class Product(models.Model):
     GENDER_CHOICES = [
         ("men",    "Men"),
@@ -270,18 +259,75 @@ class Product(models.Model):
 
 
 class ProductVariant(models.Model):
+    MATERIAL_CHOICES = [
+        ("leather",  "Leather"),
+        ("calfskin", "Calfskin Leather"),
+        ("pebbled",  "Pebbled Leather"),
+        ("saffiano", "Saffiano Leather"),
+        ("canvas",   "Canvas"),
+        ("vegan",    "Vegan Leather"),
+    ]
+    SIZE_CHOICES = [
+        ("small",  "Small"),
+        ("medium", "Medium"),
+        ("large",  "Large"),
+    ]
+    CLOSURE_CHOICES = [
+        ("zipper",   "Zipper"),
+        ("magnetic", "Magnetic Snap"),
+        ("turnlock", "Turn Lock"),
+        ("opentop",  "Open Top"),
+    ]
+    CARRY_CHOICES = [
+        ("tote",      "Tote Bag"),
+        ("shoulder",  "Shoulder Bag"),
+        ("crossbody", "Crossbody Bag"),
+        ("tophandle", "Top Handle Bag"),
+        ("clutch",    "Clutch"),
+    ]
+    PATTERN_CHOICES = [
+        ("plain",   "Plain"),
+        ("quilted", "Quilted"),
+        ("printed", "Printed"),
+    ]
+    COUNTRY_CHOICES = [
+        ("india",  "India"),
+        ("italy",  "Italy"),
+        ("france", "France"),
+    ]
+    WARRANTY_CHOICES = [
+        ("none", "No Warranty"),
+        ("6m",   "6 Months"),
+        ("1y",   "1 Year"),
+    ]
+
     product        = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="variants")
     variant_name   = models.CharField(max_length=200)
     sku            = models.CharField(max_length=50, unique=True)
 
-    strap_color    = models.CharField(max_length=50, blank=True)
-    dial_color     = models.CharField(max_length=50, blank=True)
-    case_color     = models.CharField(max_length=50, blank=True)
+    # Attributes
+    color          = models.CharField(max_length=50, blank=True)
+    material       = models.CharField(max_length=20, choices=MATERIAL_CHOICES, blank=True)
+    size           = models.CharField(max_length=10, choices=SIZE_CHOICES, blank=True)
 
-    strap_material = models.ForeignKey(Material, on_delete=models.PROTECT, related_name="strap_variants", null=True, blank=True)
-    case_material  = models.ForeignKey(Material, on_delete=models.PROTECT, related_name="case_variants", null=True, blank=True)
+    # Dimensions (cm)
+    width_cm       = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
+    height_cm      = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
+    depth_cm       = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
 
-    size           = models.CharField(max_length=50, blank=True)
+    # Bag details
+    closure_type   = models.CharField(max_length=20, choices=CLOSURE_CHOICES, blank=True)
+    carry_style    = models.CharField(max_length=20, choices=CARRY_CHOICES, blank=True)
+    compartments   = models.PositiveIntegerField(null=True, blank=True)
+    pattern        = models.CharField(max_length=20, choices=PATTERN_CHOICES, blank=True)
+    weight_g       = models.PositiveIntegerField(null=True, blank=True)
+
+    # Additional details
+    country_of_origin = models.CharField(max_length=20, choices=COUNTRY_CHOICES, blank=True)
+    dust_bag_included = models.BooleanField(default=False)
+    warranty          = models.CharField(max_length=10, choices=WARRANTY_CHOICES, blank=True)
+
+    # Pricing & stock
     original_price = models.DecimalField(max_digits=10, decimal_places=2)
     sale_price     = models.DecimalField(max_digits=10, decimal_places=2)
     stock          = models.PositiveIntegerField(default=0)

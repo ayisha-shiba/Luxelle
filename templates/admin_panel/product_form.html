@@ -169,47 +169,47 @@
             <!-- DEFAULT VARIANT -->
             <div class="note-bar"><strong>DEFAULT VARIANT</strong> — required; a product cannot be created without this.</div>
 
-            <div class="section-title">Colors</div>
+            <div class="section-title">Variant Attributes</div>
             <div class="grid-3">
-                <div class="fg"><label>Strap Color</label><input type="text" name="v-strap_color" value="{{ variant_form.strap_color.value|default:'' }}" placeholder="#000000 or Black"></div>
-                <div class="fg"><label>Dial Color</label><input type="text" name="v-dial_color" value="{{ variant_form.dial_color.value|default:'' }}" placeholder="#000000 or Black"></div>
-                <div class="fg"><label>Case Color</label><input type="text" name="v-case_color" value="{{ variant_form.case_color.value|default:'' }}" placeholder="#000000 or Gold"></div>
+                <div class="fg"><label>Color</label>{{ variant_form.color }}</div>
+                <div class="fg"><label>Material</label>{{ variant_form.material }}</div>
+                <div class="fg"><label>Size <span style="color:#777;text-transform:none;letter-spacing:0;">(optional)</span></label>{{ variant_form.size }}</div>
             </div>
 
-            <div class="section-title">Materials</div>
+            <div class="section-title">Dimensions (cm)</div>
+            <div class="grid-3">
+                <div class="fg"><label>Width</label>{{ variant_form.width_cm }}</div>
+                <div class="fg"><label>Height</label>{{ variant_form.height_cm }}</div>
+                <div class="fg"><label>Depth</label>{{ variant_form.depth_cm }}</div>
+            </div>
+
+            <div class="section-title">Bag Details</div>
+            <div class="grid-3">
+                <div class="fg"><label>Closure Type</label>{{ variant_form.closure_type }}</div>
+                <div class="fg"><label>Carry Style</label>{{ variant_form.carry_style }}</div>
+                <div class="fg"><label>Compartments</label>{{ variant_form.compartments }}</div>
+            </div>
             <div class="grid-2">
-                <div class="fg">
-                    <label>Strap Material</label>
-                    <div class="inline-new">
-                        <select name="v-strap_material" id="strapMatSelect">
-                            <option value="">Select...</option>
-                            {% for m in materials %}<option value="{{ m.id }}" {% if variant_form.strap_material.value|stringformat:'s' == m.id|stringformat:'s' %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
-                        </select>
-                        <button type="button" class="mini-btn" onclick="openQuickAdd('material','strapMatSelect')">+ New</button>
-                    </div>
-                </div>
-                <div class="fg">
-                    <label>Case Material</label>
-                    <div class="inline-new">
-                        <select name="v-case_material" id="caseMatSelect">
-                            <option value="">Select...</option>
-                            {% for m in materials %}<option value="{{ m.id }}" {% if variant_form.case_material.value|stringformat:'s' == m.id|stringformat:'s' %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
-                        </select>
-                        <button type="button" class="mini-btn" onclick="openQuickAdd('material','caseMatSelect')">+ New</button>
-                    </div>
-                </div>
+                <div class="fg"><label>Pattern</label>{{ variant_form.pattern }}</div>
+                <div class="fg"><label>Weight (g)</label>{{ variant_form.weight_g }}</div>
             </div>
 
-            <div class="section-title">Specifications</div>
+            <div class="section-title">Additional Details</div>
+            <div class="grid-2">
+                <div class="fg"><label>Country of Origin</label>{{ variant_form.country_of_origin }}</div>
+                <div class="fg"><label>Warranty</label>{{ variant_form.warranty }}</div>
+            </div>
+            <div class="toggle-row">
+                <div><div class="t-title">Dust Bag Included</div><div class="t-sub">Ships with a protective dust bag</div></div>
+                <label class="switch"><input type="checkbox" name="v-dust_bag_included" {% if variant_form.dust_bag_included.value %}checked{% endif %}><span class="sl"></span></label>
+            </div>
+
+            <div class="section-title">Pricing &amp; Stock</div>
             <div class="grid-4">
-                <div class="fg"><label>Size</label><input type="text" name="v-size" value="{{ variant_form.size.value|default:'' }}" placeholder="e.g. 42mm"></div>
                 <div class="fg"><label>MRP / Original (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0" name="v-original_price" value="{{ variant_form.original_price.value|default:'' }}" required></div>
                 <div class="fg"><label>Sale Price (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0" name="v-sale_price" value="{{ variant_form.sale_price.value|default:'' }}" required></div>
                 <div class="fg"><label>Stock <span class="req">*</span></label><input type="number" min="0" name="v-stock" value="{{ variant_form.stock.value|default:'' }}" required></div>
-            </div>
-
-            <div class="grid-2">
-                <div class="fg" style="max-width:240px;">
+                <div class="fg">
                     <label>Variant Status</label>
                     <select name="v-is_listed">
                         <option value="true"  {% if variant_form.is_listed.value %}selected{% endif %}>Active</option>
@@ -435,15 +435,20 @@
         function suggestVariantName() {
             const vn = document.getElementById('variantName');
             if (vn.dataset.touched) return;
-            const strap = document.querySelector('[name=v-strap_color]').value.trim();
-            const size  = document.querySelector('[name=v-size]').value.trim();
-            const parts = [strap, size].filter(Boolean);
+            const color = (document.querySelector('[name=v-color]') || {}).value || '';
+            const matSel = document.querySelector('[name=v-material]');
+            let mat = '';
+            if (matSel && matSel.selectedIndex >= 0) {
+                const t = matSel.options[matSel.selectedIndex].text;
+                if (t && t.indexOf('---') === -1) mat = t;
+            }
+            const parts = [color.trim(), mat.trim()].filter(Boolean);
             if (parts.length) vn.value = parts.join(' ');
         }
-        ['v-strap_color', 'v-size'].forEach(n => {
-            const el = document.querySelector(`[name=${n}]`);
-            if (el) el.addEventListener('input', suggestVariantName);
-        });
+        const _colorEl = document.querySelector('[name=v-color]');
+        if (_colorEl) _colorEl.addEventListener('input', suggestVariantName);
+        const _matEl = document.querySelector('[name=v-material]');
+        if (_matEl) _matEl.addEventListener('change', suggestVariantName);
         const vnEl = document.getElementById('variantName');
         if (vnEl) vnEl.addEventListener('input', () => { vnEl.dataset.touched = '1'; });
 
