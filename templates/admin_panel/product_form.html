@@ -123,9 +123,8 @@
                             <option value="{{ b.id }}" {% if product_form.brand.value|stringformat:'s' == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
                         {% endfor %}
                     </select>
-                    <button type="button" class="mini-btn" onclick="toggleNew('brandNew', this)">+ New</button>
+                    <button type="button" class="mini-btn" onclick="addNewOption('brandSelect','brand')">+ New</button>
                 </div>
-                <input type="text" name="brand_new" id="brandNew" placeholder="New brand name" style="display:none; margin-top:0.5rem;">
             </div>
             <div class="fg">
                 <label>Description</label>
@@ -165,24 +164,22 @@
                 <div class="fg">
                     <label>Strap Material</label>
                     <div class="inline-new">
-                        <select name="v-strap_material">
+                        <select name="v-strap_material" id="strapMatSelect">
                             <option value="">Select...</option>
                             {% for m in materials %}<option value="{{ m.id }}" {% if variant_form.strap_material.value|stringformat:'s' == m.id|stringformat:'s' %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
                         </select>
-                        <button type="button" class="mini-btn" onclick="toggleNew('strapMatNew', this)">+ New</button>
+                        <button type="button" class="mini-btn" onclick="addNewOption('strapMatSelect','material')">+ New</button>
                     </div>
-                    <input type="text" name="strap_material_new" id="strapMatNew" placeholder="New material" style="display:none; margin-top:0.5rem;">
                 </div>
                 <div class="fg">
                     <label>Case Material</label>
                     <div class="inline-new">
-                        <select name="v-case_material">
+                        <select name="v-case_material" id="caseMatSelect">
                             <option value="">Select...</option>
                             {% for m in materials %}<option value="{{ m.id }}" {% if variant_form.case_material.value|stringformat:'s' == m.id|stringformat:'s' %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
                         </select>
-                        <button type="button" class="mini-btn" onclick="toggleNew('caseMatNew', this)">+ New</button>
+                        <button type="button" class="mini-btn" onclick="addNewOption('caseMatSelect','material')">+ New</button>
                     </div>
-                    <input type="text" name="case_material_new" id="caseMatNew" placeholder="New material" style="display:none; margin-top:0.5rem;">
                 </div>
             </div>
 
@@ -238,11 +235,13 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function toggleNew(inputId, btn) {
-            const el = document.getElementById(inputId);
-            const show = el.style.display === 'none';
-            el.style.display = show ? 'block' : 'none';
-            if (show) el.focus();
+        function addNewOption(selectId, label) {
+            const name = (prompt('Enter new ' + label + ' name:') || '').trim();
+            if (!name) return;
+            const sel = document.getElementById(selectId);
+            let opt = Array.from(sel.options).find(o => o.text.toLowerCase() === name.toLowerCase());
+            if (!opt) { opt = new Option(name, name, true, true); sel.add(opt); }
+            sel.value = opt.value;
         }
 
         function previewImages(input) {

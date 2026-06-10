@@ -555,19 +555,19 @@ def _generate_unique_sku(product):
 
 
 def _apply_inline_new(data):
-    """If a '<field>_new' value was supplied, create the related row (case-insensitive)
-    and point the prefixed FK field at it (ProductForm uses 'p-', variant uses 'v-')."""
-    new_brand = data.get("brand_new", "").strip()
-    if new_brand:
-        brand = (Brand.objects.filter(name__iexact=new_brand, is_deleted=False).first()
-                 or Brand.objects.create(name=new_brand))
+    """A newly-added brand/material arrives as a NON-numeric select value (the typed name).
+    Create the row (case-insensitive get-or-create) and replace the value with its id."""
+    brand_val = data.get("p-brand", "").strip()
+    if brand_val and not brand_val.isdigit():
+        brand = (Brand.objects.filter(name__iexact=brand_val, is_deleted=False).first()
+                 or Brand.objects.create(name=brand_val))
         data["p-brand"] = str(brand.id)
-    for field in ("strap_material", "case_material"):
-        new_val = data.get(f"{field}_new", "").strip()
-        if new_val:
-            material = (Material.objects.filter(name__iexact=new_val).first()
-                        or Material.objects.create(name=new_val))
-            data[f"v-{field}"] = str(material.id)
+    for key in ("v-strap_material", "v-case_material"):
+        val = data.get(key, "").strip()
+        if val and not val.isdigit():
+            material = (Material.objects.filter(name__iexact=val).first()
+                        or Material.objects.create(name=val))
+            data[key] = str(material.id)
     return data
 
 
