@@ -1,8 +1,13 @@
 from django.contrib import admin
-from .models import Address, CustomUser, Category, Product, ProductImage
+from .models import (
+    Address, CustomUser, Category, Product,
+    Brand, Material, ProductVariant, VariantImage,
+)
 
 admin.site.register(Address)
 admin.site.register(CustomUser)
+admin.site.register(Brand)
+admin.site.register(Material)
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -10,13 +15,28 @@ class CategoryAdmin(admin.ModelAdmin):
     search_fields   = ("name",)
     list_filter     = ("is_listed", "is_deleted")
 
-class ProductImageInline(admin.TabularInline):
-    model = ProductImage
+
+class VariantImageInline(admin.TabularInline):
+    model = VariantImage
     extra = 3
+
+
+@admin.register(ProductVariant)
+class ProductVariantAdmin(admin.ModelAdmin):
+    list_display    = ("variant_name", "product", "sku", "sale_price", "stock", "is_default", "is_listed", "is_deleted")
+    search_fields   = ("variant_name", "sku", "product__name")
+    list_filter     = ("is_listed", "is_deleted", "is_offer")
+    inlines         = [VariantImageInline]
+
+
+class ProductVariantInline(admin.TabularInline):
+    model = ProductVariant
+    extra = 1
+
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display    = ("name", "category", "price", "stock", "is_listed", "is_deleted")
-    search_fields   = ("name", "brand")
-    list_filter     = ("category", "is_listed", "is_deleted")
-    inlines         = [ProductImageInline] 
+    list_display    = ("name", "category", "brand", "gender", "is_listed", "is_featured", "is_deleted")
+    search_fields   = ("name",)
+    list_filter     = ("category", "brand", "gender", "is_listed", "is_deleted")
+    inlines         = [ProductVariantInline]

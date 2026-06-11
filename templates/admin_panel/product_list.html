@@ -1,0 +1,230 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle Admin - Product Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/admin_common.css' %}" rel="stylesheet">
+    <style>
+        .alert { margin-bottom: 1.5rem; border-radius: 8px; padding: 1rem 1.25rem; }
+        .alert-success { background-color: rgba(39,174,96,0.1); border:1px solid rgba(39,174,96,0.3); color:#27ae60; }
+        .alert-error { background-color: rgba(231,76,60,0.1); border:1px solid rgba(231,76,60,0.3); color:#e74c3c; }
+
+        .action-btns { display:flex; gap:0.6rem; align-items:center; }
+        .act-btn { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:6px; border:none; cursor:pointer; font-size:0.9rem; transition:all .3s cubic-bezier(.16,1,.3,1); text-decoration:none; color:white; }
+        .act-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.2); }
+        .act-btn-edit { background-color:#3498db; }
+        .act-btn-edit:hover { background-color:#2980b9; }
+        .act-btn-del { background-color:#e74c3c; }
+        .act-btn-del:hover { background-color:#c0392b; }
+        .act-btn-restore { background-color:#27ae60; }
+        .act-btn-restore:hover { background-color:#219150; }
+        .act-btn i { pointer-events:none; }
+
+        .prod-thumb { width:48px; height:48px; border-radius:10px; object-fit:cover; background:#1a1a1a; border:1px solid rgba(255,255,255,0.08); }
+        .prod-sku { font-size:0.72rem; color:#777; }
+
+        .price-old { text-decoration:line-through; color:#888; font-size:0.8rem; }
+        .price-now { font-weight:700; color:#fff; }
+        .off-badge { display:inline-block; background:rgba(243,156,18,0.15); color:#f39c12; font-size:0.68rem; font-weight:700; padding:2px 7px; border-radius:6px; margin-left:4px; }
+
+        .badge-active   { background:rgba(39,174,96,0.12); color:#27ae60; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.72rem; font-weight:700; text-decoration:none; }
+        .badge-inactive { background:rgba(149,165,166,0.15); color:#95a5a6; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.72rem; font-weight:700; text-decoration:none; }
+        .badge-trash    { background:rgba(231,76,60,0.12); color:#e74c3c; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.72rem; font-weight:700; }
+
+        .filter-bar { display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center; }
+        .filter-bar .search-box { position:relative; flex:1; min-width:220px; }
+        .filter-select { min-width:150px; }
+    </style>
+</head>
+<body>
+    {% include 'admin_panel/partials/sidebar.html' with active='products' %}
+
+    <main class="main">
+        <div class="top-bar">
+            <div><h1 class="page-title">Product Management</h1><p class="page-sub">Manage your store products.</p></div>
+            <div class="top-actions" style="display:flex; gap:0.75rem;">
+                <a href="?status=trash" class="top-btn {% if status == 'trash' %}top-btn-gold{% endif %}"><i class="fa-solid fa-trash"></i> Trash{% if trash_count %} ({{ trash_count }}){% endif %}</a>
+                <a href="{% url 'admin_product_add' %}" class="top-btn top-btn-gold"><i class="fa-solid fa-plus"></i> Add Product</a>
+            </div>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="stats-row">
+            <div class="stat-card"><div class="stat-label">Total Products</div><div class="stat-value">{{ total_count }}</div></div>
+            <div class="stat-card"><div class="stat-label">Active Products</div><div class="stat-value">{{ active_count }}</div></div>
+            <div class="stat-card"><div class="stat-label">Inactive Products</div><div class="stat-value">{{ inactive_count }}</div></div>
+            <div class="stat-card"><div class="stat-label">Out of Stock</div><div class="stat-value">{{ out_of_stock_count }}</div></div>
+            <div class="stat-card"><div class="stat-label">Trash</div><div class="stat-value">{{ trash_count }}</div></div>
+        </div>
+
+        <form method="GET" action="{% url 'admin_products' %}" class="filter-bar" style="margin-bottom:1.5rem;">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" name="search" value="{{ search_query|default:'' }}" placeholder="Search products by name, brand, SKU...">
+            </div>
+            <select class="filter-select" name="sort">
+                <option value="latest"     {% if sort == 'latest' %}selected{% endif %}>Latest</option>
+                <option value="oldest"     {% if sort == 'oldest' %}selected{% endif %}>Oldest</option>
+                <option value="price_low"  {% if sort == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                <option value="price_high" {% if sort == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                <option value="name_az"    {% if sort == 'name_az' %}selected{% endif %}>Name: A-Z</option>
+                <option value="name_za"    {% if sort == 'name_za' %}selected{% endif %}>Name: Z-A</option>
+            </select>
+            <select class="filter-select" name="status">
+                <option value="all"      {% if status == 'all' %}selected{% endif %}>All Status</option>
+                <option value="active"   {% if status == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+                <option value="trash"    {% if status == 'trash' %}selected{% endif %}>Trash</option>
+            </select>
+            <select class="filter-select" name="category">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if category_id == cat.id|stringformat:'s' %}selected{% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+            <select class="filter-select" name="brand">
+                <option value="">All Brands</option>
+                {% for b in brands %}
+                    <option value="{{ b.id }}" {% if brand_id == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="top-btn top-btn-gold"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+        </form>
+
+        <div class="panel">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Brand</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if products %}
+                        {% for product in products %}
+                            <tr>
+                                <td>
+                                    <div class="user-cell">
+                                        {% with v=product.default_variant %}
+                                            <img class="prod-thumb" src="{% if v and v.images.first %}{{ v.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}" alt="{{ product.name }}">
+                                            <div>
+                                                <div class="user-name">{{ product.name }}</div>
+                                                <div class="prod-sku">SKU: {% if v %}{{ v.sku }}{% else %}—{% endif %}</div>
+                                            </div>
+                                        {% endwith %}
+                                    </div>
+                                </td>
+                                <td>{{ product.category.name }}</td>
+                                <td>{{ product.brand.name|default:"—" }}</td>
+                                <td>
+                                    {% with v=product.default_variant %}
+                                        {% if v %}
+                                            {% if v.discount_percent %}<span class="price-old">₹{{ v.original_price }}</span><br>{% endif %}
+                                            <span class="price-now">₹{{ v.sale_price }}</span>
+                                            {% if v.discount_percent %}<span class="off-badge">{{ v.discount_percent }}% OFF</span>{% endif %}
+                                        {% else %}
+                                            <span style="color:#888;">No variant</span>
+                                        {% endif %}
+                                    {% endwith %}
+                                </td>
+                                <td>
+                                    {% if status == 'trash' %}
+                                        <span class="badge-trash">In Trash</span>
+                                    {% elif product.is_listed %}
+                                        <a href="{% url 'admin_product_toggle_status' product.id %}" class="badge-active" title="Click to set Inactive">ACTIVE</a>
+                                    {% else %}
+                                        <a href="{% url 'admin_product_toggle_status' product.id %}" class="badge-inactive" title="Click to set Active">INACTIVE</a>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="action-btns">
+                                        {% if status == 'trash' %}
+                                            <a href="{% url 'admin_product_restore' product.id %}" class="act-btn act-btn-restore" title="Restore"><i class="fa-solid fa-rotate-left"></i></a>
+                                        {% else %}
+                                            <a href="{% url 'admin_product_edit' product.id %}" class="act-btn act-btn-edit" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                                            <button class="act-btn act-btn-del" title="Delete" onclick="openDeleteModal('{{ product.id }}', '{{ product.name|escapejs }}')"><i class="fa-solid fa-trash"></i></button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align:center; padding:2rem; color:#888;">
+                                <i class="fa-solid fa-inbox" style="font-size:2rem; margin-bottom:1rem; display:block;"></i>
+                                {% if status == 'trash' %}Trash is empty.{% else %}No products found.{% endif %}
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+            <div class="pagination-bar" style="display:flex; justify-content:space-between; align-items:center; padding:1rem 1.5rem; border-top:1px solid #f1f2f6;">
+                <div class="page-info text-muted small">
+                    Showing {{ page_obj.start_index|default:0 }} to {{ page_obj.end_index|default:0 }} of {{ page_obj.paginator.count|default:0 }} products
+                </div>
+                {% if is_paginated %}
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link text-lux-black" href="?page={{ page_obj.previous_page_number }}&status={{ status }}&sort={{ sort }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}{% if brand_id %}&brand={{ brand_id }}{% endif %}">Prev</a></li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active"><span class="page-link bg-lux-black text-white border-lux-black">{{ num }}</span></li>
+                        {% else %}
+                            <li class="page-item"><a class="page-link text-lux-black" href="?page={{ num }}&status={{ status }}&sort={{ sort }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}{% if brand_id %}&brand={{ brand_id }}{% endif %}">{{ num }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link text-lux-black" href="?page={{ page_obj.next_page_number }}&status={{ status }}&sort={{ sort }}{% if search_query %}&search={{ search_query }}{% endif %}{% if category_id %}&category={{ category_id }}{% endif %}{% if brand_id %}&brand={{ brand_id }}{% endif %}">Next</a></li>
+                    {% endif %}
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-box">
+            <div class="modal-icon"><i class="fa-solid fa-trash-can"></i></div>
+            <h3 class="modal-title">Delete Product?</h3>
+            <p class="modal-desc">This moves <strong id="delName"></strong> to Trash. You can restore it later from the Trash section.</p>
+            <div class="modal-actions">
+                <button class="mbtn mbtn-cancel" onclick="closeDeleteModal()">Cancel</button>
+                <a href="#" class="mbtn mbtn-danger" id="confirmDeleteBtn">Move to Trash</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function openDeleteModal(id, name) {
+            document.getElementById('delName').textContent = name;
+            document.getElementById('confirmDeleteBtn').href = `/admin-panel/products/${id}/delete/`;
+            document.getElementById('deleteModal').classList.add('show');
+        }
+        function closeDeleteModal() { document.getElementById('deleteModal').classList.remove('show'); }
+        document.querySelectorAll('.modal-overlay').forEach(m => {
+            m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,459 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle Admin - {% if mode == 'edit' %}Edit{% else %}Add{% endif %} Product</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <link href="{% static 'css/admin_common.css' %}" rel="stylesheet">
+    <style>
+        .alert { margin-bottom: 1.25rem; border-radius: 8px; padding: 1rem 1.25rem; }
+        .alert-success { background-color: rgba(39,174,96,0.1); border:1px solid rgba(39,174,96,0.3); color:#27ae60; }
+        .alert-error { background-color: rgba(231,76,60,0.1); border:1px solid rgba(231,76,60,0.3); color:#e74c3c; }
+        .alert-error div { margin:2px 0; }
+
+        .form-card { background:#0f0f0f; border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:2rem; max-width:860px; }
+        .section-title { color:#c5a059; font-size:0.78rem; letter-spacing:0.12em; text-transform:uppercase; font-weight:700; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:0.5rem; margin:1.75rem 0 1.1rem; }
+        .section-title:first-of-type { margin-top:0; }
+
+        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+        .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; }
+        .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; }
+        @media (max-width: 720px){ .grid-2,.grid-3,.grid-4{ grid-template-columns:1fr; } }
+
+        .fg { margin-bottom:1rem; }
+        .fg label { display:block; font-size:0.72rem; letter-spacing:0.06em; text-transform:uppercase; color:#aaa; margin-bottom:0.4rem; font-weight:600; }
+        .fg .req { color:#e74c3c; }
+        .fg input[type=text], .fg input[type=number], .fg select, .fg textarea {
+            width:100%; background:#161616; border:1px solid rgba(255,255,255,0.12); border-radius:8px;
+            padding:0.7rem 0.9rem; color:#fff; font-size:0.88rem; font-family:'Inter',sans-serif; }
+        .fg input:focus, .fg select:focus, .fg textarea:focus { outline:none; border-color:#c5a059; }
+        .fg select option { background:#161616; }
+
+        .toggle-row { display:flex; align-items:center; justify-content:space-between; background:#161616; border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:0.9rem 1.1rem; margin-bottom:0.75rem; }
+        .toggle-row .t-title { font-size:0.9rem; color:#fff; font-weight:600; }
+        .toggle-row .t-sub { font-size:0.72rem; color:#888; }
+        .switch { position:relative; display:inline-block; width:46px; height:24px; }
+        .switch input { display:none; }
+        .switch .sl { position:absolute; cursor:pointer; inset:0; background:#4a4a4a; border-radius:999px; transition:.2s; }
+        .switch .sl::before { content:''; position:absolute; height:18px; width:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+        .switch input:checked + .sl { background:#27ae60; }
+        .switch input:checked + .sl::before { transform:translateX(22px); }
+
+        .note-bar { background:rgba(197,160,89,0.1); border:1px solid rgba(197,160,89,0.3); color:#c5a059; border-radius:8px; padding:0.6rem 0.9rem; font-size:0.78rem; margin-bottom:1.1rem; }
+        .inline-new { display:flex; gap:0.5rem; align-items:center; }
+        .inline-new select { flex:1; }
+        .mini-btn { background:rgba(52,152,219,0.15); color:#3498db; border:1px solid rgba(52,152,219,0.3); border-radius:8px; padding:0.45rem 0.7rem; font-size:0.78rem; cursor:pointer; white-space:nowrap; }
+        .mini-btn:hover { background:rgba(52,152,219,0.25); }
+
+        .img-drop { border:2px dashed rgba(255,255,255,0.15); border-radius:12px; padding:1.5rem; text-align:center; cursor:pointer; color:#888; }
+        .img-drop:hover { border-color:#c5a059; color:#c5a059; }
+        .img-grid { display:flex; flex-wrap:wrap; gap:0.6rem; margin-top:0.8rem; }
+        .img-grid img { width:74px; height:74px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.12); }
+        .img-hint { font-size:0.75rem; margin-top:0.5rem; }
+        .img-hint.err { color:#e74c3c; }
+        .img-hint.ok { color:#27ae60; }
+
+        .form-actions { display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.75rem; border-top:1px solid rgba(255,255,255,0.08); padding-top:1.25rem; }
+        .field-err { color:#e74c3c; font-size:0.72rem; margin-top:0.3rem; }
+
+        .qa-box { background:#0b0b0b; border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:1.75rem; max-width:420px; width:90%; text-align:left; box-shadow:0 20px 60px rgba(0,0,0,0.8); }
+        .qa-box h3 { font-family:'Playfair Display',serif; color:#fff; font-size:1.2rem; margin:0 0 1.2rem; }
+
+        .existing-img { display:inline-flex; flex-direction:column; align-items:center; gap:3px; }
+        .existing-img img { width:74px; height:74px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.12); }
+        .existing-img .rm-tag { font-size:0.64rem; color:#e74c3c; display:flex; align-items:center; gap:3px; cursor:pointer; }
+
+        .crop-box { background:#0b0b0b; border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:1.5rem; max-width:560px; width:92%; box-shadow:0 20px 60px rgba(0,0,0,0.85); }
+        .crop-box h3 { font-family:'Playfair Display',serif; color:#fff; font-size:1.2rem; margin:0 0 1rem; }
+        .crop-area { max-height:60vh; background:#000; border-radius:8px; overflow:hidden; }
+        .crop-area img { max-width:100%; display:block; }
+        .new-img { position:relative; display:inline-block; }
+        .new-img img { width:74px; height:74px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,0.12); }
+        .new-img .rm-x { position:absolute; top:-6px; right:-6px; width:18px; height:18px; background:#e74c3c; color:#fff; border-radius:50%; font-size:12px; line-height:18px; text-align:center; cursor:pointer; }
+
+        .color-row { display:flex; gap:0.5rem; align-items:center; }
+        .color-swatch { width:34px; height:34px; border-radius:50%; border:1px solid rgba(255,255,255,0.25); flex-shrink:0; }
+        .color-input { width:46px; height:38px; padding:2px; background:#161616; border:1px solid rgba(255,255,255,0.12); border-radius:8px; cursor:pointer; flex-shrink:0; }
+        .color-row input[type=text] { flex:1; }
+    </style>
+</head>
+<body>
+    {% include 'admin_panel/partials/sidebar.html' with active='products' %}
+
+    <main class="main">
+        <div class="top-bar">
+            <div><h1 class="page-title">{% if mode == 'edit' %}Edit{% else %}Add{% endif %} Product</h1><p class="page-sub">Create a product with its default variant.</p></div>
+            <div class="top-actions"><a href="{% url 'admin_products' %}" class="top-btn"><i class="fa-solid fa-arrow-left"></i> Back</a></div>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        {% if product_form.errors or variant_form.errors %}
+            <div class="alert alert-error">
+                <strong>Please fix the following:</strong>
+                {% for field in product_form %}{% for e in field.errors %}<div>• {{ field.label }}: {{ e }}</div>{% endfor %}{% endfor %}
+                {% for e in product_form.non_field_errors %}<div>• {{ e }}</div>{% endfor %}
+                {% for field in variant_form %}{% for e in field.errors %}<div>• {{ field.label }}: {{ e }}</div>{% endfor %}{% endfor %}
+                {% for e in variant_form.non_field_errors %}<div>• {{ e }}</div>{% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="POST" enctype="multipart/form-data" class="form-card" id="productForm">
+            {% csrf_token %}
+
+            <!-- BASIC INFORMATION -->
+            <div class="section-title">Basic Information</div>
+            <div class="fg">
+                <label>Product Name <span class="req">*</span></label>
+                <input type="text" name="p-name" maxlength="150" value="{{ product_form.name.value|default:'' }}" placeholder="e.g. Classic Leather Tote" required>
+                {% if product_form.name.errors %}<div class="field-err">{{ product_form.name.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="grid-2">
+                <div class="fg">
+                    <label>Brand <span class="req">*</span></label>
+                    <div class="inline-new">
+                        <select name="p-brand" id="brandSelect" required>
+                            <option value="">Select brand</option>
+                            {% for b in brands %}
+                                <option value="{{ b.id }}" {% if product_form.brand.value|stringformat:'s' == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="mini-btn" onclick="openQuickAdd('brand','brandSelect')">+ New</button>
+                    </div>
+                    {% if product_form.brand.errors %}<div class="field-err">{{ product_form.brand.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="fg">
+                    <label>Category <span class="req">*</span></label>
+                    <select name="p-category" required>
+                        <option value="">Select category</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if product_form.category.value|stringformat:'s' == cat.id|stringformat:'s' %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if product_form.category.errors %}<div class="field-err">{{ product_form.category.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+            <div class="fg">
+                <label>Short Description <span class="req">*</span></label>
+                <input type="text" name="p-short_description" maxlength="250" value="{{ product_form.short_description.value|default:'' }}" placeholder="One-line summary (20–250 characters)" required>
+                {% if product_form.short_description.errors %}<div class="field-err">{{ product_form.short_description.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="fg">
+                <label>Full Description <span class="req">*</span></label>
+                <textarea name="p-description" rows="4" maxlength="3000" placeholder="Detailed product description (at least 50 characters)" required>{{ product_form.description.value|default:'' }}</textarea>
+                {% if product_form.description.errors %}<div class="field-err">{{ product_form.description.errors.0 }}</div>{% endif %}
+            </div>
+
+            <!-- VARIANT INFORMATION -->
+            <div class="section-title">Variant Information</div>
+            <div class="grid-2">
+                <div class="fg">
+                    <label>Color <span class="req">*</span></label>
+                    <div class="color-row">
+                        <span id="colorSwatch" class="color-swatch" style="background: {{ variant_form.color_hex.value|default:'#000000' }};"></span>
+                        <input type="color" name="v-color_hex" id="colorHex" class="color-input" value="{{ variant_form.color_hex.value|default:'#000000' }}" title="Pick a colour">
+                        <input type="text" name="v-color" maxlength="50" value="{{ variant_form.color.value|default:'' }}" placeholder="Colour name (e.g. Black)">
+                    </div>
+                    {% if variant_form.color_hex.errors %}<div class="field-err">{{ variant_form.color_hex.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="fg">
+                    <label>Material <span class="req">*</span></label>
+                    <div class="inline-new">
+                        <select name="v-material" id="materialSelect" required>
+                            <option value="">Select material</option>
+                            {% for m in materials %}<option value="{{ m.id }}" {% if variant_form.material.value|stringformat:'s' == m.id|stringformat:'s' %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
+                        </select>
+                        <button type="button" class="mini-btn" onclick="openQuickAdd('material','materialSelect')">+ New</button>
+                    </div>
+                    {% if variant_form.material.errors %}<div class="field-err">{{ variant_form.material.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+            <div class="fg" style="max-width:240px;">
+                <label>Size <span style="color:#777;text-transform:none;letter-spacing:0;">(optional)</span></label>
+                {{ variant_form.size }}
+                {% if variant_form.size.errors %}<div class="field-err">{{ variant_form.size.errors.0 }}</div>{% endif %}
+            </div>
+
+            <!-- PRICING -->
+            <div class="section-title">Pricing</div>
+            <div class="grid-4">
+                <div class="fg"><label>Original Price (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0.01" max="1000000" name="v-original_price" value="{{ variant_form.original_price.value|default:'' }}" required>{% if variant_form.original_price.errors %}<div class="field-err">{{ variant_form.original_price.errors.0 }}</div>{% endif %}</div>
+                <div class="fg"><label>Sale Price (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0.01" name="v-sale_price" value="{{ variant_form.sale_price.value|default:'' }}" required>{% if variant_form.sale_price.errors %}<div class="field-err">{{ variant_form.sale_price.errors.0 }}</div>{% endif %}</div>
+                <div class="fg"><label>Stock <span class="req">*</span></label><input type="number" min="0" max="9999" name="v-stock" value="{{ variant_form.stock.value|default:'' }}" required>{% if variant_form.stock.errors %}<div class="field-err">{{ variant_form.stock.errors.0 }}</div>{% endif %}</div>
+                <div class="fg">
+                    <label>Status <span class="req">*</span></label>
+                    <select name="p-is_listed">
+                        <option value="true"  {% if product_form.is_listed.value %}selected{% endif %}>Active</option>
+                        <option value="false" {% if not product_form.is_listed.value %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+            </div>
+            <div class="fg">
+                <label>SKU <span style="color:#777;text-transform:none;letter-spacing:0;">(auto-generated, editable)</span></label>
+                <div class="inline-new">
+                    <input type="text" name="v-sku" id="skuInput" maxlength="50" value="{{ variant_form.sku.value|default:'' }}" placeholder="Auto-generated if left blank">
+                    <button type="button" class="mini-btn" onclick="regenSku()"><i class="fa-solid fa-rotate"></i> Regen</button>
+                </div>
+                {% if variant_form.sku.errors %}<div class="field-err">{{ variant_form.sku.errors.0 }}</div>{% endif %}
+            </div>
+
+            <!-- DIMENSIONS -->
+            <div class="section-title">Dimensions (cm)</div>
+            <div class="grid-3">
+                <div class="fg"><label>Width <span class="req">*</span></label>{{ variant_form.width_cm }}{% if variant_form.width_cm.errors %}<div class="field-err">{{ variant_form.width_cm.errors.0 }}</div>{% endif %}</div>
+                <div class="fg"><label>Height <span class="req">*</span></label>{{ variant_form.height_cm }}{% if variant_form.height_cm.errors %}<div class="field-err">{{ variant_form.height_cm.errors.0 }}</div>{% endif %}</div>
+                <div class="fg"><label>Depth <span class="req">*</span></label>{{ variant_form.depth_cm }}{% if variant_form.depth_cm.errors %}<div class="field-err">{{ variant_form.depth_cm.errors.0 }}</div>{% endif %}</div>
+            </div>
+
+            <!-- PRODUCT DETAILS -->
+            <div class="section-title">Product Details</div>
+            <div class="grid-3">
+                <div class="fg"><label>Closure Type <span class="req">*</span></label>{{ variant_form.closure_type }}{% if variant_form.closure_type.errors %}<div class="field-err">{{ variant_form.closure_type.errors.0 }}</div>{% endif %}</div>
+                <div class="fg"><label>Compartments <span class="req">*</span></label>{{ variant_form.compartments }}{% if variant_form.compartments.errors %}<div class="field-err">{{ variant_form.compartments.errors.0 }}</div>{% endif %}</div>
+                <div class="fg"><label>Pattern <span class="req">*</span></label>{{ variant_form.pattern }}{% if variant_form.pattern.errors %}<div class="field-err">{{ variant_form.pattern.errors.0 }}</div>{% endif %}</div>
+            </div>
+
+            <div class="section-title">Product Images <span style="color:#777;text-transform:none;letter-spacing:0;">(1–5 images — first is the main image)</span></div>
+            {% if existing_images %}
+            <div style="margin-bottom:0.5rem; font-size:0.74rem; color:#888;">Current images — tick to remove:</div>
+            <div class="img-grid" style="margin-bottom:1rem;">
+                {% for im in existing_images %}
+                <label class="existing-img">
+                    <img src="{{ im.image.url }}">
+                    <span class="rm-tag"><input type="checkbox" name="delete_images" value="{{ im.id }}" onchange="updateImageHint()"> remove</span>
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="img-drop" onclick="document.getElementById('imgInput').click()">
+                <i class="fa-solid fa-crop-simple" style="font-size:1.6rem; color:#c5a059;"></i>
+                <div style="margin-top:0.5rem;">Click to select images</div>
+                <div style="font-size:0.72rem;">JPG, JPEG, PNG, WEBP — max 5 MB each — you'll crop each one (1–5)</div>
+            </div>
+            <input type="file" name="images" id="imgInput" multiple accept="image/jpeg,image/png,image/webp" class="d-none" onchange="handleSelectedFiles(this)">
+            <div class="img-grid" id="imgPreview"></div>
+            <div class="img-hint err" id="imgCount">No images selected — at least 1 required</div>
+
+            <div class="form-actions">
+                <a href="{% url 'admin_products' %}" class="mbtn mbtn-cancel">Cancel</a>
+                <button type="submit" class="mbtn mbtn-gold">{% if mode == 'edit' %}Save Changes{% else %}Add Product{% endif %}</button>
+            </div>
+        </form>
+    </main>
+
+    <!-- Quick Add (Brand / Material) Modal -->
+    <div class="modal-overlay" id="quickAddModal">
+        <div class="qa-box">
+            <h3 id="quickAddTitle">Add Brand</h3>
+            <div class="fg">
+                <label id="quickAddLabel">Brand Name</label>
+                <input type="text" id="quickAddInput" placeholder="Enter name" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('quickAddSubmit').click();}">
+                <div class="field-err" id="quickAddErr" style="display:none;"></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="mbtn mbtn-cancel" onclick="closeQuickAdd()">Cancel</button>
+                <button type="button" class="mbtn mbtn-gold" id="quickAddSubmit">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Crop Image Modal -->
+    <div class="modal-overlay" id="cropModal">
+        <div class="crop-box">
+            <h3>Crop Image <span style="font-size:0.72rem;color:#888;font-family:Inter,sans-serif;">(drag to adjust — square)</span></h3>
+            <div class="crop-area"><img id="cropImage" alt="to crop"></div>
+            <div class="modal-actions">
+                <button type="button" class="mbtn mbtn-cancel" onclick="cropSkip()">Skip this image</button>
+                <button type="button" class="mbtn mbtn-gold" onclick="cropConfirm()">Crop &amp; Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let qaType = null, qaTargetSelect = null;
+
+        function openQuickAdd(type, selectId) {
+            qaType = type; qaTargetSelect = selectId;
+            const label = (type === 'brand') ? 'Brand' : 'Material';
+            document.getElementById('quickAddTitle').textContent = 'Add ' + label;
+            document.getElementById('quickAddLabel').textContent = label + ' Name';
+            const inp = document.getElementById('quickAddInput');
+            inp.value = '';
+            document.getElementById('quickAddErr').style.display = 'none';
+            document.getElementById('quickAddModal').classList.add('show');
+            setTimeout(() => inp.focus(), 50);
+        }
+        function closeQuickAdd() { document.getElementById('quickAddModal').classList.remove('show'); }
+
+        function addOptionToSelect(selectId, id, name, select) {
+            const sel = document.getElementById(selectId);
+            if (!sel) return;
+            let opt = Array.from(sel.options).find(o => o.value === String(id));
+            if (!opt) { opt = new Option(name, id, false, false); sel.add(opt); }
+            if (select) sel.value = String(id);
+        }
+
+        document.getElementById('quickAddSubmit').addEventListener('click', function () {
+            const name = document.getElementById('quickAddInput').value.trim();
+            const errBox = document.getElementById('quickAddErr');
+            if (name.length < 2) { errBox.textContent = 'Please enter at least 2 characters.'; errBox.style.display = 'block'; return; }
+            const url = (qaType === 'brand') ? '/admin-panel/brands/add-ajax/' : '/admin-panel/materials/add-ajax/';
+            const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'name=' + encodeURIComponent(name)
+            })
+            .then(r => r.json().then(d => ({ ok: r.ok, d })))
+            .then(({ ok, d }) => {
+                if (!ok || d.error) { errBox.textContent = d.error || 'Could not add.'; errBox.style.display = 'block'; return; }
+                addOptionToSelect(qaTargetSelect, d.id, d.name, true);
+                closeQuickAdd();
+            })
+            .catch(() => { errBox.textContent = 'Something went wrong.'; errBox.style.display = 'block'; });
+        });
+
+        document.querySelectorAll('.modal-overlay').forEach(m => {
+            m.addEventListener('click', e => { if (e.target === m && m.id !== 'cropModal') m.classList.remove('show'); });
+        });
+
+        // ── Image cropping flow (Cropper.js) ──────────────────────────────
+        let croppedFiles = [];   // the square-cropped Files that will be uploaded
+        let cropQueue    = [];   // originals waiting to be cropped
+        let cropper      = null;
+        let currentName  = '';
+        const OK_TYPES   = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+        function handleSelectedFiles(input) {
+            cropQueue = cropQueue.concat(Array.from(input.files));
+            input.value = '';           // clear so re-selecting the same file works
+            processNextCrop();
+        }
+
+        function processNextCrop() {
+            if (cropQueue.length === 0) { syncInputFiles(); return; }
+            const file = cropQueue[0];
+            if (!OK_TYPES.includes(file.type)) {
+                alert('"' + file.name + '" is not a supported image (JPG, PNG, WEBP).');
+                cropQueue.shift();
+                return processNextCrop();
+            }
+            currentName = file.name;
+            const reader = new FileReader();
+            reader.onload = e => {
+                const cropImg = document.getElementById('cropImage');
+                cropImg.src = e.target.result;
+                document.getElementById('cropModal').classList.add('show');
+                if (cropper) cropper.destroy();
+                cropper = new Cropper(cropImg, { aspectRatio: 1, viewMode: 1, autoCropArea: 1, background: false, movable: true, zoomable: true });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function closeCropModal() {
+            document.getElementById('cropModal').classList.remove('show');
+            if (cropper) { cropper.destroy(); cropper = null; }
+        }
+
+        function cropConfirm() {
+            if (!cropper) return;
+            cropper.getCroppedCanvas({ width: 800, height: 800, imageSmoothingQuality: 'high' }).toBlob(blob => {
+                const base = (currentName || 'image').replace(/\.[^.]+$/, '');
+                croppedFiles.push(new File([blob], base + '.jpg', { type: 'image/jpeg' }));
+                cropQueue.shift();
+                closeCropModal();
+                renderNewPreviews();
+                processNextCrop();
+            }, 'image/jpeg', 0.92);
+        }
+
+        function cropSkip() {
+            cropQueue.shift();
+            closeCropModal();
+            processNextCrop();
+        }
+
+        function renderNewPreviews() {
+            const grid = document.getElementById('imgPreview');
+            grid.innerHTML = '';
+            croppedFiles.forEach((f, i) => {
+                const wrap = document.createElement('div');
+                wrap.className = 'new-img';
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(f);
+                const rm = document.createElement('span');
+                rm.className = 'rm-x';
+                rm.textContent = '×';
+                rm.title = 'Remove';
+                rm.onclick = () => { croppedFiles.splice(i, 1); renderNewPreviews(); };
+                wrap.appendChild(img);
+                wrap.appendChild(rm);
+                grid.appendChild(wrap);
+            });
+            syncInputFiles();
+        }
+
+        function syncInputFiles() {
+            const dt = new DataTransfer();
+            croppedFiles.forEach(f => dt.items.add(f));
+            document.getElementById('imgInput').files = dt.files;
+            updateImageHint();
+        }
+
+        function slug(s) { return (s || '').toString().trim().toUpperCase().replace(/[^A-Z0-9]+/g, '').slice(0, 8) || 'PROD'; }
+        function regenSku() {
+            const base = slug(document.querySelector('[name=p-name]').value);
+            document.getElementById('skuInput').value = `${base}-${Math.floor(1000 + Math.random() * 9000)}`;
+        }
+
+        // Colour picker -> live swatch
+        const _colorHex = document.getElementById('colorHex');
+        if (_colorHex) _colorHex.addEventListener('input', () => {
+            document.getElementById('colorSwatch').style.background = _colorHex.value;
+        });
+
+        // Image counting: total = existing (minus removed) + newly selected; must stay >= 3
+        const IS_ADD = {% if mode == 'edit' %}false{% else %}true{% endif %};
+        const EXISTING_IMG_COUNT = {{ existing_images|length|default:0 }};
+
+        function updateImageHint() {
+            const newN    = document.getElementById('imgInput').files.length;
+            const removed = document.querySelectorAll('input[name=delete_images]:checked').length;
+            const total   = (IS_ADD ? 0 : EXISTING_IMG_COUNT) - removed + newN;
+            const hint    = document.getElementById('imgCount');
+            const ok      = total >= 1 && total <= 5;
+            let suffix    = ' ✓';
+            if (total < 1) suffix = ' — at least 1 required';
+            else if (total > 5) suffix = ' — maximum 5 allowed';
+            hint.textContent = total + ' image' + (total === 1 ? '' : 's') + ' total' + suffix;
+            hint.className   = 'img-hint ' + (ok ? 'ok' : 'err');
+        }
+
+        updateImageHint();
+
+        document.getElementById('productForm').addEventListener('submit', function (e) {
+            const newN    = document.getElementById('imgInput').files.length;
+            const removed = document.querySelectorAll('input[name=delete_images]:checked').length;
+            const total   = (IS_ADD ? 0 : EXISTING_IMG_COUNT) - removed + newN;
+            if (total < 1) {
+                e.preventDefault();
+                alert('Please add at least 1 product image.');
+            } else if (total > 5) {
+                e.preventDefault();
+                alert('You can upload a maximum of 5 images.');
+            }
+        });
+    </script>
+</body>
+</html>

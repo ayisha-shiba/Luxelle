@@ -195,26 +195,64 @@ class Category(models.Model):
             return self.image.url
         return "/static/image/default_category.svg"
         
-class Product(models.Model):
-    name        = models.CharField(max_length=200)
-    slug        = models.SlugField(max_length=220, unique=True, blank=True)
-    description = models.TextField(blank=True)
-    category    = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
-    brand       = models.CharField(max_length=100, blank=True)
-    price       = models.DecimalField(max_digits=10, decimal_places=2)
-    stock       = models.PositiveIntegerField(default=0)
+class Brand(models.Model):
+    name        = models.CharField(max_length=100)
     is_listed   = models.BooleanField(default=True)
     is_deleted  = models.BooleanField(default=False)
     created_at  = models.DateTimeField(auto_now_add=True)
-    updated_at  = models.DateTimeField(auto_now=True)
-
 
     class Meta:
-        ordering= ["-created_at"]
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["name"],
+                condition=models.Q(is_deleted=False),
+                name="uniq_active_brand_name",
+            ),
+        ]
 
     def __str__(self):
         return self.name
-    
+
+
+class Material(models.Model):
+    name       = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class Product(models.Model):
+    GENDER_CHOICES = [
+        ("men",    "Men"),
+        ("women",  "Women"),
+        ("unisex", "Unisex"),
+    ]
+
+    name              = models.CharField(max_length=200)
+    slug              = models.SlugField(max_length=220, unique=True, blank=True)
+    short_description = models.CharField(max_length=255, blank=True)
+    description       = models.TextField(blank=True)
+    category          = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
+    brand          = models.ForeignKey("Brand", on_delete=models.PROTECT, related_name="products", null=True, blank=True)
+    gender         = models.CharField(max_length=10, choices=GENDER_CHOICES, default="unisex")
+    is_listed      = models.BooleanField(default=True)
+    is_featured    = models.BooleanField(default=False)
+    is_deal_of_day = models.BooleanField(default=False)
+    is_deleted     = models.BooleanField(default=False)
+    created_at     = models.DateTimeField(auto_now_add=True)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.name
+
     def save(self, *args, **kwargs):
         if not self.slug:
             base_slug = slugify(self.name)
@@ -226,17 +264,86 @@ class Product(models.Model):
             self.slug = slug
         super().save(*args, **kwargs)
 
-class ProductImage(models.Model):
-    product     = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
-    image       = models.ImageField(upload_to="products/")
-    is_primary  = models.BooleanField(default=False)
-    created_at  = models.DateTimeField(auto_now_add=True)
+    @property
+    def default_variant(self):
+        return (self.variants.filter(is_default=True, is_deleted=False).first()
+                or self.variants.filter(is_deleted=False).first())
+
+
+class ProductVariant(models.Model):
+    SIZE_CHOICES = [
+        ("small",  "Small"),
+        ("medium", "Medium"),
+        ("large",  "Large"),
+    ]
+    CLOSURE_CHOICES = [
+        ("zipper",   "Zipper"),
+        ("magnetic", "Magnetic Snap"),
+        ("turnlock", "Turn Lock"),
+        ("opentop",  "Open Top"),
+    ]
+    PATTERN_CHOICES = [
+        ("plain",   "Plain"),
+        ("quilted", "Quilted"),
+        ("printed", "Printed"),
+    ]
+
+    product        = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="variants")
+    variant_name   = models.CharField(max_length=200)
+    sku            = models.CharField(max_length=50, unique=True)
+
+    # Attributes
+    color          = models.CharField(max_length=50, blank=True)
+    color_hex      = models.CharField(max_length=7, blank=True)
+    material       = models.ForeignKey("Material", on_delete=models.SET_NULL, related_name="variants", null=True, blank=True)
+    size           = models.CharField(max_length=10, choices=SIZE_CHOICES, blank=True)
+
+    # Dimensions (cm)
+    width_cm       = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    height_cm      = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    depth_cm       = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+
+    # Bag details
+    closure_type   = models.CharField(max_length=20, choices=CLOSURE_CHOICES, blank=True)
+    compartments   = models.PositiveIntegerField(null=True, blank=True)
+    pattern        = models.CharField(max_length=20, choices=PATTERN_CHOICES, blank=True)
+
+    # Pricing & stock
+    original_price = models.DecimalField(max_digits=10, decimal_places=2)
+    sale_price     = models.DecimalField(max_digits=10, decimal_places=2)
+    stock          = models.PositiveIntegerField(default=0)
+
+    is_offer       = models.BooleanField(default=False)
+    is_default     = models.BooleanField(default=False)
+    is_listed      = models.BooleanField(default=True)
+    is_deleted     = models.BooleanField(default=False)
+    created_at     = models.DateTimeField(auto_now_add=True)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-is_default", "created_at"]
+
+    def __str__(self):
+        return f"{self.product.name} - {self.variant_name}"
+
+    @property
+    def discount_percent(self):
+        if self.original_price and self.sale_price and self.sale_price < self.original_price:
+            return round((self.original_price - self.sale_price) / self.original_price * 100)
+        return 0
+
+
+class VariantImage(models.Model):
+    variant    = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, related_name="images")
+    image      = models.ImageField(upload_to="products/")
+    is_primary = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-is_primary", "created_at"]
 
     def __str__(self):
-        return f"Image for {self.product.name}"
+        return f"Image for {self.variant}"
     
 
 

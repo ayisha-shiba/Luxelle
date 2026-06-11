@@ -53,6 +53,15 @@ urlpatterns = [
     path("admin-panel/categories/<int:category_id>/restore/", admin_views.admin_category_restore_view, name="admin_category_restore"),
     path("admin-panel/categories/<int:category_id>/toggle-visibility/", admin_views.admin_category_toggle_visibility_view, name="admin_category_toggle_visibility"),
 
+    path("admin-panel/products/", admin_views.admin_product_list_view, name="admin_products"),
+    path("admin-panel/products/add/", admin_views.admin_product_add_view, name="admin_product_add"),
+    path("admin-panel/products/<int:product_id>/edit/", admin_views.admin_product_edit_view, name="admin_product_edit"),
+    path("admin-panel/brands/add-ajax/", admin_views.admin_brand_add_ajax, name="admin_brand_add_ajax"),
+    path("admin-panel/materials/add-ajax/", admin_views.admin_material_add_ajax, name="admin_material_add_ajax"),
+    path("admin-panel/products/<int:product_id>/delete/", admin_views.admin_product_delete_view, name="admin_product_delete"),
+    path("admin-panel/products/<int:product_id>/restore/", admin_views.admin_product_restore_view, name="admin_product_restore"),
+    path("admin-panel/products/<int:product_id>/toggle-status/", admin_views.admin_product_toggle_status_view, name="admin_product_toggle_status"),
+
     path("admin-panel/forgot-password/", admin_views.admin_forgot_password_view, name="admin_forgot_password"),
     path("admin-panel/forgot-password/otp/", admin_views.admin_forgot_password_otp_view, name="admin_forgot_password_otp"),
     path("admin-panel/forgot-password/resend/", admin_views.admin_resend_forgot_password_otp_view, name="admin_resend_forgot_password_otp"),

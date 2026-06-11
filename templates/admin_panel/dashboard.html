@@ -951,12 +951,12 @@
                 <div class="module-name">Orders</div>
                 <div class="module-desc">Track &amp; fulfil customer orders</div>
             </div>
-            <div class="module-card disabled">
-                <span class="module-tag tag-soon">Soon</span>
+            <a href="{% url 'admin_products' %}" class="module-card">
+                <span class="module-tag tag-live">Live</span>
                 <div class="module-icon" style="background:rgba(39,174,96,.1);color:var(--green)"><i class="fa-solid fa-boxes-stacked"></i></div>
                 <div class="module-name">Products</div>
                 <div class="module-desc">Add &amp; edit your catalogue</div>
-            </div>
+            </a>
             <a href="{% url 'admin_categories' %}" class="module-card">
                 <span class="module-tag tag-live">Live</span>
                 <div class="module-icon" style="background:rgba(155,89,182,.1);color:#9b59b6"><i class="fa-solid fa-tags"></i></div>

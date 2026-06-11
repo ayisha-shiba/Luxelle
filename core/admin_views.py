@@ -5,14 +5,34 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import redirect, render
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.urls import reverse
 from .decorators import admin_required
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.db.models import Q
-from .forms import SetNewPasswordForm, CategoryForm
-from .models import CustomUser, Category
+from django.db.models import Q, Min, Sum
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
+from PIL import Image, ImageOps
+import random
+import io
+import re
+import hashlib
+
+NAME_ALPHA_RE = re.compile(r"^[A-Za-z ]+$")
+
+
+def _validate_name_field(name, label):
+    if len(name) < 2:
+        return f"{label} name must be at least 2 characters."
+    if len(name) > 50:
+        return f"{label} name cannot exceed 50 characters."
+    if not NAME_ALPHA_RE.match(name):
+        return f"{label} name can only contain letters and spaces."
+    return None
+from .forms import SetNewPasswordForm, CategoryForm, ProductForm, ProductVariantForm
+from .models import CustomUser, Category, Product, Brand, Material, ProductVariant, VariantImage
 from .utils import (
     OTP_EXPIRY_MINUTES,
     check_resend_cooldown,
@@ -423,4 +443,351 @@ def admin_category_toggle_visibility_view(request, category_id):
     state = "visible" if category.is_listed else "hidden"
     messages.success(request, f"Category '{category.name}' is now {state}.")
     return redirect(request.META.get("HTTP_REFERER") or "admin_categories")
+
+
+# ADMIN PRODUCT MANAGEMENT
+
+SORT_OPTIONS = {
+    "latest":     "-created_at",
+    "oldest":     "created_at",
+    "price_low":  "min_price",
+    "price_high": "-min_price",
+    "name_az":    "name",
+    "name_za":    "-name",
+}
+
+
+@admin_required
+def admin_product_list_view(request):
+    search_query = request.GET.get("search", "").strip()
+    status       = request.GET.get("status", "all")
+    sort         = request.GET.get("sort", "latest")
+    category_id  = request.GET.get("category", "").strip()
+    brand_id     = request.GET.get("brand", "").strip()
+
+    products = Product.objects.select_related("category", "brand").prefetch_related("variants__images")
+
+    if status == "active":
+        products = products.filter(is_deleted=False, is_listed=True)
+    elif status == "inactive":
+        products = products.filter(is_deleted=False, is_listed=False)
+    elif status == "trash":
+        products = products.filter(is_deleted=True)
+    else:
+        status = "all"
+        products = products.filter(is_deleted=False)
+
+    if search_query:
+        products = products.filter(
+            Q(name__icontains=search_query) |
+            Q(brand__name__icontains=search_query) |
+            Q(variants__sku__icontains=search_query)
+        ).distinct()
+
+    if category_id.isdigit():
+        products = products.filter(category_id=category_id)
+    if brand_id.isdigit():
+        products = products.filter(brand_id=brand_id)
+
+    products = products.annotate(min_price=Min("variants__sale_price"))
+    products = products.order_by(SORT_OPTIONS.get(sort, "-created_at"))
+
+    paginator   = Paginator(products, 10)
+    page_number = request.GET.get("page")
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    active_qs    = Product.objects.filter(is_deleted=False)
+    out_of_stock = (active_qs
+                    .annotate(total_stock=Sum("variants__stock", filter=Q(variants__is_deleted=False)))
+                    .filter(Q(total_stock=0) | Q(total_stock__isnull=True))
+                    .count())
+
+    context = {
+        "products":           page_obj.object_list,
+        "page_obj":           page_obj,
+        "is_paginated":       page_obj.has_other_pages(),
+        "search_query":       search_query,
+        "status":             status,
+        "sort":               sort,
+        "category_id":        category_id,
+        "brand_id":           brand_id,
+        "categories":         Category.objects.filter(is_deleted=False).order_by("name"),
+        "brands":             Brand.objects.filter(is_deleted=False).order_by("name"),
+        "total_count":        active_qs.count(),
+        "active_count":       active_qs.filter(is_listed=True).count(),
+        "inactive_count":     active_qs.filter(is_listed=False).count(),
+        "out_of_stock_count": out_of_stock,
+        "trash_count":        Product.objects.filter(is_deleted=True).count(),
+    }
+    return render(request, "admin_panel/product_list.html", context)
+
+
+@admin_required
+def admin_product_delete_view(request, product_id):
+    product = Product.objects.filter(id=product_id, is_deleted=False).first()
+    if not product:
+        messages.error(request, "Product not found.")
+        return redirect("admin_products")
+    product.is_deleted = True
+    product.save(update_fields=["is_deleted"])
+    messages.success(request, f"Product '{product.name}' has been moved to Trash.")
+    return redirect("admin_products")
+
+
+@admin_required
+def admin_product_restore_view(request, product_id):
+    product = Product.objects.filter(id=product_id, is_deleted=True).first()
+    if not product:
+        messages.error(request, "Product not found in Trash.")
+        return redirect(f"{reverse('admin_products')}?status=trash")
+    product.is_deleted = False
+    product.save(update_fields=["is_deleted"])
+    messages.success(request, f"Product '{product.name}' has been restored.")
+    return redirect(f"{reverse('admin_products')}?status=trash")
+
+
+@admin_required
+def admin_product_toggle_status_view(request, product_id):
+    product = Product.objects.filter(id=product_id, is_deleted=False).first()
+    if not product:
+        messages.error(request, "Product not found.")
+        return redirect("admin_products")
+    product.is_listed = not product.is_listed
+    product.save(update_fields=["is_listed"])
+    state = "active" if product.is_listed else "inactive"
+    messages.success(request, f"Product '{product.name}' is now {state}.")
+    return redirect(request.META.get("HTTP_REFERER") or "admin_products")
+
+
+def _generate_unique_sku(product):
+    base = (product.slug or "prod").upper().replace("-", "")[:8]
+    while True:
+        sku = f"{base}-{random.randint(1000, 9999)}"
+        if not ProductVariant.objects.filter(sku=sku).exists():
+            return sku
+
+
+def _build_variant_name(variant, product):
+    parts = []
+    if variant.color:
+        parts.append(variant.color.strip())
+    if variant.material_id:
+        parts.append(variant.material.name)
+    return " ".join(p for p in parts if p).strip() or product.name
+
+
+PRODUCT_IMAGE_SIZE  = (800, 800)
+ALLOWED_IMG_FORMATS = {"JPEG", "PNG", "WEBP"}
+MAX_IMAGE_BYTES     = 5 * 1024 * 1024
+MIN_IMAGE_DIM       = 200
+
+
+def process_product_image(uploaded_file):
+    """Validate format/size/dimensions, square-crop without distortion (cover), resize to a
+    uniform size and re-encode as an optimized JPEG. Raises ValidationError on bad input."""
+    name = getattr(uploaded_file, "name", "image")
+    if getattr(uploaded_file, "size", 0) > MAX_IMAGE_BYTES:
+        raise ValidationError(f"\"{name}\" is larger than 5 MB.")
+    try:
+        uploaded_file.seek(0)
+        img = Image.open(uploaded_file)
+        fmt = (img.format or "").upper()
+        if fmt == "JPG":
+            fmt = "JPEG"
+        if fmt not in ALLOWED_IMG_FORMATS:
+            raise ValidationError("Only JPG, JPEG, PNG, or WEBP images are allowed.")
+        if img.width < MIN_IMAGE_DIM or img.height < MIN_IMAGE_DIM:
+            raise ValidationError(f"Images must be at least {MIN_IMAGE_DIM}x{MIN_IMAGE_DIM}px.")
+        img = img.convert("RGB")
+        img = ImageOps.fit(img, PRODUCT_IMAGE_SIZE, Image.LANCZOS)
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=85, optimize=True)
+        buffer.seek(0)
+    except ValidationError:
+        raise
+    except Exception:
+        raise ValidationError("Could not process the image. Please upload a valid JPG, PNG, or WEBP file.")
+    base = (name or "image").rsplit(".", 1)[0]
+    return ContentFile(buffer.read(), name=f"{base}.jpg")
+
+
+def _process_images(uploaded_files):
+    """Process a batch of uploads with dedupe. Returns (processed_list, error_or_None)."""
+    processed, hashes = [], set()
+    for img in uploaded_files:
+        try:
+            cf = process_product_image(img)
+        except ValidationError as exc:
+            return processed, exc.messages[0]
+        digest = hashlib.md5(cf.read()).hexdigest()
+        cf.seek(0)
+        if digest in hashes:
+            return processed, "Duplicate images detected — please upload distinct images."
+        hashes.add(digest)
+        processed.append(cf)
+    return processed, None
+
+
+def _apply_inline_new(data):
+    """A newly-added brand arrives as a NON-numeric select value (the typed name).
+    Create it (case-insensitive get-or-create) and replace the value with its id."""
+    brand_val = data.get("p-brand", "").strip()
+    if brand_val and not brand_val.isdigit():
+        brand = (Brand.objects.filter(name__iexact=brand_val, is_deleted=False).first()
+                 or Brand.objects.create(name=brand_val))
+        data["p-brand"] = str(brand.id)
+    return data
+
+
+@admin_required
+def admin_brand_add_ajax(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request."}, status=400)
+    name = request.POST.get("name", "").strip()
+    err = _validate_name_field(name, "Brand")
+    if err:
+        return JsonResponse({"error": err}, status=400)
+    brand = (Brand.objects.filter(name__iexact=name, is_deleted=False).first()
+             or Brand.objects.create(name=name))
+    return JsonResponse({"id": brand.id, "name": brand.name})
+
+
+@admin_required
+def admin_material_add_ajax(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request."}, status=400)
+    name = request.POST.get("name", "").strip()
+    err = _validate_name_field(name, "Material")
+    if err:
+        return JsonResponse({"error": err}, status=400)
+    material = (Material.objects.filter(name__iexact=name).first()
+                or Material.objects.create(name=name))
+    return JsonResponse({"id": material.id, "name": material.name})
+
+
+@admin_required
+def admin_product_add_view(request):
+    product_form = ProductForm(prefix="p")
+    variant_form = ProductVariantForm(prefix="v")
+
+    if request.method == "POST":
+        data = _apply_inline_new(request.POST.copy())
+        product_form = ProductForm(data, prefix="p")
+        variant_form = ProductVariantForm(data, prefix="v")
+        images       = request.FILES.getlist("images")
+
+        extra_errors = []
+        if len(images) < 1:
+            extra_errors.append("Please upload at least 1 product image.")
+        elif len(images) > 5:
+            extra_errors.append("You can upload a maximum of 5 images.")
+        processed_images = []
+        if not extra_errors:
+            processed_images, img_err = _process_images(images)
+            if img_err:
+                extra_errors.append(img_err)
+
+        if product_form.is_valid() and variant_form.is_valid() and not extra_errors:
+            with transaction.atomic():
+                product = product_form.save()
+                variant = variant_form.save(commit=False)
+                variant.product      = product
+                variant.is_default   = True
+                variant.variant_name = _build_variant_name(variant, product)
+                if not variant.sku:
+                    variant.sku = _generate_unique_sku(product)
+                variant.save()
+                for index, cf in enumerate(processed_images):
+                    VariantImage.objects.create(variant=variant, image=cf, is_primary=(index == 0))
+            messages.success(request, f"Product '{product.name}' created successfully.")
+            return redirect("admin_products")
+
+        for err in extra_errors:
+            messages.error(request, err)
+
+    context = {
+        "mode":          "add",
+        "product_form":  product_form,
+        "variant_form":  variant_form,
+        "categories":    Category.objects.filter(is_deleted=False).order_by("name"),
+        "brands":        Brand.objects.filter(is_deleted=False).order_by("name"),
+        "materials":     Material.objects.all().order_by("name"),
+    }
+    return render(request, "admin_panel/product_form.html", context)
+
+
+@admin_required
+def admin_product_edit_view(request, product_id):
+    product = Product.objects.filter(id=product_id, is_deleted=False).first()
+    if not product:
+        messages.error(request, "Product not found.")
+        return redirect("admin_products")
+    variant = product.default_variant
+
+    if request.method == "POST":
+        data         = _apply_inline_new(request.POST.copy())
+        product_form = ProductForm(data, prefix="p", instance=product)
+        variant_form = ProductVariantForm(data, prefix="v", instance=variant)
+        new_images   = request.FILES.getlist("images")
+        delete_ids   = request.POST.getlist("delete_images")
+
+        existing_after = variant.images.exclude(id__in=delete_ids).count() if variant else 0
+        total_after    = existing_after + len(new_images)
+
+        extra_errors = []
+        if total_after < 1:
+            extra_errors.append("A product must keep at least 1 image.")
+        elif total_after > 5:
+            extra_errors.append("A product can have a maximum of 5 images.")
+        processed_images = []
+        if not extra_errors:
+            processed_images, img_err = _process_images(new_images)
+            if img_err:
+                extra_errors.append(img_err)
+
+        if product_form.is_valid() and variant_form.is_valid() and not extra_errors:
+            with transaction.atomic():
+                product = product_form.save()
+                v = variant_form.save(commit=False)
+                v.product      = product
+                v.is_default   = True
+                v.variant_name = _build_variant_name(v, product)
+                if not v.sku:
+                    v.sku = _generate_unique_sku(product)
+                v.save()
+                if delete_ids:
+                    VariantImage.objects.filter(variant=v, id__in=delete_ids).delete()
+                for cf in processed_images:
+                    VariantImage.objects.create(variant=v, image=cf)
+                if not v.images.filter(is_primary=True).exists():
+                    first = v.images.first()
+                    if first:
+                        first.is_primary = True
+                        first.save(update_fields=["is_primary"])
+            messages.success(request, f"Product '{product.name}' updated successfully.")
+            return redirect("admin_products")
+
+        for err in extra_errors:
+            messages.error(request, err)
+    else:
+        product_form = ProductForm(prefix="p", instance=product)
+        variant_form = ProductVariantForm(prefix="v", instance=variant)
+
+    context = {
+        "mode":            "edit",
+        "product":         product,
+        "variant":         variant,
+        "existing_images": variant.images.all() if variant else [],
+        "product_form":    product_form,
+        "variant_form":    variant_form,
+        "categories":      Category.objects.filter(is_deleted=False).order_by("name"),
+        "brands":          Brand.objects.filter(is_deleted=False).order_by("name"),
+        "materials":       Material.objects.all().order_by("name"),
+    }
+    return render(request, "admin_panel/product_form.html", context)
     

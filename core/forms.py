@@ -3,9 +3,13 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from decimal import Decimal
 import re
 
-from .models import CustomUser, UserProfile, Address, Category
+from .models import CustomUser, UserProfile, Address, Category, Product, ProductVariant, Brand, Material
+
+PRODUCT_NAME_RE = re.compile(r"^[A-Za-z0-9 '\-]+$")
+HEX_COLOR_RE    = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 PHONE_NORMALIZATION_REGEX = re.compile(r"[^\d+]")
 PHONE_ALLOWED_CHARS_REGEX = re.compile(r"^\+?[0-9\-\s\(\)]{10,20}$")
@@ -538,3 +542,168 @@ class CategoryForm(forms.ModelForm):
             if hasattr(image, "content_type") and image.content_type not in allowed:
                 raise ValidationError("Only JPEG, PNG, or WebP images are allowed.")
         return image
+
+
+# ─────────────────────────────────────────────
+# Product Forms (Admin)
+# ─────────────────────────────────────────────
+
+class ProductForm(forms.ModelForm):
+    class Meta:
+        model  = Product
+        fields = ["name", "short_description", "description", "category", "brand", "is_listed"]
+        widgets = {
+            "short_description": forms.TextInput(attrs={"placeholder": "One-line summary shown on listings"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["category"].queryset = Category.objects.filter(is_deleted=False)
+        self.fields["category"].required = True
+        self.fields["brand"].queryset    = Brand.objects.filter(is_deleted=False)
+        self.fields["brand"].required    = True
+
+    def clean_name(self):
+        name = (self.cleaned_data.get("name") or "").strip()
+        if not name:
+            raise ValidationError("Product name is required.")
+        if len(name) < 3:
+            raise ValidationError("Product name must be at least 3 characters.")
+        if len(name) > 150:
+            raise ValidationError("Product name cannot exceed 150 characters.")
+        if "  " in name:
+            raise ValidationError("Product name cannot contain consecutive spaces.")
+        if not PRODUCT_NAME_RE.match(name):
+            raise ValidationError("Only letters, numbers, spaces, apostrophes and hyphens are allowed.")
+        qs = Product.objects.filter(name__iexact=name, is_deleted=False)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise ValidationError("A product with this name already exists.")
+        return name
+
+    def clean_short_description(self):
+        value = (self.cleaned_data.get("short_description") or "").strip()
+        if not value:
+            raise ValidationError("Short description is required.")
+        if len(value) < 20:
+            raise ValidationError("Short description must be at least 20 characters.")
+        if len(value) > 250:
+            raise ValidationError("Short description cannot exceed 250 characters.")
+        return value
+
+    def clean_description(self):
+        value = (self.cleaned_data.get("description") or "").strip()
+        if not value:
+            raise ValidationError("Full description is required.")
+        if len(value) < 50:
+            raise ValidationError("Full description must be at least 50 characters.")
+        if len(value) > 3000:
+            raise ValidationError("Full description cannot exceed 3000 characters.")
+        return value
+
+
+class ProductVariantForm(forms.ModelForm):
+    class Meta:
+        model  = ProductVariant
+        fields = ["sku", "color", "color_hex", "material", "size",
+                  "width_cm", "height_cm", "depth_cm",
+                  "closure_type", "compartments", "pattern",
+                  "original_price", "sale_price", "stock"]
+        widgets = {
+            "color":        forms.TextInput(attrs={"placeholder": "Black, Brown, Beige"}),
+            "width_cm":     forms.NumberInput(attrs={"placeholder": "30", "step": "0.01", "min": "1", "max": "100"}),
+            "height_cm":    forms.NumberInput(attrs={"placeholder": "22", "step": "0.01", "min": "1", "max": "100"}),
+            "depth_cm":     forms.NumberInput(attrs={"placeholder": "12", "step": "0.01", "min": "1", "max": "100"}),
+            "compartments": forms.NumberInput(attrs={"placeholder": "3", "min": "1", "max": "20"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["sku"].required      = False  # auto-generated when left blank
+        self.fields["material"].required = True
+        for name in ("color_hex", "original_price", "sale_price", "stock",
+                     "width_cm", "height_cm", "depth_cm", "closure_type", "compartments", "pattern"):
+            self.fields[name].required = True
+
+    def clean_color(self):
+        return (self.cleaned_data.get("color") or "").strip()
+
+    def clean_color_hex(self):
+        value = (self.cleaned_data.get("color_hex") or "").strip()
+        if not value:
+            raise ValidationError("Please pick a colour.")
+        if not HEX_COLOR_RE.match(value):
+            raise ValidationError("Enter a valid hex colour code (e.g. #D8C3A5).")
+        return value.upper()
+
+    def clean_original_price(self):
+        price = self.cleaned_data.get("original_price")
+        if price is None:
+            raise ValidationError("MRP is required.")
+        if price <= 0:
+            raise ValidationError("MRP must be greater than 0.")
+        if price > Decimal("1000000"):
+            raise ValidationError("MRP cannot exceed ₹10,00,000.")
+        return price
+
+    def clean_sale_price(self):
+        price = self.cleaned_data.get("sale_price")
+        if price is None:
+            raise ValidationError("Sale price is required.")
+        if price <= 0:
+            raise ValidationError("Sale price must be greater than 0.")
+        return price
+
+    def clean_stock(self):
+        stock = self.cleaned_data.get("stock")
+        if stock is None:
+            raise ValidationError("Stock quantity is required.")
+        if stock > 9999:
+            raise ValidationError("Stock cannot exceed 9999.")
+        return stock
+
+    def _clean_dimension(self, field, label):
+        value = self.cleaned_data.get(field)
+        if value is None:
+            raise ValidationError(f"{label} is required.")
+        if value <= 0:
+            raise ValidationError(f"{label} must be greater than 0.")
+        if value > 100:
+            raise ValidationError(f"{label} cannot exceed 100 cm.")
+        return value
+
+    def clean_width_cm(self):
+        return self._clean_dimension("width_cm", "Width")
+
+    def clean_height_cm(self):
+        return self._clean_dimension("height_cm", "Height")
+
+    def clean_depth_cm(self):
+        return self._clean_dimension("depth_cm", "Depth")
+
+    def clean_compartments(self):
+        value = self.cleaned_data.get("compartments")
+        if value is None:
+            raise ValidationError("Number of compartments is required.")
+        if value < 1 or value > 20:
+            raise ValidationError("Compartments must be between 1 and 20.")
+        return value
+
+    def clean_sku(self):
+        sku = (self.cleaned_data.get("sku") or "").strip()
+        if sku:
+            qs = ProductVariant.objects.filter(sku__iexact=sku)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise ValidationError("This SKU is already in use.")
+        return sku
+
+    def clean(self):
+        cleaned = super().clean()
+        op = cleaned.get("original_price")
+        sp = cleaned.get("sale_price")
+        if op and sp and sp > op:
+            self.add_error("sale_price", "Sale price cannot be greater than the MRP.")
+        return cleaned
