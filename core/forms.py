@@ -575,6 +575,8 @@ class ProductForm(forms.ModelForm):
             raise ValidationError("Product name cannot contain consecutive spaces.")
         if not PRODUCT_NAME_RE.match(name):
             raise ValidationError("Only letters, numbers, spaces, apostrophes and hyphens are allowed.")
+        if not any(ch.isalpha() for ch in name):
+            raise ValidationError("Product name must contain letters — it cannot be only numbers.")
         qs = Product.objects.filter(name__iexact=name, is_deleted=False)
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
