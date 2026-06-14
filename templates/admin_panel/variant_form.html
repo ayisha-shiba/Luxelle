@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luxelle Admin - {% if mode == 'edit' %}Edit{% else %}Add{% endif %} Product</title>
+    <title>Luxelle Admin - {% if mode == 'edit' %}Edit{% else %}Add{% endif %} Variant</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -33,10 +33,6 @@
             width:100%; background:#161616; border:1px solid rgba(255,255,255,0.12); border-radius:8px;
             padding:0.7rem 0.9rem; color:#fff; font-size:0.88rem; font-family:'Inter',sans-serif; }
         .fg input:focus, .fg select:focus, .fg textarea:focus { outline:none; border-color:#c5a059; }
-
-        .form-check-row { display:flex; align-items:center; gap:0.5rem; }
-        .form-check-row input { width:18px; height:18px; }
-        .form-check-row label { margin:0; text-transform:none; letter-spacing:0; color:#ddd; font-size:0.85rem; }
         .fg select option { background:#161616; }
 
         .toggle-row { display:flex; align-items:center; justify-content:space-between; background:#161616; border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:0.9rem 1.1rem; margin-bottom:0.75rem; }
@@ -49,7 +45,6 @@
         .switch input:checked + .sl { background:#27ae60; }
         .switch input:checked + .sl::before { transform:translateX(22px); }
 
-        .note-bar { background:rgba(197,160,89,0.1); border:1px solid rgba(197,160,89,0.3); color:#c5a059; border-radius:8px; padding:0.6rem 0.9rem; font-size:0.78rem; margin-bottom:1.1rem; }
         .inline-new { display:flex; gap:0.5rem; align-items:center; }
         .inline-new select { flex:1; }
         .mini-btn { background:rgba(52,152,219,0.15); color:#3498db; border:1px solid rgba(52,152,219,0.3); border-radius:8px; padding:0.45rem 0.7rem; font-size:0.78rem; cursor:pointer; white-space:nowrap; }
@@ -92,8 +87,8 @@
 
     <main class="main">
         <div class="top-bar">
-            <div><h1 class="page-title">{% if mode == 'edit' %}Edit{% else %}Add{% endif %} Product</h1><p class="page-sub">Create a product with its default variant.</p></div>
-            <div class="top-actions"><a href="{% url 'admin_products' %}" class="top-btn"><i class="fa-solid fa-arrow-left"></i> Back</a></div>
+            <div><h1 class="page-title">{% if mode == 'edit' %}Edit{% else %}Add{% endif %} Variant</h1><p class="page-sub">{{ product.name }}</p></div>
+            <div class="top-actions"><a href="{% url 'admin_product_detail' product.id %}" class="top-btn"><i class="fa-solid fa-arrow-left"></i> Back</a></div>
         </div>
 
         {% if messages %}
@@ -102,61 +97,16 @@
             {% endfor %}
         {% endif %}
 
-        {% if product_form.errors or variant_form.errors %}
+        {% if variant_form.errors %}
             <div class="alert alert-error">
                 <strong>Please fix the following:</strong>
-                {% for field in product_form %}{% for e in field.errors %}<div>• {{ field.label }}: {{ e }}</div>{% endfor %}{% endfor %}
-                {% for e in product_form.non_field_errors %}<div>• {{ e }}</div>{% endfor %}
                 {% for field in variant_form %}{% for e in field.errors %}<div>• {{ field.label }}: {{ e }}</div>{% endfor %}{% endfor %}
                 {% for e in variant_form.non_field_errors %}<div>• {{ e }}</div>{% endfor %}
             </div>
         {% endif %}
 
-        <form method="POST" enctype="multipart/form-data" class="form-card" id="productForm">
+        <form method="POST" enctype="multipart/form-data" class="form-card" id="variantForm">
             {% csrf_token %}
-
-            <!-- BASIC INFORMATION -->
-            <div class="section-title">Basic Information</div>
-            <div class="fg">
-                <label>Product Name <span class="req">*</span></label>
-                <input type="text" name="p-name" maxlength="150" value="{{ product_form.name.value|default:'' }}" placeholder="e.g. Classic Leather Tote" required>
-                {% if product_form.name.errors %}<div class="field-err">{{ product_form.name.errors.0 }}</div>{% endif %}
-            </div>
-            <div class="grid-2">
-                <div class="fg">
-                    <label>Brand <span class="req">*</span></label>
-                    <div class="inline-new">
-                        <select name="p-brand" id="brandSelect" required>
-                            <option value="">Select brand</option>
-                            {% for b in brands %}
-                                <option value="{{ b.id }}" {% if product_form.brand.value|stringformat:'s' == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
-                            {% endfor %}
-                        </select>
-                        <button type="button" class="mini-btn" onclick="openQuickAdd('brand','brandSelect')">+ New</button>
-                    </div>
-                    {% if product_form.brand.errors %}<div class="field-err">{{ product_form.brand.errors.0 }}</div>{% endif %}
-                </div>
-                <div class="fg">
-                    <label>Category <span class="req">*</span></label>
-                    <select name="p-category" required>
-                        <option value="" disabled {% if not product_form.category.value %}selected{% endif %}>Select category</option>
-                        {% for cat in categories %}
-                            <option value="{{ cat.id }}" {% if product_form.category.value|stringformat:'s' == cat.id|stringformat:'s' %}selected{% endif %}>{{ cat.name }}</option>
-                        {% endfor %}
-                    </select>
-                    {% if product_form.category.errors %}<div class="field-err">{{ product_form.category.errors.0 }}</div>{% endif %}
-                </div>
-            </div>
-            <div class="fg">
-                <label>Short Description <span class="req">*</span></label>
-                <input type="text" name="p-short_description" maxlength="250" value="{{ product_form.short_description.value|default:'' }}" placeholder="One-line summary (20–250 characters)" required>
-                {% if product_form.short_description.errors %}<div class="field-err">{{ product_form.short_description.errors.0 }}</div>{% endif %}
-            </div>
-            <div class="fg">
-                <label>Full Description <span class="req">*</span></label>
-                <textarea name="p-description" rows="4" maxlength="3000" placeholder="Detailed product description (at least 50 characters)" required>{{ product_form.description.value|default:'' }}</textarea>
-                {% if product_form.description.errors %}<div class="field-err">{{ product_form.description.errors.0 }}</div>{% endif %}
-            </div>
 
             <!-- VARIANT INFORMATION -->
             <div class="section-title">Variant Information</div>
@@ -165,15 +115,15 @@
                     <label>Color <span class="req">*</span></label>
                     <div class="color-row">
                         <span id="colorSwatch" class="color-swatch" style="background: {{ variant_form.color_hex.value|default:'#000000' }};"></span>
-                        <input type="color" name="v-color_hex" id="colorHex" class="color-input" value="{{ variant_form.color_hex.value|default:'#000000' }}" title="Pick a colour">
-                        <input type="text" name="v-color" maxlength="50" value="{{ variant_form.color.value|default:'' }}" placeholder="Colour name (e.g. Black)">
+                        <input type="color" name="color_hex" id="colorHex" class="color-input" value="{{ variant_form.color_hex.value|default:'#000000' }}" title="Pick a colour">
+                        <input type="text" name="color" maxlength="50" value="{{ variant_form.color.value|default:'' }}" placeholder="Colour name (e.g. Black)">
                     </div>
                     {% if variant_form.color_hex.errors %}<div class="field-err">{{ variant_form.color_hex.errors.0 }}</div>{% endif %}
                 </div>
                 <div class="fg">
                     <label>Material <span class="req">*</span></label>
                     <div class="inline-new">
-                        <select name="v-material" id="materialSelect" required>
+                        <select name="material" id="materialSelect" required>
                             <option value="">Select material</option>
                             {% for m in materials %}<option value="{{ m.id }}" {% if variant_form.material.value|stringformat:'s' == m.id|stringformat:'s' %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
                         </select>
@@ -191,35 +141,33 @@
             <!-- PRICING -->
             <div class="section-title">Pricing</div>
             <div class="grid-4">
-                <div class="fg"><label>Original Price (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0.01" max="1000000" name="v-original_price" value="{{ variant_form.original_price.value|default:'' }}" required>{% if variant_form.original_price.errors %}<div class="field-err">{{ variant_form.original_price.errors.0 }}</div>{% endif %}</div>
-                <div class="fg"><label>Sale Price (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0.01" name="v-sale_price" value="{{ variant_form.sale_price.value|default:'' }}" required>{% if variant_form.sale_price.errors %}<div class="field-err">{{ variant_form.sale_price.errors.0 }}</div>{% endif %}</div>
-                <div class="fg"><label>Stock <span class="req">*</span></label><input type="number" min="0" max="9999" name="v-stock" value="{{ variant_form.stock.value|default:'' }}" required>{% if variant_form.stock.errors %}<div class="field-err">{{ variant_form.stock.errors.0 }}</div>{% endif %}</div>
+                <div class="fg"><label>Original Price (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0.01" max="1000000" name="original_price" value="{{ variant_form.original_price.value|default:'' }}" required>{% if variant_form.original_price.errors %}<div class="field-err">{{ variant_form.original_price.errors.0 }}</div>{% endif %}</div>
+                <div class="fg"><label>Sale Price (₹) <span class="req">*</span></label><input type="number" step="0.01" min="0.01" name="sale_price" value="{{ variant_form.sale_price.value|default:'' }}" required>{% if variant_form.sale_price.errors %}<div class="field-err">{{ variant_form.sale_price.errors.0 }}</div>{% endif %}</div>
+                <div class="fg"><label>Stock <span class="req">*</span></label><input type="number" min="0" max="9999" name="stock" value="{{ variant_form.stock.value|default:'' }}" required>{% if variant_form.stock.errors %}<div class="field-err">{{ variant_form.stock.errors.0 }}</div>{% endif %}</div>
                 <div class="fg">
-                    <label>Status <span class="req">*</span></label>
-                    <select name="p-is_listed">
-                        <option value="true"  {% if product_form.is_listed.value %}selected{% endif %}>Active</option>
-                        <option value="false" {% if not product_form.is_listed.value %}selected{% endif %}>Inactive</option>
+                    <label>Variant Status</label>
+                    <select name="is_listed">
+                        <option value="true"  {% if variant_form.is_listed.value %}selected{% endif %}>Active</option>
+                        <option value="false" {% if not variant_form.is_listed.value %}selected{% endif %}>Inactive</option>
                     </select>
                 </div>
             </div>
 
-            <div class="fg">
-                <label>Homepage Visibility</label>
-                <div class="d-flex gap-4">
-                    <div class="form-check-row">
-                        <input type="checkbox" name="p-is_featured" id="isFeatured" {% if product_form.is_featured.value %}checked{% endif %}>
-                        <label for="isFeatured">Featured Product</label>
-                    </div>
-                    <div class="form-check-row">
-                        <input type="checkbox" name="p-is_deal_of_day" id="isDealOfDay" {% if product_form.is_deal_of_day.value %}checked{% endif %}>
-                        <label for="isDealOfDay">Deal of the Day</label>
-                    </div>
+            <div class="toggle-row">
+                <div>
+                    <div class="t-title">Offer Product</div>
+                    <div class="t-sub">Mark this variant as part of an active offer or promotion</div>
                 </div>
+                <label class="switch">
+                    <input type="checkbox" name="is_offer" {% if variant_form.is_offer.value %}checked{% endif %}>
+                    <span class="sl"></span>
+                </label>
             </div>
+
             <div class="fg">
                 <label>SKU <span style="color:#777;text-transform:none;letter-spacing:0;">(auto-generated, editable)</span></label>
                 <div class="inline-new">
-                    <input type="text" name="v-sku" id="skuInput" maxlength="50" value="{{ variant_form.sku.value|default:'' }}" placeholder="Auto-generated if left blank">
+                    <input type="text" name="sku" id="skuInput" maxlength="50" value="{{ variant_form.sku.value|default:'' }}" placeholder="Auto-generated if left blank">
                     <button type="button" class="mini-btn" onclick="regenSku()"><i class="fa-solid fa-rotate"></i> Regen</button>
                 </div>
                 {% if variant_form.sku.errors %}<div class="field-err">{{ variant_form.sku.errors.0 }}</div>{% endif %}
@@ -248,7 +196,7 @@
                 <div class="fg"><label>Pattern <span class="req">*</span></label>{{ variant_form.pattern }}{% if variant_form.pattern.errors %}<div class="field-err">{{ variant_form.pattern.errors.0 }}</div>{% endif %}</div>
             </div>
 
-            <div class="section-title">Product Images <span style="color:#777;text-transform:none;letter-spacing:0;">(1–5 images — first is the main image)</span></div>
+            <div class="section-title">Variant Images <span style="color:#777;text-transform:none;letter-spacing:0;">(1–5 images — first is the main image)</span></div>
             {% if existing_images %}
             <div style="margin-bottom:0.5rem; font-size:0.74rem; color:#888;">Current images — tick to remove:</div>
             <div class="img-grid" style="margin-bottom:1rem;">
@@ -270,18 +218,18 @@
             <div class="img-hint err" id="imgCount">No images selected — at least 3 required</div>
 
             <div class="form-actions">
-                <a href="{% url 'admin_products' %}" class="mbtn mbtn-cancel">Cancel</a>
-                <button type="submit" class="mbtn mbtn-gold">{% if mode == 'edit' %}Save Changes{% else %}Add Product{% endif %}</button>
+                <a href="{% url 'admin_product_detail' product.id %}" class="mbtn mbtn-cancel">Cancel</a>
+                <button type="submit" class="mbtn mbtn-gold">{% if mode == 'edit' %}Save Changes{% else %}Add Variant{% endif %}</button>
             </div>
         </form>
     </main>
 
-    <!-- Quick Add (Brand / Material) Modal -->
+    <!-- Quick Add (Material) Modal -->
     <div class="modal-overlay" id="quickAddModal">
         <div class="qa-box">
-            <h3 id="quickAddTitle">Add Brand</h3>
+            <h3 id="quickAddTitle">Add Material</h3>
             <div class="fg">
-                <label id="quickAddLabel">Brand Name</label>
+                <label id="quickAddLabel">Material Name</label>
                 <input type="text" id="quickAddInput" placeholder="Enter name" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('quickAddSubmit').click();}">
                 <div class="field-err" id="quickAddErr" style="display:none;"></div>
             </div>
@@ -310,7 +258,7 @@
 
         function openQuickAdd(type, selectId) {
             qaType = type; qaTargetSelect = selectId;
-            const label = (type === 'brand') ? 'Brand' : (type === 'material') ? 'Material' : 'Closure Type';
+            const label = (type === 'material') ? 'Material' : 'Closure Type';
             document.getElementById('quickAddTitle').textContent = 'Add ' + label;
             document.getElementById('quickAddLabel').textContent = label + ' Name';
             const inp = document.getElementById('quickAddInput');
@@ -342,9 +290,8 @@
                 return;
             }
 
-            const url = (qaType === 'brand') ? '/admin-panel/brands/add-ajax/' : '/admin-panel/materials/add-ajax/';
             const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            fetch(url, {
+            fetch('/admin-panel/materials/add-ajax/', {
                 method: 'POST',
                 headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: 'name=' + encodeURIComponent(name)
@@ -373,8 +320,8 @@
         // server-side validation error would normally wipe them out. Stash
         // them in sessionStorage and restore on reload if the form re-renders
         // with errors.
-        const IMG_STORAGE_KEY = 'luxelleProductFormImages';
-        const HAS_ERRORS = {% if product_form.errors or variant_form.errors %}true{% else %}false{% endif %};
+        const IMG_STORAGE_KEY = 'luxelleVariantFormImages';
+        const HAS_ERRORS = {% if variant_form.errors %}true{% else %}false{% endif %};
 
         function persistCroppedFiles() {
             if (croppedFiles.length === 0) {
@@ -487,19 +434,16 @@
                 .replace(/^-+|-+$/g, '');
         }
 
+        const PRODUCT_CATEGORY = "{{ product.category.name|escapejs }}";
+        const PRODUCT_BRAND    = "{{ product.brand.name|default:''|escapejs }}";
+
         function regenSku() {
-            const categorySelect = document.querySelector('[name=p-category]');
-            const brandSelect    = document.querySelector('[name=p-brand]');
-            const colorInput     = document.querySelector('[name=v-color]');
-            const sizeSelect     = document.querySelector('[name=v-size]');
+            const colorInput = document.querySelector('[name=color]');
+            const sizeSelect = document.querySelector('[name=size]');
 
             const parts = [];
-            if (categorySelect && categorySelect.value) {
-                parts.push(skuSegment(categorySelect.options[categorySelect.selectedIndex].text));
-            }
-            if (brandSelect && brandSelect.value) {
-                parts.push(skuSegment(brandSelect.options[brandSelect.selectedIndex].text));
-            }
+            if (PRODUCT_CATEGORY) parts.push(skuSegment(PRODUCT_CATEGORY));
+            if (PRODUCT_BRAND)    parts.push(skuSegment(PRODUCT_BRAND));
             if (colorInput && colorInput.value) {
                 parts.push(skuSegment(colorInput.value));
             }
@@ -516,7 +460,7 @@
             document.getElementById('colorSwatch').style.background = _colorHex.value;
         });
 
-        // Image counting: total = existing (minus removed) + newly selected; must stay >= 3
+        // Image counting: total = existing (minus removed) + newly selected; must stay between 3 and 5
         const IS_ADD = {% if mode == 'edit' %}false{% else %}true{% endif %};
         const EXISTING_IMG_COUNT = {{ existing_images|length|default:0 }};
 
@@ -543,13 +487,13 @@
             sessionStorage.removeItem(IMG_STORAGE_KEY);
         }
 
-        document.getElementById('productForm').addEventListener('submit', function (e) {
+        document.getElementById('variantForm').addEventListener('submit', function (e) {
             const newN    = document.getElementById('imgInput').files.length;
             const removed = document.querySelectorAll('input[name=delete_images]:checked').length;
             const total   = (IS_ADD ? 0 : EXISTING_IMG_COUNT) - removed + newN;
             if (total < 3) {
                 e.preventDefault();
-                alert('Please add at least 3 product images.');
+                alert('Please add at least 3 variant images.');
             } else if (total > 5) {
                 e.preventDefault();
                 alert('You can upload a maximum of 5 images.');

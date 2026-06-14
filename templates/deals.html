@@ -1,10 +1,17 @@
 {% load static %}
+<!--
+  CONTEXT CONTRACT — deals_view must put these in context:
+    deal_products   : iterable of Product where is_deal_of_day=True, active, in-stock
+    wishlist_ids    : set of product IDs the logged-in user has wishlisted
+  Each product: product.name, product.brand.name, product.category,
+    and product.default_variant -> v.sale_price, v.original_price, v.discount_percent, v.stock, v.images.first
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luxelle | Luxury Handbags</title>
+    <title>Deals of the Day | Luxelle</title>
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="{% static 'image/favicon.svg' %}">
     <link rel="icon" type="image/x-icon" href="{% static 'image/favicon.ico' %}">
@@ -15,90 +22,42 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FontAwesome for Premium Icons -->
+    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <!-- Custom CSS -->
     <link href="{% static 'css/styles.css' %}" rel="stylesheet">
-    <style>
-        .btn-login-lux {
-            background-color: #C9A26A;
-            color: #1A1A1A;
-            font-family: 'Inter', sans-serif;
-            font-size: 0.72rem;
-            font-weight: 600;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-            text-decoration: none;
-            padding: 10px 26px;
-            border: 1px solid #C9A26A;
-            border-radius: 2px;
-            transition: all 0.3s ease;
-            line-height: 1;
-        }
-        .btn-login-lux:hover {
-            background-color: #b08d5b;
-            border-color: #b08d5b;
-            color: #1A1A1A;
-            transform: translateY(-1px);
-            box-shadow: 0 6px 18px rgba(201, 162, 106, 0.28);
-        }
-    </style>
 </head>
 <body class="bg-lux-beige">
 
     <!-- =========================================
        Premium Header / Navigation
        ========================================= -->
-    {% include 'partials/navbar.html' with active='home' %}
+    {% include 'partials/navbar.html' with active='deals' %}
 
     <!-- =========================================
-       Hero Section
+       Page Header
        ========================================= -->
-    <section class="hero-section position-relative overflow-hidden w-100 d-flex align-items-center justify-content-start" style="background-image: url('{% static 'image/hero_model.png' %}');">
-        <div class="hero-overlay position-absolute w-100 h-100 start-0 top-0"></div>
-        <div class="container position-relative z-2 px-4 py-5">
-            <div class="row">
-                <div class="col-12 col-md-8 col-lg-6 text-white hero-content-box">
-                    <h1 class="display-3 font-playfair mb-3 leading-tight tracking-tight text-shadow-sm fade-in-up">Luxury Crafted For Modern Elegance</h1>
-                    <p class="lead font-inter fw-light mb-4 opacity-90 text-shadow-sm fade-in-up-delay">Discover timeless handbags designed for sophisticated women who value superior craftsmanship and contemporary aesthetics.</p>
-                    <a href="#" class="btn btn-lux-dark py-3 px-5 text-uppercase fw-semibold tracking-wider hover-lux-gold-bg fade-in-up-delay-2">Explore Collection &nbsp; <i class="fa-solid fa-arrow-right"></i></a>
-                </div>
-            </div>
-        </div>
-        <!-- Right Bottom Dots and Navigation -->
-        <div class="position-absolute bottom-0 end-0 p-5 z-2 d-none d-md-flex align-items-center gap-4 text-white">
-            <div class="slider-dots d-flex gap-2">
-                <span class="slider-dot active"></span>
-                <span class="slider-dot"></span>
-                <span class="slider-dot"></span>
-            </div>
-            <div class="slider-nav d-flex gap-2">
-                <button class="btn btn-outline-white border-opacity-25 rounded-circle p-2 px-3 hover-lux-gold"><i class="fa-solid fa-chevron-left"></i></button>
-                <button class="btn btn-outline-white border-opacity-25 rounded-circle p-2 px-3 hover-lux-gold"><i class="fa-solid fa-chevron-right"></i></button>
-            </div>
-        </div>
+    <section class="py-5 px-4 text-center bg-lux-beige">
+        <p class="text-uppercase text-lux-gold tracking-widest small mb-2 fw-semibold">Limited Time</p>
+        <h1 class="font-playfair display-4 fw-bold text-lux-black mb-2">Deals of the Day</h1>
+        <p class="text-lux-gray fw-light font-inter mb-0">Exceptional pieces at an exceptional price — today only.</p>
+        <div class="mx-auto mt-3" style="width:60px;height:2px;background-color:var(--lux-gold);"></div>
     </section>
 
-    <!-- =========================================
-       Featured Products Section
-       ========================================= -->
-    {% if featured_products %}
-    <section class="py-5 px-4 bg-lux-beige">
-        <div class="container py-4">
-            <div class="text-center mb-5">
-                <h2 class="font-playfair display-5 fw-semibold text-lux-black mb-2">Featured Products</h2>
-                <p class="font-inter text-lux-gray fw-light tracking-wide">Introducing our latest and most exclusive arrivals.</p>
-            </div>
+    <div class="container py-5">
 
+        <!-- Products -->
+        {% if deal_products %}
             <div class="row g-4 row-cols-1 row-cols-sm-2 row-cols-lg-4">
-                {% for product in featured_products %}
+                {% for product in deal_products %}
                     {% with v=product.default_variant %}
                     <div class="col">
-                        <div class="product-card bg-white rounded-4 overflow-hidden border border-light shadow-sm p-3 position-relative d-flex flex-column h-100">
+                        <div class="product-card bg-white rounded-4 overflow-hidden border border-light shadow-sm p-3 d-flex flex-column h-100 position-relative">
+                            <span class="badge bg-lux-gold text-white text-uppercase tracking-wider position-absolute top-0 start-0 m-2 z-2 small py-2 px-3 rounded-2 fw-semibold">Deal of the Day</span>
                             {% if request.user.is_authenticated %}
                             <form method="post" action="{% url 'toggle_wishlist' product.id %}" class="position-absolute top-0 end-0 m-2" style="z-index: 2;">
                                 {% csrf_token %}
-                                <input type="hidden" name="next" value="{{ request.path }}">
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                 <button type="submit" class="btn btn-light btn-sm rounded-circle shadow-sm d-flex align-items-center justify-content-center" style="width:36px; height:36px;" title="{% if product.id in wishlist_ids %}Remove from wishlist{% else %}Add to wishlist{% endif %}">
                                     {% if product.id in wishlist_ids %}
                                         <i class="fa-solid fa-heart text-danger"></i>
@@ -109,21 +68,18 @@
                             </form>
                             {% endif %}
                             <a href="{% url 'product_detail' product.slug %}" class="d-flex flex-column h-100 text-decoration-none">
-                                <div class="product-img-wrapper bg-light rounded-3 overflow-hidden position-relative mb-3 flex-grow-1">
-                                    <img src="{% if v and v.images.first %}{{ v.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}" alt="{{ product.name }}" class="w-100 h-100 object-fit-cover transition-transform duration-500 hover-scale-110">
-                                    {% if v and v.discount_percent %}
-                                        <span class="badge bg-lux-gold text-white text-uppercase tracking-wider position-absolute top-0 start-0 m-2 small py-2 px-3 rounded-2 fw-semibold">{{ v.discount_percent }}% Off</span>
-                                    {% endif %}
-                                    {% if not v or v.stock == 0 %}
-                                        <span class="badge bg-lux-black text-white text-uppercase tracking-wider position-absolute top-0 end-0 m-2 small py-2 px-3 rounded-2 fw-semibold">Sold Out</span>
-                                    {% endif %}
+                                <div class="product-img-wrapper bg-light rounded-3 overflow-hidden position-relative mb-3">
+                                    <img src="{% if v and v.images.first %}{{ v.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}" alt="{{ product.name }}" class="w-100 h-100 object-fit-cover hover-scale-110" style="transition: var(--transition-smooth); object-fit:cover;">
                                 </div>
                                 <div class="text-uppercase text-lux-gray tracking-wider mb-1" style="font-size:0.7rem;">{{ product.brand.name|default:"Luxelle" }}</div>
                                 <h4 class="font-playfair text-lux-black fs-6 fw-bold mb-2">{{ product.name }}</h4>
                                 <div class="mt-auto">
                                     {% if v %}
-                                        <span class="price font-inter fw-bold text-lux-black fs-5">₹{{ v.sale_price }}</span>
-                                        {% if v.discount_percent %}<span class="text-lux-gray text-decoration-line-through small ms-2">₹{{ v.original_price }}</span>{% endif %}
+                                        <span class="font-inter fw-bold text-lux-black fs-5">₹{{ v.sale_price }}</span>
+                                        {% if v.discount_percent %}
+                                            <span class="text-lux-gray text-decoration-line-through small ms-2">₹{{ v.original_price }}</span>
+                                            <span class="badge bg-lux-black text-white small ms-2">{{ v.discount_percent }}% Off</span>
+                                        {% endif %}
                                     {% else %}
                                         <span class="text-lux-gray">Unavailable</span>
                                     {% endif %}
@@ -134,26 +90,13 @@
                     {% endwith %}
                 {% endfor %}
             </div>
-        </div>
-    </section>
-    {% endif %}
-
-    <!-- =========================================
-       Middle Promotional Section
-       ========================================= -->
-    <section class="promo-section position-relative overflow-hidden w-100 d-flex align-items-center justify-content-center text-center" style="background-image: url('{% static 'image/storefront_promo.png' %}');">
-        <div class="promo-overlay position-absolute w-100 h-100 start-0 top-0"></div>
-        <div class="container position-relative z-2 px-4 py-5 text-white">
-            <div class="row justify-content-center">
-                <div class="col-12 col-md-10 col-lg-8">
-                    <span class="font-inter text-uppercase tracking-widest small fw-semibold mb-3 d-inline-block text-lux-gold opacity-90">THE ART OF DESIGN</span>
-                    <h2 class="font-playfair display-4 fw-medium mb-3 text-shadow-sm">Crafted For Elegance</h2>
-                    <p class="font-inter mb-4 opacity-90 mx-auto fw-light text-shadow-sm max-w-lg">Premium handbags designed for timeless style, minimal aesthetic, and contemporary fashion.</p>
-                    <a href="{% url 'product_list' %}" class="btn btn-lux-gold py-3 px-5 text-uppercase fw-semibold tracking-wider hover-lux-dark-bg">Shop Now &nbsp; <i class="fa-solid fa-chevron-right"></i></a>
-                </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fa-solid fa-tag mb-3 d-block" style="font-size:2.4rem; color:var(--lux-gray-light);"></i>
+                <p class="text-lux-gray">No deals available right now. Check back soon!</p>
             </div>
-        </div>
-    </section>
+        {% endif %}
+    </div>
 
     <!-- =========================================
        Footer Section
@@ -161,7 +104,6 @@
     <footer class="bg-white border-top border-light pt-5 px-4 font-inter">
         <div class="container pt-4 pb-5">
             <div class="row g-5">
-                <!-- Column 1: Info and Brand -->
                 <div class="col-12 col-md-4">
                     <h3 class="font-playfair fw-bold fs-2 text-lux-black mb-3">LUXELLE</h3>
                     <p class="text-lux-gray small fw-light mb-4 lh-relaxed max-w-sm">Crafting timeless designs for the modern sophisticated woman. Luxury handbags designed with heart and soul.</p>
@@ -172,18 +114,16 @@
                     </div>
                 </div>
 
-                <!-- Column 2: Shop Links -->
                 <div class="col-6 col-md-2 offset-md-1">
                     <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Shop</h6>
                     <ul class="list-unstyled d-flex flex-column gap-2 small">
-                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Handbags</a></li>
-                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Accessories</a></li>
+                        <li><a href="{% url 'product_list' %}" class="text-decoration-none text-lux-gray hover-lux-gold">Handbags</a></li>
+                        <li><a href="{% url 'deals' %}" class="text-decoration-none text-lux-gray hover-lux-gold">Deals</a></li>
                         <li><a href="{% url 'collections' %}" class="text-decoration-none text-lux-gray hover-lux-gold">Collections</a></li>
-                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">New Arrivals</a></li>
+                        <li><a href="{% url 'product_list' %}?sort=latest" class="text-decoration-none text-lux-gray hover-lux-gold">New Arrivals</a></li>
                     </ul>
                 </div>
 
-                <!-- Column 3: Company Links -->
                 <div class="col-6 col-md-2">
                     <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Company</h6>
                     <ul class="list-unstyled d-flex flex-column gap-2 small">
@@ -193,7 +133,6 @@
                     </ul>
                 </div>
 
-                <!-- Column 4: Customer Care -->
                 <div class="col-12 col-md-3">
                     <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Customer Care</h6>
                     <ul class="list-unstyled d-flex flex-column gap-2 small">
@@ -205,7 +144,6 @@
                 </div>
             </div>
 
-            <!-- Copyright and Bottom Line -->
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-center pt-4 mt-5 border-top border-light text-lux-gray small fw-light">
                 <p class="mb-2 mb-md-0">&copy; 2026 Luxelle. Crafted by Antigravity.</p>
                 <div class="d-flex gap-4">
@@ -216,7 +154,6 @@
         </div>
     </footer>
 
-    <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <!-- Toast Notifications -->
