@@ -1,7 +1,10 @@
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.db.models import Q, Min, Avg, F
 
 
 import logging
 import math
+from itertools import groupby
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,7 +40,7 @@ from .forms import (
     SetNewPasswordForm,
     UserProfileForm,
 )
-from .models import Address, CustomUser, UserProfile, OTPVerification
+from .models import Address, CustomUser, UserProfile, OTPVerification, Product, Category, Brand, Review, Wishlist, Cart, CartItem, ProductVariant
 from .utils import (
     check_resend_cooldown,
     clear_pending_user_session,
@@ -92,8 +95,57 @@ def _get_pending_otp_resend_seconds_remaining(request):
 # HOME
 
 def home_view(request):
+    base_qs = Product.objects.filter(
+        is_deleted=False,
+        is_listed=True,
+        category__is_deleted=False,
+        category__is_listed=True,
+    ).select_related("brand", "category").prefetch_related("variants__images")
 
-    return render(request, "home.html")
+    in_stock_qs = base_qs.filter(
+        variants__is_deleted=False,
+        variants__is_listed=True,
+        variants__stock__gt=0,
+    ).distinct()
+
+    featured_products = in_stock_qs.filter(is_featured=True).order_by(
+        F("featured_at").desc(nulls_last=True), "-created_at"
+    )[:4]
+
+    wishlist_ids = set()
+    if request.user.is_authenticated:
+        wishlist_ids = set(Wishlist.objects.filter(user=request.user).values_list("product_id", flat=True))
+
+    context = {
+        "featured_products": featured_products,
+        "wishlist_ids": wishlist_ids,
+    }
+    return render(request, "home.html", context)
+
+
+# DEALS
+
+def deals_view(request):
+    deal_products = Product.objects.filter(
+        is_deleted=False,
+        is_listed=True,
+        is_deal_of_day=True,
+        category__is_deleted=False,
+        category__is_listed=True,
+        variants__is_deleted=False,
+        variants__is_listed=True,
+        variants__stock__gt=0,
+    ).select_related("brand", "category").prefetch_related("variants__images").distinct().order_by("-updated_at")
+
+    wishlist_ids = set()
+    if request.user.is_authenticated:
+        wishlist_ids = set(Wishlist.objects.filter(user=request.user).values_list("product_id", flat=True))
+
+    context = {
+        "deal_products": deal_products,
+        "wishlist_ids": wishlist_ids,
+    }
+    return render(request, "deals.html", context)
 
 
 # REGISTRATION
@@ -752,6 +804,171 @@ def address_set_default_view(request, address_id):
         messages.success(request, "Default address updated.")
     return redirect("addresses")
 
+def product_list_view(request):
+    products = Product.objects.filter(
+        is_deleted=False,
+        is_listed=True,
+        category__is_deleted=False,
+        category__is_listed=True,
+    ).select_related("brand", "category").prefetch_related("variants__images")
+    
+    search = request.GET.get("search", "").strip()
+    sort = request.GET.get("sort", "latest")
+    category = request.GET.get("category", "").strip()
+    brand = request.GET.get("brand", "").strip()
+    min_price = request.GET.get("min_price", "").strip()
+    max_price = request.GET.get("max_price", "").strip()
+
+    if search:
+        products = products.filter(
+            Q(name__icontains=search) | Q(brand__name__icontains=search)
+        ).distinct()
+    if category.isdigit():
+        products = products.filter(category_id=category)
+
+    if brand.isdigit():
+        products = products.filter(brand_id=brand)
+    
+    products = products.annotate(price=Min("variants__sale_price"))
+
+    if min_price.isdigit():
+        products = products.filter(price__gte=min_price)
+
+    if max_price.isdigit():
+        products = products.filter(price__lte=max_price)
+    
+    sort_options = {
+        "latest": "-created_at",
+        "price_low": "price",
+        "price_high":"-price",
+        "az":"name",
+        "za":"-name"
+    }
+    products = products.order_by(sort_options.get(sort, "-created_at"))
+
+    paginator = Paginator(products, 12)
+    page_number = request.GET.get("page")
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+    
+    wishlist_ids = set()
+    cart_product_ids = set()
+    if request.user.is_authenticated:
+        wishlist_ids = set(Wishlist.objects.filter(user=request.user).values_list("product_id", flat=True))
+        cart_product_ids = set(
+            CartItem.objects.filter(cart__user=request.user).values_list("variant__product_id", flat=True)
+        )
+
+    context = {
+        "products" : page_obj.object_list,
+        "page_obj" : page_obj,
+        "is_paginated" : page_obj.has_other_pages(),
+        "search_query": search,
+        "sort": sort,
+        "selected_category": category,
+        "selected_brand": brand,
+        "min_price": min_price,
+        "max_price": max_price,
+        "categories": Category.objects.filter(is_deleted=False, is_listed=True).order_by("name"),
+        "brands": Brand.objects.filter(is_deleted=False).order_by("name"),
+        "wishlist_ids": wishlist_ids,
+        "cart_product_ids": cart_product_ids,
+    }
+    return render(request, "product_list.html", context)
+
+
+def collections_view(request):
+    products = Product.objects.filter(
+        is_deleted=False,
+        is_listed=True,
+        category__is_deleted=False,
+        category__is_listed=True,
+    ).select_related("brand", "category").prefetch_related("variants__images")
+
+    products = products.order_by("category__name", "-created_at")
+
+    paginator = Paginator(products, 12)
+    page_number = request.GET.get("page")
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    wishlist_ids = set()
+    cart_product_ids = set()
+    if request.user.is_authenticated:
+        wishlist_ids = set(Wishlist.objects.filter(user=request.user).values_list("product_id", flat=True))
+        cart_product_ids = set(
+            CartItem.objects.filter(cart__user=request.user).values_list("variant__product_id", flat=True)
+        )
+
+    categorized_products = []
+    for category, items in groupby(page_obj.object_list, key=lambda p: p.category):
+        categorized_products.append({"category": category, "products": list(items)})
+
+    context = {
+        "products": page_obj.object_list,
+        "categorized_products": categorized_products,
+        "page_obj": page_obj,
+        "is_paginated": page_obj.has_other_pages(),
+        "wishlist_ids": wishlist_ids,
+        "cart_product_ids": cart_product_ids,
+    }
+    return render(request, "collections.html", context)
+
+
+def product_detail_view(request, slug):
+    product = get_object_or_404(Product, slug=slug, is_deleted=False)
+    if not product.is_listed or product.category.is_deleted or not product.category.is_listed:
+        messages.error(request, "This product is no longer available.")
+        return redirect("product_list")
+    variants=product.variants.filter(is_deleted=False, is_listed=True)
+    variant_id = request.GET.get("variant", "").strip()
+    variant=None
+    if variant_id.isdigit():
+        variant = variants.filter(id=variant_id).first()
+    if not variant:
+        variant = product.default_variant
+    
+    reviews = Review.objects.filter(product=product).select_related("user")
+    review_count = reviews.count()
+    avg_rating = reviews.aggregate(Avg("rating"))["rating__avg"]
+
+    related_products = Product.objects.filter(
+        category=product.category,
+        is_deleted=False,
+        is_listed=True,
+    ).exclude(id=product.id).select_related("brand").prefetch_related("variants__images")[:4]
+
+    in_wishlist = False
+    in_cart = False
+    if request.user.is_authenticated:
+        in_wishlist = Wishlist.objects.filter(user=request.user, product=product).exists()
+        in_cart = CartItem.objects.filter(cart__user=request.user, variant__product=product).exists()
+
+    max_qty = min(variant.stock, CartItem.MAX_QUANTITY) if variant else 0
+
+    context = {
+        "product": product,
+        "variant": variant,
+        "variants": variants,
+        "avg_rating": avg_rating,
+        "review_count": review_count,
+        "reviews": reviews[:6],
+        "related_products": related_products,
+        "in_wishlist": in_wishlist,
+        "in_cart": in_cart,
+        "max_qty": max_qty,
+    }
+    return render(request,"product_detail.html",context)
+
+
 
 # PLACEHOLDERS
 
@@ -764,5 +981,183 @@ def orders_view(request):
 @login_required
 @never_cache
 def wishlist_view(request):
-    return render(request, "wishlist.html")
+    items = Wishlist.objects.filter(
+        user=request.user,
+        product__is_deleted=False,
+        product__is_listed=True,
+        product__category__is_deleted=False,
+        product__category__is_listed=True,
+    ).select_related("product", "product__brand", "product__category").prefetch_related("product__variants__images")
+
+    cart_product_ids = set(
+        CartItem.objects.filter(cart__user=request.user).values_list("variant__product_id", flat=True)
+    )
+
+    return render(request, "wishlist.html", {"items": items, "cart_product_ids": cart_product_ids})
+
+
+@login_required
+@require_POST
+def toggle_wishlist_view(request, product_id):
+    product = get_object_or_404(Product, pk=product_id, is_deleted=False)
+
+    existing = Wishlist.objects.filter(user=request.user, product=product)
+    if existing.exists():
+        existing.delete()
+        messages.success(request, "Removed from your wishlist.")
+    else:
+        Wishlist.objects.create(user=request.user, product=product)
+        messages.success(request, "Added to your wishlist.")
+
+    next_url = request.POST.get("next") or "product_list"
+    return redirect(next_url)
+
+
+@login_required
+@require_POST
+def add_all_wishlist_to_cart_view(request):
+    items = Wishlist.objects.filter(
+        user=request.user,
+        product__is_deleted=False,
+        product__is_listed=True,
+        product__category__is_deleted=False,
+        product__category__is_listed=True,
+    ).select_related("product")
+
+    cart, _ = Cart.objects.get_or_create(user=request.user)
+    cart_product_ids = set(
+        CartItem.objects.filter(cart=cart).values_list("variant__product_id", flat=True)
+    )
+
+    added = already_in_cart = unavailable = 0
+
+    for item in items:
+        product = item.product
+        if product.id in cart_product_ids:
+            already_in_cart += 1
+            item.delete()
+            continue
+
+        variant = product.default_variant
+        if not variant or not variant.is_listed or variant.stock == 0:
+            unavailable += 1
+            continue
+
+        CartItem.objects.create(cart=cart, variant=variant, quantity=1)
+        cart_product_ids.add(product.id)
+        item.delete()
+        added += 1
+
+    if added:
+        messages.success(request, f"Added {added} item{'s' if added != 1 else ''} to your cart.")
+    if already_in_cart:
+        messages.info(request, f"{already_in_cart} item{'s' if already_in_cart != 1 else ''} already in your cart.")
+    if unavailable:
+        messages.warning(request, f"{unavailable} item{'s' if unavailable != 1 else ''} out of stock and could not be added.")
+    if not items:
+        messages.info(request, "Your wishlist is empty.")
+
+    return redirect("wishlist")
+
+
+@login_required
+@never_cache
+def cart_view(request):
+    cart, created = Cart.objects.get_or_create(user=request.user)
+    items = list(cart.items.select_related(
+        "variant__product", "variant__product__category", "variant__product__brand"
+    ))
+
+    can_checkout = bool(items)
+    for item in items:
+        product = item.variant.product
+        item.is_blocked = (
+            product.is_deleted or not product.is_listed
+            or product.category.is_deleted or not product.category.is_listed
+            or item.variant.is_deleted or not item.variant.is_listed
+        )
+        item.is_out_of_stock = item.variant.stock == 0
+        item.max_qty = min(item.variant.stock, CartItem.MAX_QUANTITY)
+
+        if item.is_blocked or item.is_out_of_stock:
+            can_checkout = False
+
+    context = {
+        "cart": cart,
+        "items": items,
+        "can_checkout": can_checkout,
+    }
+    return render(request, "cart.html", context)
+
+
+@login_required
+@require_POST
+def add_to_cart_view(request, variant_id):
+    variant = ProductVariant.objects.filter(pk=variant_id, is_deleted=False).select_related("product", "product__category").first()
+    if not variant:
+        messages.error(request, "This item is no longer available.")
+        return redirect("product_list")
+
+    product = variant.product
+
+    if (not variant.is_listed or product.is_deleted or not product.is_listed
+            or product.category.is_deleted or not product.category.is_listed):
+        messages.error(request, "This product is no longer available.")
+        return redirect("product_list")
+
+    if variant.stock == 0:
+        messages.error(request, "This item is out of stock.")
+        return redirect("product_detail", slug=product.slug)
+
+    qty = request.POST.get("quantity", "1")
+    qty = int(qty) if qty.isdigit() and int(qty) > 0 else 1
+
+    cart, created = Cart.objects.get_or_create(user=request.user)
+    item, item_created = CartItem.objects.get_or_create(cart=cart, variant=variant, defaults={"quantity": qty})
+    if not item_created:
+        item.quantity += qty
+
+    max_allowed = min(variant.stock, CartItem.MAX_QUANTITY)
+    if item.quantity > max_allowed:
+        item.quantity = max_allowed
+        messages.warning(request, f"Only {max_allowed} of this item can be added to your cart.")
+
+    item.save()
+
+    Wishlist.objects.filter(user=request.user, product=product).delete()
+
+    messages.success(request, "Added to your cart.")
+    return redirect("cart")
+
+
+@login_required
+@require_POST
+def update_cart_item_view(request, item_id):
+    item = get_object_or_404(CartItem, pk=item_id, cart__user=request.user)
+    action = request.POST.get("action")
+
+    if action == "increment":
+        max_allowed = min(item.variant.stock, CartItem.MAX_QUANTITY)
+        if item.quantity < max_allowed:
+            item.quantity += 1
+            item.save()
+        else:
+            messages.warning(request, "You've reached the maximum quantity for this item.")
+    elif action == "decrement":
+        if item.quantity > 1:
+            item.quantity -= 1
+            item.save()
+        else:
+            item.delete()
+
+    return redirect("cart")
+
+
+@login_required
+@require_POST
+def remove_from_cart_view(request, item_id):
+    item = get_object_or_404(CartItem, pk=item_id, cart__user=request.user)
+    item.delete()
+    messages.success(request, "Item removed from your cart.")
+    return redirect("cart")
 
