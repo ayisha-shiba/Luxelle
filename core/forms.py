@@ -10,6 +10,9 @@ from .models import CustomUser, UserProfile, Address, Category, Product, Product
 
 PRODUCT_NAME_RE = re.compile(r"^[A-Za-z0-9 '\-]+$")
 HEX_COLOR_RE    = re.compile(r"^#[0-9A-Fa-f]{6}$")
+COLOR_NAME_RE   = re.compile(r"^[A-Za-z][A-Za-z \-()]*$")
+CLOSURE_TYPE_RE = re.compile(r"^[a-z][a-z0-9]*$")
+DIMENSION_RE    = re.compile(r"^\d{1,3}(\.\d{1,2})?$")
 
 PHONE_NORMALIZATION_REGEX = re.compile(r"[^\d+]")
 PHONE_ALLOWED_CHARS_REGEX = re.compile(r"^\+?[0-9\-\s\(\)]{10,20}$")
@@ -631,9 +634,43 @@ class ProductVariantForm(forms.ModelForm):
         self.fields["material"].required = True
         self.fields["is_offer"].required  = False
         self.fields["is_listed"].required = False
-        for name in ("color_hex", "original_price", "sale_price", "stock",
+        for name in ("color", "color_hex", "original_price", "sale_price", "stock",
                      "width_cm", "height_cm", "depth_cm", "compartments", "pattern"):
             self.fields[name].required = True
+
+        # Friendly required-field messages instead of Django's generic
+        # "This field is required."
+        required_messages = {
+            "color":          "Please enter a color for this variant.",
+            "color_hex":      "Please pick a colour.",
+            "material":       "Please select a material.",
+            "original_price": "Please enter the MRP.",
+            "sale_price":     "Please enter the sale price.",
+            "stock":          "Please enter the stock quantity.",
+            "width_cm":       "Please enter the width in cm.",
+            "height_cm":      "Please enter the height in cm.",
+            "depth_cm":       "Please enter the depth in cm.",
+            "compartments":   "Please enter the number of compartments.",
+            "pattern":        "Please select a pattern.",
+        }
+        for name, message in required_messages.items():
+            self.fields[name].error_messages["required"] = message
+
+        self.fields["material"].error_messages["invalid_choice"] = "Please select a valid material."
+        self.fields["size"].error_messages["invalid_choice"]     = "Please select a valid size."
+        self.fields["pattern"].error_messages["invalid_choice"]  = "Please select a valid pattern."
+
+        # Width/height/depth: friendly messages for non-numeric input,
+        # too many digits, or too many decimal places (covers "1e10"-style
+        # scientific notation that Decimal would otherwise accept).
+        dimension_labels = {"width_cm": "Width", "height_cm": "Height", "depth_cm": "Depth"}
+        for name, label in dimension_labels.items():
+            self.fields[name].error_messages.update({
+                "invalid":             f"{label} must be a valid number using digits only (e.g. 30 or 30.5).",
+                "max_digits":          f"{label} is too large — enter a number up to 100.",
+                "max_decimal_places":  f"{label} can have at most 2 decimal places.",
+                "max_whole_digits":    f"{label} is too large — enter a number up to 100.",
+            })
 
         # Closure type: allow admins to add new closure types on the fly,
         # so it can't be a fixed ChoiceField - any short string is valid.
@@ -650,11 +687,17 @@ class ProductVariantForm(forms.ModelForm):
         self.fields["closure_type"] = forms.CharField(
             max_length=20,
             required=True,
+            error_messages={"required": "Please select or enter a closure type."},
             widget=forms.Select(choices=closure_choices, attrs={"id": "closureSelect"}),
         )
 
     def clean_color(self):
-        return (self.cleaned_data.get("color") or "").strip()
+        value = (self.cleaned_data.get("color") or "").strip()
+        if not value:
+            raise ValidationError("Please enter a color for this variant.")
+        if not COLOR_NAME_RE.match(value):
+            raise ValidationError("Color must contain only letters, spaces, hyphens and brackets (e.g. Black, Noir (Black)).")
+        return value
 
     def clean_color_hex(self):
         value = (self.cleaned_data.get("color_hex") or "").strip()
@@ -691,6 +734,12 @@ class ProductVariantForm(forms.ModelForm):
         return stock
 
     def _clean_dimension(self, field, label):
+        raw = self.data.get(self.add_prefix(field))
+        if raw and not DIMENSION_RE.match(raw.strip()):
+            raise ValidationError(
+                f"{label} must be a number using digits only, e.g. 30 or 30.5 "
+                f"(letters and 'e' notation are not allowed)."
+            )
         value = self.cleaned_data.get(field)
         if value is None:
             raise ValidationError(f"{label} is required.")
@@ -715,6 +764,17 @@ class ProductVariantForm(forms.ModelForm):
             raise ValidationError("Number of compartments is required.")
         if value < 1 or value > 20:
             raise ValidationError("Compartments must be between 1 and 20.")
+        return value
+
+    def clean_closure_type(self):
+        value = (self.cleaned_data.get("closure_type") or "").strip().lower()
+        if not value:
+            raise ValidationError("Please select or enter a closure type.")
+        if not CLOSURE_TYPE_RE.match(value):
+            raise ValidationError(
+                "Closure type must start with a letter and contain only letters and numbers "
+                "(no spaces or symbols)."
+            )
         return value
 
     def clean_sku(self):

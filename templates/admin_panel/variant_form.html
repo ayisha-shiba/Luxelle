@@ -119,6 +119,7 @@
                         <input type="text" name="color" maxlength="50" value="{{ variant_form.color.value|default:'' }}" placeholder="Colour name (e.g. Black)">
                     </div>
                     {% if variant_form.color_hex.errors %}<div class="field-err">{{ variant_form.color_hex.errors.0 }}</div>{% endif %}
+                    {% if variant_form.color.errors %}<div class="field-err">{{ variant_form.color.errors.0 }}</div>{% endif %}
                 </div>
                 <div class="fg">
                     <label>Material <span class="req">*</span></label>
