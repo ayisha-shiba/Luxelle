@@ -242,6 +242,7 @@ class Product(models.Model):
     gender         = models.CharField(max_length=10, choices=GENDER_CHOICES, default="unisex")
     is_listed      = models.BooleanField(default=True)
     is_featured    = models.BooleanField(default=False)
+    featured_at    = models.DateTimeField(null=True, blank=True)
     is_deal_of_day = models.BooleanField(default=False)
     is_deleted     = models.BooleanField(default=False)
     created_at     = models.DateTimeField(auto_now_add=True)
@@ -268,6 +269,11 @@ class Product(models.Model):
     def default_variant(self):
         return (self.variants.filter(is_default=True, is_deleted=False).first()
                 or self.variants.filter(is_deleted=False).first())
+
+    @property
+    def display_variant(self):
+        listed = self.variants.filter(is_deleted=False, is_listed=True)
+        return listed.filter(is_default=True).first() or listed.first()
 
 
 class ProductVariant(models.Model):
@@ -304,7 +310,7 @@ class ProductVariant(models.Model):
     depth_cm       = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
 
     # Bag details
-    closure_type   = models.CharField(max_length=20, choices=CLOSURE_CHOICES, blank=True)
+    closure_type   = models.CharField(max_length=20, blank=True)
     compartments   = models.PositiveIntegerField(null=True, blank=True)
     pattern        = models.CharField(max_length=20, choices=PATTERN_CHOICES, blank=True)
 
@@ -324,7 +330,14 @@ class ProductVariant(models.Model):
         ordering = ["-is_default", "created_at"]
 
     def __str__(self):
-        return f"{self.product.name} - {self.variant_name}"
+        return self.variant_name
+
+    def save(self, *args, **kwargs):
+        if self.is_default:
+            ProductVariant.objects.filter(
+                product_id=self.product_id, is_default=True
+            ).exclude(pk=self.pk).update(is_default=False)
+        super().save(*args, **kwargs)
 
     @property
     def discount_percent(self):
@@ -344,6 +357,93 @@ class VariantImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.variant}"
-    
+
+
+class Review(models.Model):
+    RATING_CHOICES = [
+        (1, "1"),
+        (2, "2"),
+        (3, "3"),
+        (4, "4"),
+        (5, "5"),
+    ]
+
+    product    = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="reviews")
+    user       = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="reviews")
+    rating     = models.PositiveSmallIntegerField(choices=RATING_CHOICES)
+    comment    = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user} rated {self.product} - {self.rating}"
+
+
+class Wishlist(models.Model):
+    user     = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="wishlist_items")
+    product  = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="wishlisted_by")
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-added_at"]
+        unique_together = ("user", "product")
+
+    def __str__(self):
+        return f"{self.user} - {self.product}"
+
+
+class Cart(models.Model):
+    user       = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="cart")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Cart of {self.user}"
+
+    @property
+    def total_price(self):
+        return sum(item.total_price for item in self.items.all())
+
+    @property
+    def total_items(self):
+        return sum(item.quantity for item in self.items.all())
+
+    @property
+    def subtotal(self):
+        return sum(item.subtotal for item in self.items.all())
+
+    @property
+    def total_discount(self):
+        return sum(item.discount_amount for item in self.items.all())
+
+
+class CartItem(models.Model):
+    MAX_QUANTITY = 5
+
+    cart     = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
+    variant  = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, related_name="cart_items")
+    quantity = models.PositiveIntegerField(default=1)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-added_at"]
+        unique_together = ("cart", "variant")
+
+    def __str__(self):
+        return f"{self.quantity} x {self.variant}"
+
+    @property
+    def total_price(self):
+        return self.variant.sale_price * self.quantity
+
+    @property
+    def subtotal(self):
+        return self.variant.original_price * self.quantity
+
+    @property
+    def discount_amount(self):
+        return self.subtotal - self.total_price
 
 

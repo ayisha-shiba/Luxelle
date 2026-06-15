@@ -1,0 +1,296 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle Admin - {{ product.name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/admin_common.css' %}" rel="stylesheet">
+    <style>
+        .alert { margin-bottom: 1.5rem; border-radius: 8px; padding: 1rem 1.25rem; }
+        .alert-success { background-color: rgba(39,174,96,0.1); border:1px solid rgba(39,174,96,0.3); color:#27ae60; }
+        .alert-error { background-color: rgba(231,76,60,0.1); border:1px solid rgba(231,76,60,0.3); color:#e74c3c; }
+
+        .breadcrumb-bar { font-size:0.78rem; color:#888; margin-bottom:0.5rem; }
+        .breadcrumb-bar a { color:#888; text-decoration:none; }
+        .breadcrumb-bar a:hover { color:#c5a059; }
+
+        .action-btns { display:flex; gap:0.6rem; align-items:center; }
+        .act-btn { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:6px; border:none; cursor:pointer; font-size:0.9rem; transition:all .3s cubic-bezier(.16,1,.3,1); text-decoration:none; color:white; }
+        .act-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.2); }
+        .act-btn-edit { background-color:#3498db; }
+        .act-btn-edit:hover { background-color:#2980b9; }
+        .act-btn-del { background-color:#e74c3c; }
+        .act-btn-del:hover { background-color:#c0392b; }
+        .act-btn-restore { background-color:#27ae60; }
+        .act-btn-restore:hover { background-color:#219150; }
+        .act-btn i { pointer-events:none; }
+
+        .variant-count-badge { display:inline-block; background:rgba(52,152,219,0.12); color:#3498db; font-size:0.7rem; font-weight:700; padding:0.25rem 0.6rem; border-radius:20px; margin-left:0.6rem; vertical-align:middle; }
+        .badge-trash { background:rgba(231,76,60,0.12); color:#e74c3c; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.72rem; font-weight:700; }
+
+        .prod-thumb { width:52px; height:52px; border-radius:10px; object-fit:cover; background:#1a1a1a; border:1px solid rgba(255,255,255,0.08); }
+        .variant-sku { font-size:0.72rem; color:#777; }
+
+        .price-old { text-decoration:line-through; color:#888; font-size:0.8rem; }
+        .price-now { font-weight:700; color:#fff; }
+        .off-badge { display:inline-block; background:rgba(243,156,18,0.15); color:#f39c12; font-size:0.68rem; font-weight:700; padding:2px 7px; border-radius:6px; margin-left:4px; }
+
+        .badge-active   { background:rgba(39,174,96,0.12); color:#27ae60; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.72rem; font-weight:700; text-decoration:none; }
+        .badge-inactive { background:rgba(149,165,166,0.15); color:#95a5a6; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.72rem; font-weight:700; text-decoration:none; }
+        .badge-default  { background:rgba(197,160,89,0.15); color:#c5a059; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.7rem; font-weight:700; }
+        .badge-low  { background:rgba(243,156,18,0.12); color:#f39c12; padding:2px 7px; border-radius:6px; font-size:0.65rem; font-weight:700; margin-left:6px; }
+        .badge-out  { background:rgba(231,76,60,0.12); color:#e74c3c; padding:2px 7px; border-radius:6px; font-size:0.65rem; font-weight:700; margin-left:6px; }
+
+        .set-default-btn { background:transparent; border:1px solid rgba(197,160,89,0.3); color:#c5a059; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.7rem; font-weight:700; cursor:pointer; text-decoration:none; white-space:nowrap; }
+        .set-default-btn:hover { background:rgba(197,160,89,0.1); }
+
+        .color-swatch-sm { display:inline-block; width:20px; height:20px; border-radius:50%; border:1px solid rgba(255,255,255,0.25); vertical-align:middle; margin-right:6px; }
+
+        .detail-panel { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.75rem; margin-bottom:1.75rem; }
+        .detail-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1.25rem; }
+        @media (max-width: 900px) { .detail-grid { grid-template-columns:repeat(2,1fr); } }
+        .detail-item .d-label { font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--gray); font-weight:600; margin-bottom:0.35rem; }
+        .detail-item .d-value { font-size:0.9rem; color:#fff; }
+        .detail-desc { margin-top:1.25rem; padding-top:1.25rem; border-top:1px solid var(--border); font-size:0.85rem; color:#ccc; line-height:1.7; }
+    </style>
+</head>
+<body>
+    {% include 'admin_panel/partials/sidebar.html' with active='products' %}
+
+    <main class="main">
+        <div class="breadcrumb-bar"><a href="{% url 'admin_products' %}"><i class="fa-solid fa-arrow-left"></i> Back to Products</a></div>
+        <div class="top-bar">
+            <div><h1 class="page-title">{{ product.name }}</h1><p class="page-sub">Manage variants and view product details.</p></div>
+            <div class="top-actions" style="display:flex; gap:0.75rem;">
+                <a href="{% url 'admin_variant_add' product.id %}" class="top-btn top-btn-gold"><i class="fa-solid fa-plus"></i> Add Variant</a>
+                <a href="{% url 'admin_product_edit' product.id %}" class="top-btn"><i class="fa-solid fa-pen"></i> Edit Product</a>
+                <button class="top-btn" style="border-color:rgba(231,76,60,0.3); color:#e74c3c;" onclick="openDeleteModal()"><i class="fa-solid fa-trash"></i> Delete</button>
+            </div>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="stats-row">
+            <div class="stat-card"><div class="stat-label">Total Variants</div><div class="stat-value">{{ total_variants }}</div></div>
+            <div class="stat-card"><div class="stat-label">Total Stock</div><div class="stat-value">{{ total_stock }}</div></div>
+            <div class="stat-card"><div class="stat-label">Active Variants</div><div class="stat-value">{{ active_variant_count }}</div></div>
+            <div class="stat-card"><div class="stat-label">Out of Stock</div><div class="stat-value">{{ out_of_stock_count }}</div></div>
+        </div>
+
+        <div class="detail-panel">
+            <div class="panel-title"><i class="fa-solid fa-circle-info"></i> Product Details</div>
+            <div class="detail-grid">
+                <div class="detail-item"><div class="d-label">Category</div><div class="d-value">{{ product.category.name }}</div></div>
+                <div class="detail-item"><div class="d-label">Brand</div><div class="d-value">{{ product.brand.name|default:"—" }}</div></div>
+                <div class="detail-item"><div class="d-label">Gender</div><div class="d-value">{{ product.get_gender_display }}</div></div>
+                <div class="detail-item">
+                    <div class="d-label">Status</div>
+                    <div class="d-value">
+                        {% if product.is_listed %}<span class="badge-active">ACTIVE</span>{% else %}<span class="badge-inactive">INACTIVE</span>{% endif %}
+                    </div>
+                </div>
+                <div class="detail-item"><div class="d-label">Featured Product</div><div class="d-value">{% if product.is_featured %}Yes{% else %}No{% endif %}</div></div>
+                <div class="detail-item"><div class="d-label">Deal of the Day</div><div class="d-value">{% if product.is_deal_of_day %}Yes{% else %}No{% endif %}</div></div>
+                <div class="detail-item"><div class="d-label">Slug</div><div class="d-value">{{ product.slug }}</div></div>
+                <div class="detail-item"><div class="d-label">Created</div><div class="d-value">{{ product.created_at|date:"d M Y" }}</div></div>
+            </div>
+            <div class="detail-desc">{{ product.description }}</div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">
+                <i class="fa-solid fa-layer-group"></i> Variant Management
+                <span class="variant-count-badge">{{ variants|length }} Variant{{ variants|length|pluralize }}</span>
+            </div>
+
+            <div class="filter-bar">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="variantSearch" placeholder="Search variants by name, SKU, color, material..." onkeyup="applyVariantFilters()">
+                </div>
+                <select class="filter-select" id="stockFilter" onchange="applyVariantFilters()">
+                    <option value="all">All Stock</option>
+                    <option value="in">In Stock</option>
+                    <option value="low">Low Stock</option>
+                    <option value="out">Out of Stock</option>
+                </select>
+                {% if show == 'trash' %}
+                    <a href="{% url 'admin_product_detail' product.id %}" class="top-btn"><i class="fa-solid fa-arrow-left"></i> Back to Active</a>
+                {% else %}
+                    <a href="?show=trash" class="top-btn {% if trash_count %}top-btn-gold{% endif %}"><i class="fa-solid fa-trash"></i> Trash{% if trash_count %} ({{ trash_count }}){% endif %}</a>
+                {% endif %}
+            </div>
+
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Preview</th>
+                        <th>Variant Name &amp; SKU</th>
+                        <th>Color</th>
+                        <th>Size</th>
+                        <th>Material</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th>Status</th>
+                        <th>Default</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="variantTableBody">
+                    {% if variants %}
+                        {% for v in variants %}
+                            <tr data-search="{{ v.variant_name|lower }} {{ v.sku|lower }} {{ v.color|default:''|lower }} {{ v.material.name|default:''|lower }}" data-stock="{{ v.stock }}">
+                                <td>
+                                    <img class="prod-thumb" src="{% if v.images.first %}{{ v.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}" alt="{{ v.variant_name }}">
+                                </td>
+                                <td>
+                                    <div>{{ v.variant_name }}</div>
+                                    <div class="variant-sku">SKU: {{ v.sku }}</div>
+                                </td>
+                                <td>
+                                    {% if v.color_hex %}<span class="color-swatch-sm" style="background:{{ v.color_hex }};"></span>{% endif %}
+                                    {{ v.color|default:"—" }}
+                                </td>
+                                <td>{{ v.get_size_display|default:"—" }}</td>
+                                <td>{{ v.material.name|default:"—" }}</td>
+                                <td>
+                                    {% if v.discount_percent %}<span class="price-old">₹{{ v.original_price }}</span><br>{% endif %}
+                                    <span class="price-now">₹{{ v.sale_price }}</span>
+                                    {% if v.discount_percent %}<span class="off-badge">{{ v.discount_percent }}% OFF</span>{% endif %}
+                                </td>
+                                <td>
+                                    {{ v.stock }}
+                                    {% if v.stock == 0 %}<span class="badge-out">OUT</span>{% elif v.stock <= 5 %}<span class="badge-low">LOW</span>{% endif %}
+                                </td>
+                                {% if show == 'trash' %}
+                                    <td><span class="badge-trash">In Trash</span></td>
+                                    <td>—</td>
+                                    <td>
+                                        <div class="action-btns">
+                                            <a href="{% url 'admin_variant_restore' v.id %}" class="act-btn act-btn-restore" title="Restore"><i class="fa-solid fa-rotate-left"></i></a>
+                                        </div>
+                                    </td>
+                                {% else %}
+                                    <td>
+                                        {% if v.is_listed %}
+                                            <a href="{% url 'admin_variant_toggle_status' v.id %}" class="badge-active" title="Click to set Inactive">ACTIVE</a>
+                                        {% else %}
+                                            <a href="{% url 'admin_variant_toggle_status' v.id %}" class="badge-inactive" title="Click to set Active">INACTIVE</a>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if v.is_default %}
+                                            <span class="badge-default">Default</span>
+                                        {% else %}
+                                            <a href="{% url 'admin_variant_set_default' v.id %}" class="set-default-btn">Set Default</a>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="action-btns">
+                                            <a href="{% url 'admin_variant_edit' v.id %}" class="act-btn act-btn-edit" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                                            <button class="act-btn act-btn-del" title="Delete" onclick="openVariantDeleteModal('{{ v.id }}', '{{ v.variant_name|escapejs }}')"><i class="fa-solid fa-trash"></i></button>
+                                        </div>
+                                    </td>
+                                {% endif %}
+                            </tr>
+                        {% endfor %}
+                        <tr id="noResultsRow" style="display:none;">
+                            <td colspan="10" style="text-align:center; padding:2rem; color:#888;">
+                                <i class="fa-solid fa-magnifying-glass" style="font-size:2rem; margin-bottom:1rem; display:block;"></i>
+                                No variants match your filters.
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="10" style="text-align:center; padding:2rem; color:#888;">
+                                <i class="fa-solid fa-inbox" style="font-size:2rem; margin-bottom:1rem; display:block;"></i>
+                                {% if show == 'trash' %}Trash is empty.{% else %}No variants found.{% endif %}
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Delete Product Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-box">
+            <div class="modal-icon"><i class="fa-solid fa-trash-can"></i></div>
+            <h3 class="modal-title">Delete Product?</h3>
+            <p class="modal-desc">This moves <strong>{{ product.name }}</strong> to Trash. You can restore it later from the Trash section.</p>
+            <div class="modal-actions">
+                <button class="mbtn mbtn-cancel" onclick="closeDeleteModal()">Cancel</button>
+                <a href="{% url 'admin_product_delete' product.id %}" class="mbtn mbtn-danger">Move to Trash</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Variant Modal -->
+    <div class="modal-overlay" id="variantDeleteModal">
+        <div class="modal-box">
+            <div class="modal-icon"><i class="fa-solid fa-trash-can"></i></div>
+            <h3 class="modal-title">Delete Variant?</h3>
+            <p class="modal-desc">This moves <strong id="varDelName"></strong> to Trash. You can restore it later from the Trash section.</p>
+            <div class="modal-actions">
+                <button class="mbtn mbtn-cancel" onclick="closeVariantDeleteModal()">Cancel</button>
+                <a href="#" class="mbtn mbtn-danger" id="confirmVariantDeleteBtn">Move to Trash</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function openDeleteModal() { document.getElementById('deleteModal').classList.add('show'); }
+        function closeDeleteModal() { document.getElementById('deleteModal').classList.remove('show'); }
+
+        function openVariantDeleteModal(id, name) {
+            document.getElementById('varDelName').textContent = name;
+            document.getElementById('confirmVariantDeleteBtn').href = `/admin-panel/variants/${id}/delete/`;
+            document.getElementById('variantDeleteModal').classList.add('show');
+        }
+        function closeVariantDeleteModal() { document.getElementById('variantDeleteModal').classList.remove('show'); }
+
+        function applyVariantFilters() {
+            const searchTerm = document.getElementById('variantSearch').value.trim().toLowerCase();
+            const stockFilter = document.getElementById('stockFilter').value;
+            const rows = document.querySelectorAll('#variantTableBody tr[data-search]');
+            let visibleCount = 0;
+
+            rows.forEach(row => {
+                const matchesSearch = !searchTerm || row.dataset.search.includes(searchTerm);
+
+                const stock = parseInt(row.dataset.stock, 10);
+                let matchesStock = true;
+                if (stockFilter === 'in') matchesStock = stock > 5;
+                else if (stockFilter === 'low') matchesStock = stock > 0 && stock <= 5;
+                else if (stockFilter === 'out') matchesStock = stock === 0;
+
+                const visible = matchesSearch && matchesStock;
+                row.style.display = visible ? '' : 'none';
+                if (visible) visibleCount++;
+            });
+
+            const noResultsRow = document.getElementById('noResultsRow');
+            if (noResultsRow) {
+                noResultsRow.style.display = visibleCount === 0 ? '' : 'none';
+            }
+        }
+
+        document.querySelectorAll('.modal-overlay').forEach(m => {
+            m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
+        });
+    </script>
+</body>
+</html>

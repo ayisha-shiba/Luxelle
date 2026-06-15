@@ -1,0 +1,341 @@
+{% load static %}
+<!--
+  CONTEXT CONTRACT — product_list_view must put these in context:
+    products        : iterable of Product (page_obj.object_list)
+    page_obj        : Django Paginator page
+    is_paginated    : bool
+    search_query    : str   (current ?search)
+    sort            : str   (latest | price_low | price_high | az | za)
+    selected_category, selected_brand : str ids (current filters)
+    min_price, max_price : str
+    categories      : active Category queryset (for the filter dropdown)
+    brands          : active Brand queryset (for the filter dropdown)
+    wishlist_ids    : set of product IDs the logged-in user has wishlisted
+    cart_product_ids: set of product IDs already in the logged-in user's cart
+  Each product: product.name, product.brand.name,
+    and product.default_variant -> v.sale_price, v.original_price, v.discount_percent, v.stock, v.images.first
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop | Luxelle</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{% static 'image/favicon.svg' %}">
+    <link rel="icon" type="image/x-icon" href="{% static 'image/favicon.ico' %}">
+    <link rel="apple-touch-icon" href="{% static 'image/apple-touch-icon.png' %}">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    <style>
+        /* Compact inputs for the filter sidebar */
+        .filter-select, .filter-input {
+            border: 1px solid var(--lux-gray-light);
+            border-radius: 8px;
+            padding: 0.6rem 0.8rem;
+            font-size: 0.85rem;
+            width: 100%;
+            background-color: #F9F9F9;
+            transition: var(--transition-smooth);
+        }
+        .filter-select:focus, .filter-input:focus {
+            background-color: var(--lux-white);
+            border-color: var(--lux-gold);
+            box-shadow: 0 0 0 3px rgba(201, 162, 106, 0.15);
+            outline: none;
+        }
+        .filter-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--lux-gray);
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        /* Pagination */
+        .pagination .page-link {
+            color: var(--lux-black);
+            border-color: var(--lux-gray-light);
+        }
+        .pagination .page-link:hover {
+            color: var(--lux-gold);
+        }
+        .pagination .page-item.active .page-link {
+            background-color: var(--lux-black);
+            border-color: var(--lux-black);
+            color: var(--lux-white);
+        }
+
+        /* Hover-to-reveal cart action on product cards */
+        .product-img-wrapper .cart-overlay {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 0.6rem;
+            background: linear-gradient(to top, rgba(0,0,0,0.6), rgba(0,0,0,0));
+            opacity: 0;
+            transform: translateY(100%);
+            transition: var(--transition-smooth);
+            z-index: 2;
+        }
+        .product-card:hover .cart-overlay {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="bg-lux-beige">
+
+    <!-- =========================================
+       Premium Header / Navigation
+       ========================================= -->
+    {% include 'partials/navbar.html' with active='shop' %}
+
+    <!-- =========================================
+       Page Header
+       ========================================= -->
+    <section class="py-5 px-4 text-center bg-lux-beige">
+        <p class="text-uppercase text-lux-gold tracking-widest small mb-2 fw-semibold">The Art of Selection</p>
+        <h1 class="font-playfair display-4 fw-bold text-lux-black mb-2">The Collection</h1>
+        <p class="text-lux-gray fw-light font-inter mb-0">Explore timeless handbags curated for every style and occasion.</p>
+        <div class="mx-auto mt-3" style="width:60px;height:2px;background-color:var(--lux-gold);"></div>
+    </section>
+
+    <div class="container py-5">
+
+        <!-- Search + Sort -->
+        <form method="GET" action="{% url 'product_list' %}" id="toolbarForm" class="row g-3 align-items-center mb-4">
+            <div class="col-12 col-md-7 col-lg-8">
+                <div class="position-relative">
+                    <i class="fa-solid fa-magnifying-glass position-absolute top-50 start-0 translate-middle-y ms-3 text-lux-gray"></i>
+                    <input type="text" name="search" value="{{ search_query|default:'' }}" class="form-control custom-input ps-5" placeholder="Search bags, brands...">
+                    {% if search_query %}
+                    <a href="?sort={{ sort }}&category={{ selected_category }}&brand={{ selected_brand }}&min_price={{ min_price }}&max_price={{ max_price }}" class="position-absolute top-50 end-0 translate-middle-y me-3 text-lux-gray hover-lux-red" title="Clear search">
+                        <i class="fa-solid fa-xmark"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-12 col-md-5 col-lg-4">
+                <select name="sort" class="form-select custom-input" onchange="document.getElementById('toolbarForm').submit()">
+                    <option value="latest"     {% if sort == 'latest' %}selected{% endif %}>Newest</option>
+                    <option value="price_low"  {% if sort == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                    <option value="price_high" {% if sort == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                    <option value="az"         {% if sort == 'az' %}selected{% endif %}>Name: A-Z</option>
+                    <option value="za"         {% if sort == 'za' %}selected{% endif %}>Name: Z-A</option>
+                </select>
+            </div>
+            {# keep active filters when searching/sorting #}
+            <input type="hidden" name="category" value="{{ selected_category|default:'' }}">
+            <input type="hidden" name="brand" value="{{ selected_brand|default:'' }}">
+            <input type="hidden" name="min_price" value="{{ min_price|default:'' }}">
+            <input type="hidden" name="max_price" value="{{ max_price|default:'' }}">
+        </form>
+
+        <div class="row g-4">
+            <!-- Filters -->
+            <aside class="col-lg-3">
+                <div class="bg-white rounded-4 border border-light shadow-sm p-4">
+                    <h6 class="font-playfair fs-5 fw-bold text-lux-black mb-3">Filters</h6>
+                    <form method="GET" action="{% url 'product_list' %}">
+                        <input type="hidden" name="search" value="{{ search_query|default:'' }}">
+                        <input type="hidden" name="sort" value="{{ sort|default:'' }}">
+
+                        <label class="filter-label">Category</label>
+                        <select name="category" class="filter-select mb-3">
+                            <option value="">All Categories</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:'s' %}selected{% endif %}>{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <label class="filter-label">Brand</label>
+                        <select name="brand" class="filter-select mb-3">
+                            <option value="">All Brands</option>
+                            {% for b in brands %}
+                                <option value="{{ b.id }}" {% if selected_brand == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <label class="filter-label">Price Range (₹)</label>
+                        <div class="d-flex gap-2 mb-3">
+                            <input type="number" name="min_price" min="0" class="filter-input" placeholder="Min" value="{{ min_price|default:'' }}">
+                            <input type="number" name="max_price" min="0" class="filter-input" placeholder="Max" value="{{ max_price|default:'' }}">
+                        </div>
+
+                        <button type="submit" class="luxury-btn w-100 text-white text-uppercase tracking-wider small border-0 py-2">Apply Filters</button>
+                        <a href="{% url 'product_list' %}" class="d-block text-center text-lux-gray hover-lux-gold small mt-3">Reset all</a>
+                    </form>
+                </div>
+            </aside>
+
+            <!-- Products -->
+            <section class="col-lg-9">
+                {% if products %}
+                    <div class="row g-4 row-cols-1 row-cols-sm-2 row-cols-lg-3">
+                        {% for product in products %}
+                            {% with v=product.display_variant %}
+                            <div class="col">
+                                <div class="product-card bg-white rounded-4 overflow-hidden border border-light shadow-sm p-3 d-flex flex-column h-100 position-relative">
+                                    {% if request.user.is_authenticated %}
+                                    <form method="post" action="{% url 'toggle_wishlist' product.id %}" class="position-absolute top-0 end-0 m-2" style="z-index: 2;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <button type="submit" class="btn btn-light btn-sm rounded-circle shadow-sm d-flex align-items-center justify-content-center" style="width:36px; height:36px;" title="{% if product.id in wishlist_ids %}Remove from wishlist{% else %}Add to wishlist{% endif %}">
+                                            {% if product.id in wishlist_ids %}
+                                                <i class="fa-solid fa-heart text-danger"></i>
+                                            {% else %}
+                                                <i class="fa-regular fa-heart text-lux-black"></i>
+                                            {% endif %}
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    <div class="product-img-wrapper bg-light rounded-3 overflow-hidden position-relative mb-3">
+                                        <a href="{% url 'product_detail' product.slug %}" class="d-block h-100 text-decoration-none">
+                                            <img src="{% if v and v.images.first %}{{ v.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}" alt="{{ product.name }}" class="w-100 h-100 object-fit-cover hover-scale-110" style="transition: var(--transition-smooth); object-fit:cover;">
+                                            {% if v and v.discount_percent %}
+                                                <span class="badge bg-lux-gold text-white text-uppercase tracking-wider position-absolute top-0 start-0 m-2 small py-2 px-3 rounded-2 fw-semibold">{{ v.discount_percent }}% Off</span>
+                                            {% endif %}
+                                            {% if not v or v.stock == 0 %}
+                                                <span class="badge bg-lux-black text-white text-uppercase tracking-wider position-absolute top-0 end-0 m-2 small py-2 px-3 rounded-2 fw-semibold">Sold Out</span>
+                                            {% endif %}
+                                        </a>
+                                        <div class="cart-overlay">
+                                            {% if product.id in cart_product_ids %}
+                                            <a href="{% url 'cart' %}" class="luxury-btn text-white text-uppercase tracking-wider px-3 py-2 border-0 w-100 text-center text-decoration-none small d-block">
+                                                <i class="fa-solid fa-bag-shopping me-2"></i> View Cart
+                                            </a>
+                                            {% elif v and v.stock > 0 %}
+                                            <form method="post" action="{% url 'add_to_cart' v.id %}">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="quantity" value="1">
+                                                <button type="submit" class="luxury-btn text-white text-uppercase tracking-wider px-3 py-2 border-0 w-100 small">
+                                                    <i class="fa-solid fa-cart-plus me-2"></i> Add to Cart
+                                                </button>
+                                            </form>
+                                            {% else %}
+                                            <button class="luxury-btn text-white text-uppercase tracking-wider px-3 py-2 border-0 w-100 small" disabled>
+                                                <i class="fa-solid fa-bag-shopping me-2"></i> Out of Stock
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <a href="{% url 'product_detail' product.slug %}" class="d-flex flex-column flex-grow-1 text-decoration-none">
+                                        <div class="text-uppercase text-lux-gray tracking-wider mb-1" style="font-size:0.7rem;">{{ product.brand.name|default:"Luxelle" }}</div>
+                                        <h4 class="font-playfair text-lux-black fs-6 fw-bold mb-2">{{ product.name }}</h4>
+                                        <div class="mt-auto">
+                                            {% if v %}
+                                                <span class="font-inter fw-bold text-lux-black fs-5">₹{{ v.sale_price }}</span>
+                                                {% if v.discount_percent %}<span class="text-lux-gray text-decoration-line-through small ms-2">₹{{ v.original_price }}</span>{% endif %}
+                                            {% else %}
+                                                <span class="text-lux-gray">Unavailable</span>
+                                            {% endif %}
+                                        </div>
+                                    </a>
+                                </div>
+                            </div>
+                            {% endwith %}
+                        {% endfor %}
+                    </div>
+
+                    {% if is_paginated %}
+                    <nav class="mt-5">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search_query }}&sort={{ sort }}&category={{ selected_category }}&brand={{ selected_brand }}&min_price={{ min_price }}&max_price={{ max_price }}">Prev</a></li>
+                            {% endif %}
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if num == page_obj.number %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% else %}
+                                    <li class="page-item"><a class="page-link" href="?page={{ num }}&search={{ search_query }}&sort={{ sort }}&category={{ selected_category }}&brand={{ selected_brand }}&min_price={{ min_price }}&max_price={{ max_price }}">{{ num }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+                            {% if page_obj.has_next %}
+                                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search_query }}&sort={{ sort }}&category={{ selected_category }}&brand={{ selected_brand }}&min_price={{ min_price }}&max_price={{ max_price }}">Next</a></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fa-solid fa-bag-shopping mb-3 d-block" style="font-size:2.4rem; color:var(--lux-gray-light);"></i>
+                        <p class="text-lux-gray">No products match your search.</p>
+                    </div>
+                {% endif %}
+            </section>
+        </div>
+    </div>
+
+    <!-- =========================================
+       Footer Section
+       ========================================= -->
+    <footer class="bg-white border-top border-light pt-5 px-4 font-inter">
+        <div class="container pt-4 pb-5">
+            <div class="row g-5">
+                <div class="col-12 col-md-4">
+                    <h3 class="font-playfair fw-bold fs-2 text-lux-black mb-3">LUXELLE</h3>
+                    <p class="text-lux-gray small fw-light mb-4 lh-relaxed max-w-sm">Crafting timeless designs for the modern sophisticated woman. Luxury handbags designed with heart and soul.</p>
+                    <div class="d-flex align-items-center gap-3 social-icons text-lux-black">
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-instagram fs-4"></i></a>
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-pinterest fs-4"></i></a>
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-facebook fs-4"></i></a>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-2 offset-md-1">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Shop</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="{% url 'product_list' %}" class="text-decoration-none text-lux-gray hover-lux-gold">Handbags</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Accessories</a></li>
+                        <li><a href="{% url 'product_list' %}?sort=latest" class="text-decoration-none text-lux-gray hover-lux-gold">New Arrivals</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-6 col-md-2">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Company</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Our Story</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Careers</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Terms & Services</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Customer Care</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Contact Us</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Shipping & Returns</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">FAQ</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Privacy Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center pt-4 mt-5 border-top border-light text-lux-gray small fw-light">
+                <p class="mb-2 mb-md-0">&copy; 2026 Luxelle. Crafted by Antigravity.</p>
+                <div class="d-flex gap-4">
+                    <a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Terms of Use</a>
+                    <a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Privacy Policy</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Toast Notifications -->
+    {% include 'partials/toast.html' %}
+</body>
+</html>

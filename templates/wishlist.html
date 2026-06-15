@@ -1,0 +1,196 @@
+{% load static %}
+<!--
+  CONTEXT CONTRACT — wishlist_view must put these in context:
+    items : queryset of Wishlist (select_related product/brand,
+            prefetch_related product__variants__images), latest first
+            - excludes products that are inactive, soft deleted, or in an
+              inactive/deleted category
+    cart_product_ids : set of product ids already in the user's cart
+
+  Each item: item.product, item.added_at
+    product.default_variant -> v.sale_price, v.original_price, v.discount_percent, v.stock, v.images.first
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Wishlist | Luxelle</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{% static 'image/favicon.svg' %}">
+    <link rel="icon" type="image/x-icon" href="{% static 'image/favicon.ico' %}">
+    <link rel="apple-touch-icon" href="{% static 'image/apple-touch-icon.png' %}">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    <style>
+        .breadcrumb-bar a { color: var(--lux-gray); text-decoration:none; }
+        .breadcrumb-bar a:hover { color: var(--lux-gold); }
+    </style>
+</head>
+<body class="bg-lux-beige">
+
+    <!-- =========================================
+       Premium Header / Navigation
+       ========================================= -->
+    {% include 'partials/navbar.html' with active='wishlist' %}
+
+    <!-- Breadcrumb -->
+    <div class="container pt-4 breadcrumb-bar small text-uppercase tracking-wider">
+        <a href="{% url 'home' %}">Home</a>
+        <span class="text-lux-gray mx-1">/</span>
+        <span class="text-lux-black">My Wishlist</span>
+    </div>
+
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+            <h1 class="font-playfair fw-bold text-lux-black mb-0">My Wishlist</h1>
+            {% if items %}
+            <form method="post" action="{% url 'add_all_wishlist_to_cart' %}">
+                {% csrf_token %}
+                <button type="submit" class="luxury-btn text-white text-uppercase tracking-wider px-4 py-2 border-0">
+                    <i class="fa-solid fa-cart-plus me-2"></i> Add All to Cart
+                </button>
+            </form>
+            {% endif %}
+        </div>
+
+        {% if items %}
+        <div class="row g-4 row-cols-1 row-cols-sm-2 row-cols-lg-3">
+            {% for item in items %}
+                {% with product=item.product v=item.product.display_variant %}
+                <div class="col">
+                    <div class="product-card bg-white rounded-4 overflow-hidden border border-light shadow-sm p-3 d-flex flex-column h-100 position-relative">
+                        <form method="post" action="{% url 'toggle_wishlist' product.id %}" class="position-absolute top-0 end-0 m-2" style="z-index: 2;">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            <button type="submit" class="btn btn-light btn-sm rounded-circle shadow-sm d-flex align-items-center justify-content-center" style="width:36px; height:36px;" title="Remove from wishlist">
+                                <i class="fa-solid fa-heart text-danger"></i>
+                            </button>
+                        </form>
+
+                        <a href="{% url 'product_detail' product.slug %}" class="d-flex flex-column h-100 text-decoration-none">
+                            <div class="product-img-wrapper bg-light rounded-3 overflow-hidden position-relative mb-3">
+                                <img src="{% if v and v.images.first %}{{ v.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}" alt="{{ product.name }}" class="w-100 h-100 object-fit-cover hover-scale-110" style="transition: var(--transition-smooth); object-fit:cover;">
+                                {% if v and v.discount_percent %}
+                                    <span class="badge bg-lux-gold text-white text-uppercase tracking-wider position-absolute top-0 start-0 m-2 small py-2 px-3 rounded-2 fw-semibold">{{ v.discount_percent }}% Off</span>
+                                {% endif %}
+                                {% if not v or v.stock == 0 %}
+                                    <span class="badge bg-lux-black text-white text-uppercase tracking-wider position-absolute top-0 end-0 m-2 small py-2 px-3 rounded-2 fw-semibold">Sold Out</span>
+                                {% endif %}
+                            </div>
+                            <div class="text-uppercase text-lux-gray tracking-wider mb-1" style="font-size:0.7rem;">{{ product.brand.name|default:"Luxelle" }}</div>
+                            <h4 class="font-playfair text-lux-black fs-6 fw-bold mb-2">{{ product.name }}</h4>
+                            <div class="mb-3">
+                                {% if v %}
+                                    <span class="font-inter fw-bold text-lux-black fs-5">₹{{ v.sale_price }}</span>
+                                    {% if v.discount_percent %}<span class="text-lux-gray text-decoration-line-through small ms-2">₹{{ v.original_price }}</span>{% endif %}
+                                {% else %}
+                                    <span class="text-lux-gray">Unavailable</span>
+                                {% endif %}
+                            </div>
+                        </a>
+
+                        {% if product.id in cart_product_ids %}
+                        <a href="{% url 'cart' %}" class="luxury-btn text-white text-uppercase tracking-wider px-4 py-2 border-0 w-100 text-center text-decoration-none mt-auto">
+                            <i class="fa-solid fa-bag-shopping me-2"></i> View Cart
+                        </a>
+                        {% elif v and v.stock > 0 %}
+                        <form method="post" action="{% url 'add_to_cart' v.id %}" class="mt-auto">
+                            {% csrf_token %}
+                            <input type="hidden" name="quantity" value="1">
+                            <button type="submit" class="luxury-btn text-white text-uppercase tracking-wider px-4 py-2 border-0 w-100">
+                                <i class="fa-solid fa-bag-shopping me-2"></i> Move to Cart
+                            </button>
+                        </form>
+                        {% else %}
+                        <button class="luxury-btn text-white text-uppercase tracking-wider px-4 py-2 border-0 w-100 mt-auto" disabled>
+                            <i class="fa-solid fa-bag-shopping me-2"></i> Out of Stock
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endwith %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- =========================================
+           Empty Wishlist
+           ========================================= -->
+        <div class="text-center py-5">
+            <i class="fa-regular fa-heart fs-1 text-lux-gold mb-3"></i>
+            <h3 class="font-playfair fw-bold text-lux-black mb-2">Your wishlist is empty</h3>
+            <p class="text-lux-gray mb-4">Save items you love and they'll appear here.</p>
+            <a href="{% url 'product_list' %}" class="luxury-btn text-white text-uppercase tracking-wider px-4 py-3 border-0 text-decoration-none d-inline-block">Start Shopping</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- =========================================
+       Footer Section
+       ========================================= -->
+    <footer class="bg-white border-top border-light pt-5 px-4 font-inter mt-5">
+        <div class="container pt-4 pb-5">
+            <div class="row g-5">
+                <div class="col-12 col-md-4">
+                    <h3 class="font-playfair fw-bold fs-2 text-lux-black mb-3">LUXELLE</h3>
+                    <p class="text-lux-gray small fw-light mb-4 lh-relaxed max-w-sm">Crafting timeless designs for the modern sophisticated woman. Luxury handbags designed with heart and soul.</p>
+                    <div class="d-flex align-items-center gap-3 social-icons text-lux-black">
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-instagram fs-4"></i></a>
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-pinterest fs-4"></i></a>
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-facebook fs-4"></i></a>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-2 offset-md-1">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Shop</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="{% url 'product_list' %}" class="text-decoration-none text-lux-gray hover-lux-gold">Handbags</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Accessories</a></li>
+                        <li><a href="{% url 'product_list' %}?sort=latest" class="text-decoration-none text-lux-gray hover-lux-gold">New Arrivals</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-6 col-md-2">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Company</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Our Story</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Careers</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Terms & Services</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Customer Care</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Contact Us</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Shipping & Returns</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">FAQ</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Privacy Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center pt-4 mt-5 border-top border-light text-lux-gray small fw-light">
+                <p class="mb-2 mb-md-0">&copy; 2026 Luxelle. Crafted by Antigravity.</p>
+                <div class="d-flex gap-4">
+                    <a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Terms of Use</a>
+                    <a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Privacy Policy</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Toast Notifications -->
+    {% include 'partials/toast.html' %}
+</body>
+</html>

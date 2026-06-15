@@ -8,6 +8,7 @@ from django.shortcuts import redirect, render
 from django.http import HttpResponseRedirect, JsonResponse
 from django.views.decorators.cache import never_cache
 from django.urls import reverse
+from django.utils import timezone
 from .decorators import admin_required
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q, Min, Sum
@@ -15,7 +16,6 @@ from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from PIL import Image, ImageOps
-import random
 import io
 import re
 import hashlib
@@ -564,12 +564,31 @@ def admin_product_toggle_status_view(request, product_id):
     return redirect(request.META.get("HTTP_REFERER") or "admin_products")
 
 
-def _generate_unique_sku(product):
-    base = (product.slug or "prod").upper().replace("-", "")[:8]
-    while True:
-        sku = f"{base}-{random.randint(1000, 9999)}"
-        if not ProductVariant.objects.filter(sku=sku).exists():
-            return sku
+def _sku_segment(value):
+    value = re.sub(r"[^A-Za-z0-9\s-]", "", value or "")
+    value = re.sub(r"[\s-]+", "-", value.strip())
+    return value.upper().strip("-")
+
+
+def _generate_unique_sku(product, variant):
+    parts = []
+    if product.category_id:
+        parts.append(_sku_segment(product.category.name))
+    if product.brand_id:
+        parts.append(_sku_segment(product.brand.name))
+    if variant.color:
+        parts.append(_sku_segment(variant.color))
+    if variant.size:
+        parts.append(_sku_segment(variant.get_size_display()[:1]))
+
+    base = "-".join(p for p in parts if p) or "SKU"
+
+    sku = base
+    suffix = 0
+    while ProductVariant.objects.filter(sku__iexact=sku).exists():
+        suffix += 1
+        sku = f"{base}-{suffix}"
+    return sku
 
 
 def _build_variant_name(variant, product):
@@ -578,7 +597,8 @@ def _build_variant_name(variant, product):
         parts.append(variant.color.strip())
     if variant.material_id:
         parts.append(variant.material.name)
-    return " ".join(p for p in parts if p).strip() or product.name
+    attrs = " ".join(p for p in parts if p).strip()
+    return f"{product.name} - {attrs}" if attrs else product.name
 
 
 PRODUCT_IMAGE_SIZE  = (800, 800)
@@ -682,8 +702,8 @@ def admin_product_add_view(request):
         images       = request.FILES.getlist("images")
 
         extra_errors = []
-        if len(images) < 1:
-            extra_errors.append("Please upload at least 1 product image.")
+        if len(images) < 3:
+            extra_errors.append("Please upload at least 3 product images.")
         elif len(images) > 5:
             extra_errors.append("You can upload a maximum of 5 images.")
         processed_images = []
@@ -694,13 +714,16 @@ def admin_product_add_view(request):
 
         if product_form.is_valid() and variant_form.is_valid() and not extra_errors:
             with transaction.atomic():
-                product = product_form.save()
+                product = product_form.save(commit=False)
+                if product.is_featured:
+                    product.featured_at = timezone.now()
+                product.save()
                 variant = variant_form.save(commit=False)
                 variant.product      = product
                 variant.is_default   = True
                 variant.variant_name = _build_variant_name(variant, product)
                 if not variant.sku:
-                    variant.sku = _generate_unique_sku(product)
+                    variant.sku = _generate_unique_sku(product, variant)
                 variant.save()
                 for index, cf in enumerate(processed_images):
                     VariantImage.objects.create(variant=variant, image=cf, is_primary=(index == 0))
@@ -728,6 +751,7 @@ def admin_product_edit_view(request, product_id):
         messages.error(request, "Product not found.")
         return redirect("admin_products")
     variant = product.default_variant
+    was_featured = product.is_featured
 
     if request.method == "POST":
         data         = _apply_inline_new(request.POST.copy())
@@ -740,8 +764,8 @@ def admin_product_edit_view(request, product_id):
         total_after    = existing_after + len(new_images)
 
         extra_errors = []
-        if total_after < 1:
-            extra_errors.append("A product must keep at least 1 image.")
+        if total_after < 3:
+            extra_errors.append("A product must keep at least 3 images.")
         elif total_after > 5:
             extra_errors.append("A product can have a maximum of 5 images.")
         processed_images = []
@@ -752,13 +776,18 @@ def admin_product_edit_view(request, product_id):
 
         if product_form.is_valid() and variant_form.is_valid() and not extra_errors:
             with transaction.atomic():
-                product = product_form.save()
+                product = product_form.save(commit=False)
+                if product.is_featured and not was_featured:
+                    product.featured_at = timezone.now()
+                elif not product.is_featured:
+                    product.featured_at = None
+                product.save()
                 v = variant_form.save(commit=False)
                 v.product      = product
                 v.is_default   = True
                 v.variant_name = _build_variant_name(v, product)
                 if not v.sku:
-                    v.sku = _generate_unique_sku(product)
+                    v.sku = _generate_unique_sku(product, v)
                 v.save()
                 if delete_ids:
                     VariantImage.objects.filter(variant=v, id__in=delete_ids).delete()
@@ -790,4 +819,226 @@ def admin_product_edit_view(request, product_id):
         "materials":       Material.objects.all().order_by("name"),
     }
     return render(request, "admin_panel/product_form.html", context)
-    
+
+
+@admin_required
+def admin_product_detail_view(request, product_id):
+    product = (Product.objects
+               .select_related("category", "brand")
+               .filter(id=product_id, is_deleted=False)
+               .first())
+    if not product:
+        messages.error(request, "Product not found.")
+        return redirect("admin_products")
+
+    active_variants = product.variants.filter(is_deleted=False)
+    stock_total = active_variants.aggregate(total=Sum("stock"))["total"] or 0
+
+    show = request.GET.get("show")
+    if show == "trash":
+        variants = (product.variants
+                    .filter(is_deleted=True)
+                    .select_related("material")
+                    .prefetch_related("images"))
+    else:
+        show = "active"
+        variants = (active_variants
+                    .select_related("material")
+                    .prefetch_related("images"))
+
+    context = {
+        "product":              product,
+        "variants":             variants,
+        "show":                 show,
+        "total_variants":       active_variants.count(),
+        "total_stock":          stock_total,
+        "active_variant_count": active_variants.filter(is_listed=True).count(),
+        "out_of_stock_count":   active_variants.filter(stock=0).count(),
+        "trash_count":          product.variants.filter(is_deleted=True).count(),
+    }
+    return render(request, "admin_panel/product_detail.html", context)
+
+
+@admin_required
+def admin_variant_add_view(request, product_id):
+    product = Product.objects.filter(id=product_id, is_deleted=False).first()
+    if not product:
+        messages.error(request, "Product not found.")
+        return redirect("admin_products")
+
+    variant_form = ProductVariantForm(product=product)
+
+    if request.method == "POST":
+        variant_form = ProductVariantForm(request.POST, product=product)
+        images = request.FILES.getlist("images")
+
+        extra_errors = []
+        if len(images) < 3:
+            extra_errors.append("Please upload at least 3 variant images.")
+        elif len(images) > 5:
+            extra_errors.append("You can upload a maximum of 5 images.")
+        processed_images = []
+        if not extra_errors:
+            processed_images, img_err = _process_images(images)
+            if img_err:
+                extra_errors.append(img_err)
+
+        if variant_form.is_valid() and not extra_errors:
+            with transaction.atomic():
+                variant = variant_form.save(commit=False)
+                variant.product      = product
+                variant.is_default   = not product.variants.filter(is_deleted=False, is_default=True).exists()
+                variant.variant_name = _build_variant_name(variant, product)
+                if not variant.sku:
+                    variant.sku = _generate_unique_sku(product, variant)
+                variant.save()
+                for index, cf in enumerate(processed_images):
+                    VariantImage.objects.create(variant=variant, image=cf, is_primary=(index == 0))
+            messages.success(request, f"Variant '{variant.variant_name}' added.")
+            return redirect("admin_product_detail", product_id=product.id)
+
+        for err in extra_errors:
+            messages.error(request, err)
+
+    context = {
+        "mode":         "add",
+        "product":      product,
+        "variant_form": variant_form,
+        "materials":    Material.objects.all().order_by("name"),
+    }
+    return render(request, "admin_panel/variant_form.html", context)
+
+
+@admin_required
+def admin_variant_edit_view(request, variant_id):
+    variant = (ProductVariant.objects
+               .filter(id=variant_id, is_deleted=False)
+               .select_related("product")
+               .first())
+    if not variant:
+        messages.error(request, "Variant not found.")
+        return redirect("admin_products")
+    product = variant.product
+
+    if request.method == "POST":
+        variant_form = ProductVariantForm(request.POST, instance=variant)
+        new_images   = request.FILES.getlist("images")
+        delete_ids   = request.POST.getlist("delete_images")
+
+        existing_after = variant.images.exclude(id__in=delete_ids).count()
+        total_after    = existing_after + len(new_images)
+
+        extra_errors = []
+        if total_after < 3:
+            extra_errors.append("A variant must keep at least 3 images.")
+        elif total_after > 5:
+            extra_errors.append("A variant can have a maximum of 5 images.")
+        processed_images = []
+        if not extra_errors:
+            processed_images, img_err = _process_images(new_images)
+            if img_err:
+                extra_errors.append(img_err)
+
+        if variant_form.is_valid() and not extra_errors:
+            with transaction.atomic():
+                v = variant_form.save(commit=False)
+                v.variant_name = _build_variant_name(v, product)
+                if not v.sku:
+                    v.sku = _generate_unique_sku(product, v)
+                v.save()
+                if delete_ids:
+                    VariantImage.objects.filter(variant=v, id__in=delete_ids).delete()
+                for cf in processed_images:
+                    VariantImage.objects.create(variant=v, image=cf)
+                if not v.images.filter(is_primary=True).exists():
+                    first = v.images.first()
+                    if first:
+                        first.is_primary = True
+                        first.save(update_fields=["is_primary"])
+            messages.success(request, f"Variant '{v.variant_name}' updated.")
+            return redirect("admin_product_detail", product_id=product.id)
+
+        for err in extra_errors:
+            messages.error(request, err)
+    else:
+        variant_form = ProductVariantForm(instance=variant)
+
+    context = {
+        "mode":            "edit",
+        "product":         product,
+        "variant":         variant,
+        "existing_images": variant.images.all(),
+        "variant_form":    variant_form,
+        "materials":       Material.objects.all().order_by("name"),
+    }
+    return render(request, "admin_panel/variant_form.html", context)
+
+
+@admin_required
+def admin_variant_set_default_view(request, variant_id):
+    variant = ProductVariant.objects.filter(id=variant_id, is_deleted=False).first()
+    if not variant:
+        messages.error(request, "Variant not found.")
+        return redirect("admin_products")
+    variant.is_default = True
+    variant.save()
+    messages.success(request, f"'{variant.variant_name}' is now the default variant.")
+    return redirect("admin_product_detail", product_id=variant.product_id)
+
+
+@admin_required
+def admin_variant_toggle_status_view(request, variant_id):
+    variant = ProductVariant.objects.filter(id=variant_id, is_deleted=False).first()
+    if not variant:
+        messages.error(request, "Variant not found.")
+        return redirect("admin_products")
+    variant.is_listed = not variant.is_listed
+    variant.save(update_fields=["is_listed"])
+    state = "active" if variant.is_listed else "inactive"
+    messages.success(request, f"Variant '{variant.variant_name}' is now {state}.")
+    return redirect(request.META.get("HTTP_REFERER") or reverse("admin_product_detail", args=[variant.product_id]))
+
+
+@admin_required
+def admin_variant_delete_view(request, variant_id):
+    variant = (ProductVariant.objects
+               .filter(id=variant_id, is_deleted=False)
+               .select_related("product")
+               .first())
+    if not variant:
+        messages.error(request, "Variant not found.")
+        return redirect("admin_products")
+    product = variant.product
+
+    remaining = product.variants.filter(is_deleted=False).exclude(pk=variant.pk)
+    if not remaining.exists():
+        messages.error(request, "A product must keep at least one variant.")
+        return redirect("admin_product_detail", product_id=product.id)
+
+    with transaction.atomic():
+        was_default = variant.is_default
+        variant.is_deleted = True
+        variant.is_default = False
+        variant.save()
+        if was_default:
+            new_default = remaining.order_by("created_at").first()
+            new_default.is_default = True
+            new_default.save()
+
+    messages.success(request, f"Variant '{variant.variant_name}' moved to Trash.")
+    return redirect("admin_product_detail", product_id=product.id)
+
+
+@admin_required
+def admin_variant_restore_view(request, variant_id):
+    variant = (ProductVariant.objects
+               .filter(id=variant_id, is_deleted=True)
+               .select_related("product")
+               .first())
+    if not variant:
+        messages.error(request, "Variant not found.")
+        return redirect("admin_products")
+    variant.is_deleted = False
+    variant.save()
+    messages.success(request, f"Variant '{variant.variant_name}' restored.")
+    return redirect(f"{reverse('admin_product_detail', args=[variant.product_id])}?show=trash")

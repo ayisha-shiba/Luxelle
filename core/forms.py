@@ -551,7 +551,8 @@ class CategoryForm(forms.ModelForm):
 class ProductForm(forms.ModelForm):
     class Meta:
         model  = Product
-        fields = ["name", "short_description", "description", "category", "brand", "is_listed"]
+        fields = ["name", "short_description", "description", "category", "brand",
+                  "is_listed", "is_featured", "is_deal_of_day"]
         widgets = {
             "short_description": forms.TextInput(attrs={"placeholder": "One-line summary shown on listings"}),
         }
@@ -562,6 +563,8 @@ class ProductForm(forms.ModelForm):
         self.fields["category"].required = True
         self.fields["brand"].queryset    = Brand.objects.filter(is_deleted=False)
         self.fields["brand"].required    = True
+        self.fields["is_featured"].required    = False
+        self.fields["is_deal_of_day"].required = False
 
     def clean_name(self):
         name = (self.cleaned_data.get("name") or "").strip()
@@ -611,7 +614,8 @@ class ProductVariantForm(forms.ModelForm):
         fields = ["sku", "color", "color_hex", "material", "size",
                   "width_cm", "height_cm", "depth_cm",
                   "closure_type", "compartments", "pattern",
-                  "original_price", "sale_price", "stock"]
+                  "original_price", "sale_price", "stock",
+                  "is_offer", "is_listed"]
         widgets = {
             "color":        forms.TextInput(attrs={"placeholder": "Black, Brown, Beige"}),
             "width_cm":     forms.NumberInput(attrs={"placeholder": "30", "step": "0.01", "min": "1", "max": "100"}),
@@ -620,13 +624,34 @@ class ProductVariantForm(forms.ModelForm):
             "compartments": forms.NumberInput(attrs={"placeholder": "3", "min": "1", "max": "20"}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, product=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.product = product or (self.instance.product if self.instance.pk else None)
         self.fields["sku"].required      = False  # auto-generated when left blank
         self.fields["material"].required = True
+        self.fields["is_offer"].required  = False
+        self.fields["is_listed"].required = False
         for name in ("color_hex", "original_price", "sale_price", "stock",
-                     "width_cm", "height_cm", "depth_cm", "closure_type", "compartments", "pattern"):
+                     "width_cm", "height_cm", "depth_cm", "compartments", "pattern"):
             self.fields[name].required = True
+
+        # Closure type: allow admins to add new closure types on the fly,
+        # so it can't be a fixed ChoiceField - any short string is valid.
+        closure_choices = list(ProductVariant.CLOSURE_CHOICES)
+        known = {c[0] for c in closure_choices}
+        existing = (ProductVariant.objects
+                    .exclude(closure_type="")
+                    .values_list("closure_type", flat=True)
+                    .distinct())
+        for value in existing:
+            if value not in known:
+                closure_choices.append((value, value.replace("_", " ").title()))
+                known.add(value)
+        self.fields["closure_type"] = forms.CharField(
+            max_length=20,
+            required=True,
+            widget=forms.Select(choices=closure_choices, attrs={"id": "closureSelect"}),
+        )
 
     def clean_color(self):
         return (self.cleaned_data.get("color") or "").strip()
@@ -708,4 +733,19 @@ class ProductVariantForm(forms.ModelForm):
         sp = cleaned.get("sale_price")
         if op and sp and sp > op:
             self.add_error("sale_price", "Sale price cannot be greater than the MRP.")
+
+        if self.product:
+            duplicate = ProductVariant.objects.filter(
+                product=self.product,
+                is_deleted=False,
+                color__iexact=cleaned.get("color") or "",
+                size=cleaned.get("size") or "",
+                material=cleaned.get("material"),
+            )
+            if self.instance.pk:
+                duplicate = duplicate.exclude(pk=self.instance.pk)
+            if duplicate.exists():
+                raise ValidationError(
+                    "A variant with this Color, Size and Material combination already exists for this product."
+                )
         return cleaned

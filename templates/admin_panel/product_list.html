@@ -17,6 +17,8 @@
         .action-btns { display:flex; gap:0.6rem; align-items:center; }
         .act-btn { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:6px; border:none; cursor:pointer; font-size:0.9rem; transition:all .3s cubic-bezier(.16,1,.3,1); text-decoration:none; color:white; }
         .act-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.2); }
+        .act-btn-view { background-color:#9b59b6; }
+        .act-btn-view:hover { background-color:#8e44ad; }
         .act-btn-edit { background-color:#3498db; }
         .act-btn-edit:hover { background-color:#2980b9; }
         .act-btn-del { background-color:#e74c3c; }
@@ -158,6 +160,7 @@
                                         {% if status == 'trash' %}
                                             <a href="{% url 'admin_product_restore' product.id %}" class="act-btn act-btn-restore" title="Restore"><i class="fa-solid fa-rotate-left"></i></a>
                                         {% else %}
+                                            <a href="{% url 'admin_product_detail' product.id %}" class="act-btn act-btn-view" title="View"><i class="fa-solid fa-eye"></i></a>
                                             <a href="{% url 'admin_product_edit' product.id %}" class="act-btn act-btn-edit" title="Edit"><i class="fa-solid fa-pen"></i></a>
                                             <button class="act-btn act-btn-del" title="Delete" onclick="openDeleteModal('{{ product.id }}', '{{ product.name|escapejs }}')"><i class="fa-solid fa-trash"></i></button>
                                         {% endif %}
