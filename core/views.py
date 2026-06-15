@@ -21,6 +21,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from django.shortcuts import get_object_or_404, redirect, render
+from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
@@ -809,7 +810,9 @@ def product_list_view(request):
         is_listed=True,
         category__is_deleted=False,
         category__is_listed=True,
-    ).select_related("brand", "category").prefetch_related("variants__images")
+        variants__is_deleted=False,
+        variants__is_listed=True,
+    ).select_related("brand", "category").prefetch_related("variants__images").distinct()
     
     search = request.GET.get("search", "").strip()
     sort = request.GET.get("sort", "latest")
@@ -893,8 +896,6 @@ def product_detail_view(request, slug):
     if not variant:
         variant = variants.filter(is_default=True).first() or variants.first()
 
-    # One representative variant per distinct color/size, preferring the one
-    # that also matches the currently selected variant's other attribute.
     color_options = []
     size_options = []
     if variant:
@@ -919,8 +920,14 @@ def product_detail_view(request, slug):
 
     in_wishlist = False
     in_cart = False
+    wishlisted_variant_ids = []
     if request.user.is_authenticated:
-        in_wishlist = Wishlist.objects.filter(user=request.user, product=product).exists()
+        wishlisted_variant_ids = list(
+            Wishlist.objects.filter(user=request.user, product=product)
+            .values_list("variant_id", flat=True)
+        )
+        # Heart reflects the CURRENTLY selected variant, not the whole product.
+        in_wishlist = bool(variant) and variant.id in wishlisted_variant_ids
         in_cart = CartItem.objects.filter(cart__user=request.user, variant__product=product).exists()
 
     max_qty = min(variant.stock, CartItem.MAX_QUANTITY) if variant else 0
@@ -937,6 +944,7 @@ def product_detail_view(request, slug):
         "related_products": related_products,
         "in_wishlist": in_wishlist,
         "in_cart": in_cart,
+        "wishlisted_variant_ids": wishlisted_variant_ids,
         "max_qty": max_qty,
     }
     return render(request,"product_detail.html",context)
@@ -954,13 +962,41 @@ def orders_view(request):
 @login_required
 @never_cache
 def wishlist_view(request):
-    items = Wishlist.objects.filter(
-        user=request.user,
-        product__is_deleted=False,
-        product__is_listed=True,
-        product__category__is_deleted=False,
-        product__category__is_listed=True,
-    ).select_related("product", "product__brand", "product__category").prefetch_related("product__variants__images")
+    # Keep every wishlisted item visible — including products the admin has
+    # blocked/disabled — and flag each item's availability for the template.
+    items = list(
+        Wishlist.objects.filter(user=request.user)
+        .select_related("product", "product__brand", "product__category")
+        .prefetch_related("product__variants__images")
+    )
+
+    for item in items:
+        product = item.product
+        product_blocked = (
+            product.is_deleted or not product.is_listed
+            or product.category.is_deleted or not product.category.is_listed
+        )
+        # Evaluate the EXACT variant the user saved — never silently swap it.
+        variant = item.variant
+        variant_active = (
+            variant is not None and not variant.is_deleted and variant.is_listed
+        )
+        item.variant = variant
+        item.is_blocked = product_blocked
+        item.is_unavailable = product_blocked or not variant_active
+        item.is_out_of_stock = variant_active and variant.stock == 0
+        item.is_available = variant_active and variant.stock > 0
+
+        # If the saved variant is unavailable but the product itself is fine,
+        # offer the other active, in-stock variants so the user can switch.
+        if item.is_unavailable and not product_blocked:
+            item.alt_variants = [
+                v for v in product.variants.all()
+                if not v.is_deleted and v.is_listed and v.stock > 0
+                and (variant is None or v.id != variant.id)
+            ]
+        else:
+            item.alt_variants = []
 
     cart_product_ids = set(
         CartItem.objects.filter(cart__user=request.user).values_list("variant__product_id", flat=True)
@@ -972,30 +1008,92 @@ def wishlist_view(request):
 @login_required
 @require_POST
 def toggle_wishlist_view(request, product_id):
-    product = get_object_or_404(Product, pk=product_id, is_deleted=False)
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    variant_id = request.POST.get("variant", "")
+    variant_id = int(variant_id) if variant_id.isdigit() else None
 
-    existing = Wishlist.objects.filter(user=request.user, product=product)
-    if existing.exists():
-        existing.delete()
-        messages.success(request, "Removed from your wishlist.")
+    if variant_id is not None:
+        # Variant-level toggle (product detail page): add/remove ONLY this
+        # specific (user, variant) combination — never other variants.
+        entry = Wishlist.objects.filter(
+            user=request.user, product_id=product_id, variant_id=variant_id
+        )
+        if entry.exists():
+            entry.delete()
+            wishlisted = False
+        else:
+            product = get_object_or_404(Product, pk=product_id, is_deleted=False)
+            variant = ProductVariant.objects.filter(
+                pk=variant_id, product=product, is_deleted=False
+            ).first()
+            if variant is None:
+                if is_ajax:
+                    return JsonResponse({"error": "Variant unavailable."}, status=400)
+                messages.error(request, "This item is no longer available.")
+                return redirect(request.POST.get("next") or "product_list")
+            Wishlist.objects.create(user=request.user, product=product, variant=variant)
+            wishlisted = True
     else:
-        Wishlist.objects.create(user=request.user, product=product)
-        messages.success(request, "Added to your wishlist.")
+        # Product-level toggle (listing cards, no variant chosen): a product is
+        # "wishlisted" if any of its variants is, so remove all / add default.
+        entry = Wishlist.objects.filter(user=request.user, product_id=product_id)
+        if entry.exists():
+            entry.delete()
+            wishlisted = False
+        else:
+            product = get_object_or_404(Product, pk=product_id, is_deleted=False)
+            Wishlist.objects.create(
+                user=request.user, product=product, variant=product.display_variant
+            )
+            wishlisted = True
 
+    if is_ajax:
+        count = Wishlist.objects.filter(user=request.user).count()
+        return JsonResponse({"wishlisted": wishlisted, "wishlist_count": count})
+
+    messages.success(
+        request,
+        "Added to your wishlist." if wishlisted else "Removed from your wishlist.",
+    )
     next_url = request.POST.get("next") or "product_list"
     return redirect(next_url)
 
 
 @login_required
 @require_POST
+def wishlist_switch_variant_view(request, item_id):
+    item = Wishlist.objects.filter(pk=item_id, user=request.user).select_related("product").first()
+    if item is None:
+        return redirect("wishlist")
+
+    variant_id = request.POST.get("variant", "")
+    variant = None
+    if variant_id.isdigit():
+        variant = ProductVariant.objects.filter(
+            pk=variant_id, product=item.product, is_deleted=False, is_listed=True
+        ).first()
+
+    if variant is None or variant.stock == 0:
+        messages.error(request, "That variant is no longer available.")
+        return redirect("wishlist")
+
+    item.variant = variant
+    item.save(update_fields=["variant"])
+    messages.success(request, f"Switched to {variant.variant_name}.")
+    return redirect("wishlist")
+
+
+@login_required
+@require_POST
 def add_all_wishlist_to_cart_view(request):
-    items = Wishlist.objects.filter(
-        user=request.user,
-        product__is_deleted=False,
-        product__is_listed=True,
-        product__category__is_deleted=False,
-        product__category__is_listed=True,
-    ).select_related("product")
+    items = list(
+        Wishlist.objects.filter(user=request.user)
+        .select_related("product", "product__category")
+    )
+    total = len(items)
+    if total == 0:
+        messages.info(request, "Your wishlist is empty.")
+        return redirect("wishlist")
 
     cart, _ = Cart.objects.get_or_create(user=request.user)
     cart_product_ids = set(
@@ -1006,14 +1104,22 @@ def add_all_wishlist_to_cart_view(request):
 
     for item in items:
         product = item.product
+        product_blocked = (
+            product.is_deleted or not product.is_listed
+            or product.category.is_deleted or not product.category.is_listed
+        )
+        # Add the EXACT saved variant only — never substitute another one.
+        variant = item.variant
+        variant_active = variant is not None and not variant.is_deleted and variant.is_listed
+
+        # Unavailable items are skipped and kept in the wishlist.
+        if product_blocked or not variant_active or variant.stock == 0:
+            unavailable += 1
+            continue
+
         if product.id in cart_product_ids:
             already_in_cart += 1
             item.delete()
-            continue
-
-        variant = product.display_variant
-        if not variant or variant.stock == 0:
-            unavailable += 1
             continue
 
         CartItem.objects.create(cart=cart, variant=variant, quantity=1)
@@ -1022,13 +1128,17 @@ def add_all_wishlist_to_cart_view(request):
         added += 1
 
     if added:
-        messages.success(request, f"Added {added} item{'s' if added != 1 else ''} to your cart.")
+        messages.success(request, f"{added} of {total} item{'s' if total != 1 else ''} added to your cart.")
+    elif already_in_cart and not unavailable:
+        messages.info(request, "All items are already in your cart.")
     if already_in_cart:
         messages.info(request, f"{already_in_cart} item{'s' if already_in_cart != 1 else ''} already in your cart.")
     if unavailable:
-        messages.warning(request, f"{unavailable} item{'s' if unavailable != 1 else ''} out of stock and could not be added.")
-    if not items:
-        messages.info(request, "Your wishlist is empty.")
+        messages.warning(
+            request,
+            f"{unavailable} item{'s' if unavailable != 1 else ''} currently unavailable and "
+            f"{'were' if unavailable != 1 else 'was'} skipped — kept in your wishlist."
+        )
 
     return redirect("wishlist")
 
@@ -1042,6 +1152,7 @@ def cart_view(request):
     ))
 
     can_checkout = bool(items)
+    cart_total = 0
     for item in items:
         product = item.variant.product
         item.is_blocked = (
@@ -1049,15 +1160,31 @@ def cart_view(request):
             or product.category.is_deleted or not product.category.is_listed
             or item.variant.is_deleted or not item.variant.is_listed
         )
-        item.is_out_of_stock = item.variant.stock == 0
-        item.max_qty = min(item.variant.stock, CartItem.MAX_QUANTITY)
+        stock = item.variant.stock
+        item.is_out_of_stock = stock == 0
+
+        # Re-validate the stored quantity against current stock. For available
+        # items whose quantity now exceeds stock, clamp DOWN and persist it.
+        if not item.is_blocked and not item.is_out_of_stock and item.quantity > stock:
+            item.quantity = stock
+            item.save(update_fields=["quantity"])
+            messages.warning(
+                request,
+                f"{product.name}: quantity adjusted to {stock} — limited stock available.",
+            )
+
+        item.max_qty = min(stock, CartItem.MAX_QUANTITY)
 
         if item.is_blocked or item.is_out_of_stock:
             can_checkout = False
+        else:
+            # Only available items count toward the payable total.
+            cart_total += item.total_price
 
     context = {
         "cart": cart,
         "items": items,
+        "cart_total": cart_total,
         "can_checkout": can_checkout,
     }
     return render(request, "cart.html", context)

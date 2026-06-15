@@ -6,9 +6,7 @@ from django.views.decorators.cache import never_cache
 from django.contrib import messages
 
 
-# ─────────────────────────────────────────────
 # Helpers
-# ─────────────────────────────────────────────
 
 def _parse_iso(dt_str):
     if not dt_str:
@@ -43,9 +41,7 @@ def _clear_pending_user_otp_session(request):
         request.session.pop(key, None)
 
 
-# ─────────────────────────────────────────────
 # Anonymous Required
-# ─────────────────────────────────────────────
 
 def anonymous_required(redirect_url="home"):
     def decorator(view_func):
@@ -59,8 +55,7 @@ def anonymous_required(redirect_url="home"):
     return decorator
 
 
-# ─────────────────────────────────────────────
-# OTP Session Required# ─────────────────────────────────────────────
+# OTP Session Required# 
 
 def otp_session_required(view_func):
     @wraps(view_func)
@@ -104,9 +99,7 @@ def otp_session_required(view_func):
     return wrapper
 
 
-# ─────────────────────────────────────────────
 # Password Reset Session Required
-# ─────────────────────────────────────────────
 
 def password_reset_session_required(view_func):
     @wraps(view_func)

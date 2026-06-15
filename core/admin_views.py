@@ -7,6 +7,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import redirect, render
 from django.http import HttpResponseRedirect, JsonResponse
 from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_POST
 from django.urls import reverse
 from django.utils import timezone
 from .decorators import admin_required
@@ -325,8 +326,7 @@ def admin_reset_password_view(request):
 
 #ADMIN CATEGORY MANAGEMENT
 
-@admin_required
-def admin_category_list_view(request):
+def _category_list_context(request):
     search_query = request.GET.get("search", "").strip()
     status       = request.GET.get("status", "all")
 
@@ -354,7 +354,7 @@ def admin_category_list_view(request):
     except EmptyPage:
         page_obj = paginator.page(paginator.num_pages)
 
-    context = {
+    return {
         "categories":   page_obj.object_list,
         "page_obj":     page_obj,
         "is_paginated": page_obj.has_other_pages(),
@@ -362,7 +362,11 @@ def admin_category_list_view(request):
         "status":       status,
         "trash_count":  Category.objects.filter(is_deleted=True).count(),
     }
-    return render(request, "admin_panel/category_list.html", context)
+
+
+@admin_required
+def admin_category_list_view(request):
+    return render(request, "admin_panel/category_list.html", _category_list_context(request))
 
 
 @admin_required
@@ -372,10 +376,12 @@ def admin_category_add_view(request):
         if form.is_valid():
             form.save()
             messages.success(request, "Category added successfully.")
-        else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, error)
+            return redirect("admin_categories")
+
+        context = _category_list_context(request)
+        context["add_form"] = form
+        context["open_modal"] = "add"
+        return render(request, "admin_panel/category_list.html", context)
     return redirect("admin_categories")
 
 
@@ -391,10 +397,13 @@ def admin_category_edit_view(request, category_id):
         if form.is_valid():
             form.save()
             messages.success(request, "Category updated successfully.")
-        else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, error)
+            return redirect("admin_categories")
+
+        context = _category_list_context(request)
+        context["edit_form"] = form
+        context["edit_category"] = category
+        context["open_modal"] = "edit"
+        return render(request, "admin_panel/category_list.html", context)
     return redirect("admin_categories")
 
 
@@ -552,6 +561,7 @@ def admin_product_restore_view(request, product_id):
 
 
 @admin_required
+@require_POST
 def admin_product_toggle_status_view(request, product_id):
     product = Product.objects.filter(id=product_id, is_deleted=False).first()
     if not product:
@@ -721,6 +731,7 @@ def admin_product_add_view(request):
                 variant = variant_form.save(commit=False)
                 variant.product      = product
                 variant.is_default   = True
+                variant.is_listed    = True
                 variant.variant_name = _build_variant_name(variant, product)
                 if not variant.sku:
                     variant.sku = _generate_unique_sku(product, variant)
@@ -752,6 +763,7 @@ def admin_product_edit_view(request, product_id):
         return redirect("admin_products")
     variant = product.default_variant
     was_featured = product.is_featured
+    was_variant_listed = variant.is_listed if variant else True
 
     if request.method == "POST":
         data         = _apply_inline_new(request.POST.copy())
@@ -785,6 +797,7 @@ def admin_product_edit_view(request, product_id):
                 v = variant_form.save(commit=False)
                 v.product      = product
                 v.is_default   = True
+                v.is_listed    = was_variant_listed
                 v.variant_name = _build_variant_name(v, product)
                 if not v.sku:
                     v.sku = _generate_unique_sku(product, v)
@@ -975,6 +988,7 @@ def admin_variant_edit_view(request, variant_id):
 
 
 @admin_required
+@require_POST
 def admin_variant_set_default_view(request, variant_id):
     variant = ProductVariant.objects.filter(id=variant_id, is_deleted=False).first()
     if not variant:
@@ -987,6 +1001,7 @@ def admin_variant_set_default_view(request, variant_id):
 
 
 @admin_required
+@require_POST
 def admin_variant_toggle_status_view(request, variant_id):
     variant = ProductVariant.objects.filter(id=variant_id, is_deleted=False).first()
     if not variant:

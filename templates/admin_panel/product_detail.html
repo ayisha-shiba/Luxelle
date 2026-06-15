@@ -41,6 +41,7 @@
 
         .badge-active   { background:rgba(39,174,96,0.12); color:#27ae60; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.72rem; font-weight:700; text-decoration:none; }
         .badge-inactive { background:rgba(149,165,166,0.15); color:#95a5a6; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.72rem; font-weight:700; text-decoration:none; }
+        button.badge-active, button.badge-inactive { border:none; cursor:pointer; font-family:inherit; line-height:1; }
         .badge-default  { background:rgba(197,160,89,0.15); color:#c5a059; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.7rem; font-weight:700; }
         .badge-low  { background:rgba(243,156,18,0.12); color:#f39c12; padding:2px 7px; border-radius:6px; font-size:0.65rem; font-weight:700; margin-left:6px; }
         .badge-out  { background:rgba(231,76,60,0.12); color:#e74c3c; padding:2px 7px; border-radius:6px; font-size:0.65rem; font-weight:700; margin-left:6px; }
@@ -183,17 +184,23 @@
                                     </td>
                                 {% else %}
                                     <td>
-                                        {% if v.is_listed %}
-                                            <a href="{% url 'admin_variant_toggle_status' v.id %}" class="badge-active" title="Click to set Inactive">ACTIVE</a>
-                                        {% else %}
-                                            <a href="{% url 'admin_variant_toggle_status' v.id %}" class="badge-inactive" title="Click to set Active">INACTIVE</a>
-                                        {% endif %}
+                                        <form method="post" action="{% url 'admin_variant_toggle_status' v.id %}" style="display:inline;">
+                                            {% csrf_token %}
+                                            {% if v.is_listed %}
+                                                <button type="submit" class="badge-active" title="Click to set Inactive">ACTIVE</button>
+                                            {% else %}
+                                                <button type="submit" class="badge-inactive" title="Click to set Active">INACTIVE</button>
+                                            {% endif %}
+                                        </form>
                                     </td>
                                     <td>
                                         {% if v.is_default %}
                                             <span class="badge-default">Default</span>
                                         {% else %}
-                                            <a href="{% url 'admin_variant_set_default' v.id %}" class="set-default-btn">Set Default</a>
+                                            <form method="post" action="{% url 'admin_variant_set_default' v.id %}" style="display:inline;">
+                                                {% csrf_token %}
+                                                <button type="submit" class="set-default-btn">Set Default</button>
+                                            </form>
                                         {% endif %}
                                     </td>
                                     <td>

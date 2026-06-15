@@ -105,7 +105,7 @@
             </div>
         {% endif %}
 
-        <form method="POST" enctype="multipart/form-data" class="form-card" id="variantForm">
+        <form method="POST" enctype="multipart/form-data" class="form-card" id="variantForm" novalidate>
             {% csrf_token %}
 
             <!-- VARIANT INFORMATION -->
@@ -187,10 +187,7 @@
             <div class="grid-3">
                 <div class="fg">
                     <label>Closure Type <span class="req">*</span></label>
-                    <div class="inline-new">
-                        {{ variant_form.closure_type }}
-                        <button type="button" class="mini-btn" onclick="openQuickAdd('closure','closureSelect')">+ New</button>
-                    </div>
+                    {{ variant_form.closure_type }}
                     {% if variant_form.closure_type.errors %}<div class="field-err">{{ variant_form.closure_type.errors.0 }}</div>{% endif %}
                 </div>
                 <div class="fg"><label>Compartments <span class="req">*</span></label>{{ variant_form.compartments }}{% if variant_form.compartments.errors %}<div class="field-err">{{ variant_form.compartments.errors.0 }}</div>{% endif %}</div>
@@ -259,7 +256,7 @@
 
         function openQuickAdd(type, selectId) {
             qaType = type; qaTargetSelect = selectId;
-            const label = (type === 'material') ? 'Material' : 'Closure Type';
+            const label = 'Material';
             document.getElementById('quickAddTitle').textContent = 'Add ' + label;
             document.getElementById('quickAddLabel').textContent = label + ' Name';
             const inp = document.getElementById('quickAddInput');
@@ -282,14 +279,6 @@
             const name = document.getElementById('quickAddInput').value.trim();
             const errBox = document.getElementById('quickAddErr');
             if (name.length < 2) { errBox.textContent = 'Please enter at least 2 characters.'; errBox.style.display = 'block'; return; }
-
-            if (qaType === 'closure') {
-                const value = name.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 20);
-                if (!value) { errBox.textContent = 'Please enter a valid name.'; errBox.style.display = 'block'; return; }
-                addOptionToSelect(qaTargetSelect, value, name, true);
-                closeQuickAdd();
-                return;
-            }
 
             const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
             fetch('/admin-panel/materials/add-ajax/', {

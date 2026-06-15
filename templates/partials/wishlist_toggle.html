@@ -1,0 +1,35 @@
+{# Reusable AJAX handler for product-level wishlist heart toggles on listing cards. #}
+{# Tag the heart form with class "js-wishlist-form"; the view returns JSON on XHR. #}
+<script>
+(function () {
+    document.querySelectorAll('form.js-wishlist-form').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var btn  = form.querySelector('button[type="submit"]');
+            var icon = form.querySelector('i');
+            if (btn) btn.disabled = true;
+            fetch(form.action, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: new FormData(form)
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data && data.error) return;
+                var isIn = !!(data && data.wishlisted);
+                if (icon) icon.className = isIn
+                    ? 'fa-solid fa-heart text-danger'
+                    : 'fa-regular fa-heart text-lux-black';
+                if (btn) btn.title = isIn ? 'Remove from wishlist' : 'Add to wishlist';
+                var badge = document.getElementById('wishlistCount');
+                if (badge && data && typeof data.wishlist_count !== 'undefined') {
+                    badge.textContent = data.wishlist_count;
+                    badge.classList.toggle('d-none', data.wishlist_count <= 0);
+                }
+            })
+            .catch(function () { form.submit(); })   // graceful fallback on network error
+            .finally(function () { if (btn) btn.disabled = false; });
+        });
+    });
+})();
+</script>
