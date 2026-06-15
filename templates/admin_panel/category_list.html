@@ -62,6 +62,9 @@
         .img-pick-btn { background:rgba(255,255,255,0.06); color:#fff; border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:0.55rem 1rem; font-size:0.82rem; cursor:pointer; }
         .img-pick-btn:hover { border-color:#c5a059; color:#c5a059; }
         .img-hint { font-size:0.72rem; color:#777; margin-top:0.35rem; }
+
+        .field-err { color:#e74c3c; font-size:0.75rem; margin-top:0.4rem; }
+        .form-modal-box .alert-error div { margin:2px 0; }
     </style>
 </head>
 <body>
@@ -193,6 +196,11 @@
     <div class="modal-overlay" id="addModal">
         <div class="form-modal-box">
             <h3>Add Category</h3>
+            {% if add_form.non_field_errors %}
+                <div class="alert alert-error">
+                    {% for e in add_form.non_field_errors %}<div>{{ e }}</div>{% endfor %}
+                </div>
+            {% endif %}
             <form method="POST" action="{% url 'admin_category_add' %}" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="form-group">
@@ -205,17 +213,20 @@
                         </div>
                     </div>
                     <input type="file" name="image" id="addImageInput" accept="image/*" class="d-none" onchange="previewImage(this, 'addImgPreview')">
+                    {% if add_form.image.errors %}<div class="field-err">{{ add_form.image.errors.0 }}</div>{% endif %}
                 </div>
                 <div class="form-group">
                     <label>Category Name</label>
-                    <input type="text" name="name" required maxlength="100" placeholder="e.g. Tote Bags">
+                    <input type="text" name="name" required maxlength="100" placeholder="e.g. Tote Bags" value="{{ add_form.name.value|default:'' }}">
+                    {% if add_form.name.errors %}<div class="field-err">{{ add_form.name.errors.0 }}</div>{% endif %}
                 </div>
                 <div class="form-group">
                     <label>Description</label>
-                    <textarea name="description" rows="3" maxlength="500" placeholder="Short description (optional)"></textarea>
+                    <textarea name="description" rows="3" maxlength="500" placeholder="Short description (optional)">{{ add_form.description.value|default:'' }}</textarea>
+                    {% if add_form.description.errors %}<div class="field-err">{{ add_form.description.errors.0 }}</div>{% endif %}
                 </div>
                 <div class="form-group form-check-row">
-                    <input type="checkbox" name="is_listed" id="addIsListed" checked>
+                    <input type="checkbox" name="is_listed" id="addIsListed" {% if not add_form or add_form.is_listed.value %}checked{% endif %}>
                     <label for="addIsListed">Visible to customers</label>
                 </div>
                 <div class="modal-actions">
@@ -230,6 +241,11 @@
     <div class="modal-overlay" id="editModal">
         <div class="form-modal-box">
             <h3>Edit Category</h3>
+            {% if edit_form.non_field_errors %}
+                <div class="alert alert-error">
+                    {% for e in edit_form.non_field_errors %}<div>{{ e }}</div>{% endfor %}
+                </div>
+            {% endif %}
             <form method="POST" id="editForm" action="" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="form-group">
@@ -242,14 +258,17 @@
                         </div>
                     </div>
                     <input type="file" name="image" id="editImageInput" accept="image/*" class="d-none" onchange="previewImage(this, 'editImgPreview')">
+                    {% if edit_form.image.errors %}<div class="field-err">{{ edit_form.image.errors.0 }}</div>{% endif %}
                 </div>
                 <div class="form-group">
                     <label>Category Name</label>
                     <input type="text" name="name" id="editName" required maxlength="100">
+                    {% if edit_form.name.errors %}<div class="field-err">{{ edit_form.name.errors.0 }}</div>{% endif %}
                 </div>
                 <div class="form-group">
                     <label>Description</label>
                     <textarea name="description" id="editDescription" rows="3" maxlength="500"></textarea>
+                    {% if edit_form.description.errors %}<div class="field-err">{{ edit_form.description.errors.0 }}</div>{% endif %}
                 </div>
                 <div class="form-group form-check-row">
                     <input type="checkbox" name="is_listed" id="editIsListed">
@@ -316,6 +335,20 @@
         document.querySelectorAll('.modal-overlay').forEach(m => {
             m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
         });
+
+        {% if open_modal == 'add' %}
+            openAddModal();
+            document.querySelector('#addModal input[name=name]').value = "{{ add_form.name.value|default:''|escapejs }}";
+            document.querySelector('#addModal textarea[name=description]').value = "{{ add_form.description.value|default:''|escapejs }}";
+        {% elif open_modal == 'edit' %}
+            document.getElementById('editForm').action = "{% url 'admin_category_edit' edit_category.id %}";
+            document.getElementById('editName').value = "{{ edit_form.name.value|default:''|escapejs }}";
+            document.getElementById('editDescription').value = "{{ edit_form.description.value|default:''|escapejs }}";
+            document.getElementById('editIsListed').checked = {{ edit_form.is_listed.value|yesno:'true,false' }};
+            document.getElementById('editImgPreview').src = "{% if edit_category.image %}{{ edit_category.image.url }}{% else %}{% static 'image/default_category.svg' %}{% endif %}";
+            document.getElementById('editImageInput').value = '';
+            document.getElementById('editModal').classList.add('show');
+        {% endif %}
     </script>
 </body>
 </html>

@@ -11,8 +11,8 @@ from .models import CustomUser, UserProfile, Address, Category, Product, Product
 PRODUCT_NAME_RE = re.compile(r"^[A-Za-z0-9 '\-]+$")
 HEX_COLOR_RE    = re.compile(r"^#[0-9A-Fa-f]{6}$")
 COLOR_NAME_RE   = re.compile(r"^[A-Za-z][A-Za-z \-()]*$")
-CLOSURE_TYPE_RE = re.compile(r"^[a-z][a-z0-9]*$")
 DIMENSION_RE    = re.compile(r"^\d{1,3}(\.\d{1,2})?$")
+SKU_RE          = re.compile(r"^[A-Z0-9](?:[A-Z0-9-]*[A-Z0-9])?$")
 
 PHONE_NORMALIZATION_REGEX = re.compile(r"[^\d+]")
 PHONE_ALLOWED_CHARS_REGEX = re.compile(r"^\+?[0-9\-\s\(\)]{10,20}$")
@@ -569,6 +569,18 @@ class ProductForm(forms.ModelForm):
         self.fields["is_featured"].required    = False
         self.fields["is_deal_of_day"].required = False
 
+        required_messages = {
+            "name":              "Please enter a product name.",
+            "short_description": "Please enter a short description.",
+            "description":       "Please enter a full description.",
+            "category":          "Please select a category.",
+            "brand":             "Please select a brand.",
+        }
+        for field_name, message in required_messages.items():
+            self.fields[field_name].error_messages["required"] = message
+        self.fields["category"].error_messages["invalid_choice"] = "Please select a valid category."
+        self.fields["brand"].error_messages["invalid_choice"]    = "Please select a valid brand."
+
     def clean_name(self):
         name = (self.cleaned_data.get("name") or "").strip()
         if not name:
@@ -672,23 +684,14 @@ class ProductVariantForm(forms.ModelForm):
                 "max_whole_digits":    f"{label} is too large — enter a number up to 100.",
             })
 
-        # Closure type: allow admins to add new closure types on the fly,
-        # so it can't be a fixed ChoiceField - any short string is valid.
-        closure_choices = list(ProductVariant.CLOSURE_CHOICES)
-        known = {c[0] for c in closure_choices}
-        existing = (ProductVariant.objects
-                    .exclude(closure_type="")
-                    .values_list("closure_type", flat=True)
-                    .distinct())
-        for value in existing:
-            if value not in known:
-                closure_choices.append((value, value.replace("_", " ").title()))
-                known.add(value)
-        self.fields["closure_type"] = forms.CharField(
-            max_length=20,
+        self.fields["closure_type"] = forms.ChoiceField(
+            choices=ProductVariant.CLOSURE_CHOICES,
             required=True,
-            error_messages={"required": "Please select or enter a closure type."},
-            widget=forms.Select(choices=closure_choices, attrs={"id": "closureSelect"}),
+            error_messages={
+                "required":      "Please select a closure type.",
+                "invalid_choice": "Please select a valid closure type.",
+            },
+            widget=forms.Select(attrs={"id": "closureSelect"}),
         )
 
     def clean_color(self):
@@ -766,20 +769,20 @@ class ProductVariantForm(forms.ModelForm):
             raise ValidationError("Compartments must be between 1 and 20.")
         return value
 
-    def clean_closure_type(self):
-        value = (self.cleaned_data.get("closure_type") or "").strip().lower()
-        if not value:
-            raise ValidationError("Please select or enter a closure type.")
-        if not CLOSURE_TYPE_RE.match(value):
-            raise ValidationError(
-                "Closure type must start with a letter and contain only letters and numbers "
-                "(no spaces or symbols)."
-            )
-        return value
-
     def clean_sku(self):
-        sku = (self.cleaned_data.get("sku") or "").strip()
+        sku = (self.cleaned_data.get("sku") or "").strip().upper()
         if sku:
+            unchanged = bool(self.instance.pk) and sku == (self.instance.sku or "").upper()
+            if not unchanged:
+                if len(sku) < 4:
+                    raise ValidationError("SKU must be at least 4 characters long.")
+                if not SKU_RE.match(sku):
+                    raise ValidationError(
+                        "SKU can only contain letters, numbers and hyphens, "
+                        "and cannot start or end with a hyphen."
+                    )
+                if not any(ch.isalpha() for ch in sku):
+                    raise ValidationError("SKU must contain at least one letter — it cannot be only numbers.")
             qs = ProductVariant.objects.filter(sku__iexact=sku)
             if self.instance.pk:
                 qs = qs.exclude(pk=self.instance.pk)

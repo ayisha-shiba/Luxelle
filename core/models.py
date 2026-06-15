@@ -283,10 +283,13 @@ class ProductVariant(models.Model):
         ("large",  "Large"),
     ]
     CLOSURE_CHOICES = [
-        ("zipper",   "Zipper"),
-        ("magnetic", "Magnetic Snap"),
-        ("turnlock", "Turn Lock"),
-        ("opentop",  "Open Top"),
+        ("zipper",     "Zipper"),
+        ("magnetic",   "Magnetic Snap"),
+        ("drawstring", "Drawstring"),
+        ("flap",       "Flap"),
+        ("turnlock",   "Turn Lock"),
+        ("opentop",    "Open Top"),
+        ("buckle",     "Buckle"),
     ]
     PATTERN_CHOICES = [
         ("plain",   "Plain"),
@@ -310,7 +313,7 @@ class ProductVariant(models.Model):
     depth_cm       = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
 
     # Bag details
-    closure_type   = models.CharField(max_length=20, blank=True)
+    closure_type   = models.CharField(max_length=20, choices=CLOSURE_CHOICES, blank=True)
     compartments   = models.PositiveIntegerField(null=True, blank=True)
     pattern        = models.CharField(max_length=20, choices=PATTERN_CHOICES, blank=True)
 
@@ -384,14 +387,28 @@ class Review(models.Model):
 class Wishlist(models.Model):
     user     = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="wishlist_items")
     product  = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="wishlisted_by")
+    # The specific variant the user saved. Nullable so legacy rows and any
+    # product-level add (e.g. from a listing card) can fall back to the
+    # product's display variant.
+    variant  = models.ForeignKey(
+        "ProductVariant", on_delete=models.SET_NULL,
+        related_name="wishlisted_by", null=True, blank=True,
+    )
     added_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-added_at"]
-        unique_together = ("user", "product")
+        # One entry per (user, variant) so a user can independently wishlist
+        # different variants (size/color) of the same product.
+        unique_together = ("user", "variant")
 
     def __str__(self):
         return f"{self.user} - {self.product}"
+
+    @property
+    def saved_variant(self):
+        """The variant the user wishlisted, falling back to the display variant."""
+        return self.variant or self.product.display_variant
 
 
 class Cart(models.Model):

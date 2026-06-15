@@ -150,19 +150,8 @@
 
                 {% if variant and variant.images.all|length > 1 %}
                 <div class="thumb-strip d-flex gap-2 flex-wrap">
-                    {% for img in variant.images.all %}
+                    {% for img in variant.images.all|slice:":3" %}
                         <img src="{{ img.image.url }}" alt="{{ product.name }}" class="{% if forloop.first %}active{% endif %}" onclick="document.getElementById('mainImg').src=this.src; document.querySelectorAll('.thumb-strip img').forEach(function(t){t.classList.remove('active')}); this.classList.add('active');">
-                    {% endfor %}
-                </div>
-                {% endif %}
-
-                <!-- Variant (color) options -->
-                {% if color_options|length > 1 %}
-                <div class="variant-thumb-strip d-flex gap-2 flex-wrap mt-3">
-                    {% for c in color_options %}
-                        <a href="?variant={{ c.id }}" class="variant-thumb {% if variant.color|lower == c.color|lower %}active{% endif %}" title="{{ c.color }}">
-                            <img src="{% if c.images.first %}{{ c.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}" alt="{{ c.color }}">
-                        </a>
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -213,7 +202,7 @@
                     {% elif variant.stock <= 5 %}
                         <span class="stock-low"><i class="fa-solid fa-triangle-exclamation me-1"></i> Only {{ variant.stock }} left in stock — order soon</span>
                     {% else %}
-                        <span class="stock-in"><i class="fa-solid fa-circle-check me-1"></i> In Stock</span>
+                        <span class="stock-in"><i class="fa-solid fa-circle-check me-1"></i> In Stock — {{ variant.stock }} available</span>
                     {% endif %}
                 </div>
 
@@ -300,17 +289,18 @@
                     {% endif %}
 
                     {% if request.user.is_authenticated %}
-                    <form method="post" action="{% url 'toggle_wishlist' product.id %}">
+                    <form id="wishlistForm" method="post" action="{% url 'toggle_wishlist' product.id %}">
                         {% csrf_token %}
                         <input type="hidden" name="next" value="{{ request.path }}">
-                        <button type="submit" class="btn btn-outline-secondary rounded-3 px-3" title="{% if in_wishlist %}Remove from wishlist{% else %}Add to wishlist{% endif %}">
-                            {% if in_wishlist %}
-                                <i class="fa-solid fa-heart text-danger"></i>
-                            {% else %}
-                                <i class="fa-regular fa-heart"></i>
-                            {% endif %}
+                        {% if variant %}<input type="hidden" name="variant" value="{{ variant.id }}">{% endif %}
+                        <button type="submit" id="wishlistBtn" class="btn btn-outline-secondary rounded-3 px-3"
+                                data-variant-id="{% if variant %}{{ variant.id }}{% endif %}"
+                                data-wishlisted="{% if in_wishlist %}true{% else %}false{% endif %}"
+                                title="{% if in_wishlist %}Remove from wishlist{% else %}Add to wishlist{% endif %}">
+                            <i id="wishlistIcon" class="{% if in_wishlist %}fa-solid fa-heart text-danger{% else %}fa-regular fa-heart{% endif %}"></i>
                         </button>
                     </form>
+                    {{ wishlisted_variant_ids|json_script:"wishlistedVariantIds" }}
                     {% else %}
                     <a href="{% url 'login' %}" class="btn btn-outline-secondary rounded-3 px-3" title="Login to add to wishlist">
                         <i class="fa-regular fa-heart"></i>
@@ -561,6 +551,54 @@
                 });
             });
         }
+
+        // Wishlist heart — AJAX toggle for the CURRENTLY selected variant only.
+        (function () {
+            var form = document.getElementById('wishlistForm');
+            if (!form) return;
+            var btn  = document.getElementById('wishlistBtn');
+            var icon = document.getElementById('wishlistIcon');
+
+            // Preloaded set of variant ids already in this user's wishlist.
+            var dataEl = document.getElementById('wishlistedVariantIds');
+            var wishlisted = new Set(dataEl ? JSON.parse(dataEl.textContent || '[]') : []);
+            var variantId = btn.dataset.variantId ? parseInt(btn.dataset.variantId, 10) : null;
+
+            function render(isIn) {
+                icon.className = isIn ? 'fa-solid fa-heart text-danger' : 'fa-regular fa-heart';
+                btn.title = isIn ? 'Remove from wishlist' : 'Add to wishlist';
+                btn.dataset.wishlisted = isIn ? 'true' : 'false';
+            }
+
+            // Sync the icon to the preloaded data for the selected variant.
+            if (variantId !== null) render(wishlisted.has(variantId));
+
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                btn.disabled = true;
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: new FormData(form)
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data && data.error) return;
+                    var isIn = !!(data && data.wishlisted);
+                    if (variantId !== null) {
+                        if (isIn) wishlisted.add(variantId); else wishlisted.delete(variantId);
+                    }
+                    render(isIn);
+                    var badge = document.getElementById('wishlistCount');
+                    if (badge && typeof data.wishlist_count !== 'undefined') {
+                        badge.textContent = data.wishlist_count;
+                        badge.classList.toggle('d-none', data.wishlist_count <= 0);
+                    }
+                })
+                .catch(function () { form.submit(); })   // graceful fallback
+                .finally(function () { btn.disabled = false; });
+            });
+        })();
     </script>
 
     <!-- Toast Notifications -->

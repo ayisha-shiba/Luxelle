@@ -30,7 +30,7 @@
         <div class="d-flex align-items-center gap-3 px-2 font-inter text-lux-black">
             <a href="{% url 'wishlist' %}" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale position-relative" title="Favorites">
                 <i class="fa-{% if active == 'wishlist' %}solid{% else %}regular{% endif %} fa-heart fs-5"></i>
-                {% if wishlist_count > 0 %}<span class="icon-badge">{{ wishlist_count }}</span>{% endif %}
+                <span class="icon-badge{% if not wishlist_count %} d-none{% endif %}" id="wishlistCount">{{ wishlist_count }}</span>
             </a>
             <a href="{% url 'cart' %}" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale position-relative" title="Shopping Cart">
                 <i class="fa-solid fa-bag-shopping fs-5"></i>
