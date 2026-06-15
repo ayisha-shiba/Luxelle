@@ -624,8 +624,9 @@ class ProductVariantForm(forms.ModelForm):
             "compartments": forms.NumberInput(attrs={"placeholder": "3", "min": "1", "max": "20"}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, product=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.product = product or (self.instance.product if self.instance.pk else None)
         self.fields["sku"].required      = False  # auto-generated when left blank
         self.fields["material"].required = True
         self.fields["is_offer"].required  = False
@@ -732,4 +733,19 @@ class ProductVariantForm(forms.ModelForm):
         sp = cleaned.get("sale_price")
         if op and sp and sp > op:
             self.add_error("sale_price", "Sale price cannot be greater than the MRP.")
+
+        if self.product:
+            duplicate = ProductVariant.objects.filter(
+                product=self.product,
+                is_deleted=False,
+                color__iexact=cleaned.get("color") or "",
+                size=cleaned.get("size") or "",
+                material=cleaned.get("material"),
+            )
+            if self.instance.pk:
+                duplicate = duplicate.exclude(pk=self.instance.pk)
+            if duplicate.exists():
+                raise ValidationError(
+                    "A variant with this Color, Size and Material combination already exists for this product."
+                )
         return cleaned

@@ -65,7 +65,7 @@
         {% if items %}
         <div class="row g-4 row-cols-1 row-cols-sm-2 row-cols-lg-3">
             {% for item in items %}
-                {% with product=item.product v=item.product.default_variant %}
+                {% with product=item.product v=item.product.display_variant %}
                 <div class="col">
                     <div class="product-card bg-white rounded-4 overflow-hidden border border-light shadow-sm p-3 d-flex flex-column h-100 position-relative">
                         <form method="post" action="{% url 'toggle_wishlist' product.id %}" class="position-absolute top-0 end-0 m-2" style="z-index: 2;">
@@ -154,7 +154,6 @@
                     <ul class="list-unstyled d-flex flex-column gap-2 small">
                         <li><a href="{% url 'product_list' %}" class="text-decoration-none text-lux-gray hover-lux-gold">Handbags</a></li>
                         <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Accessories</a></li>
-                        <li><a href="{% url 'collections' %}" class="text-decoration-none text-lux-gray hover-lux-gold">Collections</a></li>
                         <li><a href="{% url 'product_list' %}?sort=latest" class="text-decoration-none text-lux-gray hover-lux-gold">New Arrivals</a></li>
                     </ul>
                 </div>

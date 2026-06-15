@@ -3,7 +3,9 @@
   CONTEXT CONTRACT — product_detail_view must put these in context:
     product          : Product instance (view must redirect away if blocked/deleted/unlisted)
     variant          : selected ProductVariant (default, or the one matching ?variant=<id>)
-    variants         : all variants for this product (used for the color/option swatches)
+    variants         : all variants for this product
+    color_options    : one variant per distinct color, for the variant thumbnails below the main image
+    size_options     : one variant per distinct size, for the size selector
     avg_rating       : float or None (average of this product's review ratings)
     review_count     : int (total number of reviews)
     reviews          : queryset of Review for this product, latest first
@@ -55,13 +57,31 @@
         }
         .thumb-strip img.active, .thumb-strip img:hover { border-color: var(--lux-gold); }
 
-        /* Color / variant swatches */
+        /* Variant (color) thumbnails below main image */
+        .variant-thumb {
+            display:inline-block; width:70px; height:70px; border-radius:10px;
+            overflow:hidden; border:2px solid transparent; transition: var(--transition-smooth);
+        }
+        .variant-thumb img { width:100%; height:100%; object-fit:cover; }
+        .variant-thumb.active, .variant-thumb:hover { border-color: var(--lux-gold); }
+
+        /* Circular color swatches beside the Color field */
         .color-swatch {
-            width:34px; height:34px; border-radius:50%; display:inline-block;
+            width:28px; height:28px; border-radius:50%; display:inline-block;
             border:2px solid #fff; box-shadow:0 0 0 1px var(--lux-gray-light);
             cursor:pointer; transition: var(--transition-smooth); text-decoration:none;
         }
         .color-swatch.active, .color-swatch:hover { box-shadow:0 0 0 2px var(--lux-gold); }
+
+        /* Size options */
+        .size-option {
+            display:inline-flex; align-items:center; justify-content:center;
+            min-width:42px; height:38px; padding:0 12px; border-radius:6px;
+            border:1px solid var(--lux-gray-light); color:var(--lux-black);
+            text-decoration:none; font-size:0.85rem; font-weight:600;
+            transition: var(--transition-smooth);
+        }
+        .size-option.active, .size-option:hover { border-color:var(--lux-gold); color:var(--lux-gold); }
 
         /* Quantity selector */
         .qty-box { display:inline-flex; align-items:center; border:1px solid var(--lux-gray-light); border-radius:8px; overflow:hidden; }
@@ -135,6 +155,17 @@
                     {% endfor %}
                 </div>
                 {% endif %}
+
+                <!-- Variant (color) options -->
+                {% if color_options|length > 1 %}
+                <div class="variant-thumb-strip d-flex gap-2 flex-wrap mt-3">
+                    {% for c in color_options %}
+                        <a href="?variant={{ c.id }}" class="variant-thumb {% if variant.color|lower == c.color|lower %}active{% endif %}" title="{{ c.color }}">
+                            <img src="{% if c.images.first %}{{ c.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}" alt="{{ c.color }}">
+                        </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
 
             <!-- =========================================
@@ -188,16 +219,31 @@
 
                 <p class="text-lux-gray font-inter mb-4">{{ product.short_description }}</p>
 
-                <!-- Color / variant options -->
-                {% if variants|length > 1 %}
-                <div class="mb-4">
-                    <label class="filter-label">Color: {% if variant %}{{ variant.color }}{% endif %}</label>
+                <!-- Color label + swatches -->
+                {% if variant and variant.color %}
+                <div class="mb-3">
+                    <label class="filter-label d-block mb-2">Color: {{ variant.color }}</label>
+                    {% if color_options|length > 1 %}
                     <div class="d-flex gap-2 flex-wrap">
-                        {% for v in variants %}
-                            <a href="?variant={{ v.id }}"
-                               class="color-swatch {% if variant and v.id == variant.id %}active{% endif %}"
-                               style="background-color: {{ v.color_hex|default:'#cccccc' }};"
-                               title="{{ v.color }}"></a>
+                        {% for c in color_options %}
+                            <a href="?variant={{ c.id }}"
+                               class="color-swatch {% if variant.color|lower == c.color|lower %}active{% endif %}"
+                               style="background-color: {{ c.color_hex|default:'#cccccc' }};"
+                               title="{{ c.color }}"></a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Size options -->
+                {% if size_options|length > 1 %}
+                <div class="mb-4">
+                    <label class="filter-label d-block mb-2">Size: {{ variant.get_size_display }}</label>
+                    <div class="d-flex gap-2 flex-wrap">
+                        {% for s in size_options %}
+                            <a href="?variant={{ s.id }}"
+                               class="size-option {% if variant.size == s.size %}active{% endif %}">{{ s.get_size_display }}</a>
                         {% endfor %}
                     </div>
                 </div>
@@ -393,7 +439,7 @@
                 <h2 class="font-playfair fw-bold text-lux-black mb-4">You May Also Like</h2>
                 <div class="row g-4 row-cols-1 row-cols-sm-2 row-cols-lg-4">
                     {% for rp in related_products %}
-                        {% with rv=rp.default_variant %}
+                        {% with rv=rp.display_variant %}
                         <div class="col">
                             <a href="{% url 'product_detail' rp.slug %}" class="product-card bg-white rounded-4 overflow-hidden border border-light shadow-sm p-3 d-flex flex-column h-100 text-decoration-none">
                                 <div class="product-img-wrapper bg-light rounded-3 overflow-hidden position-relative mb-3">
@@ -440,7 +486,6 @@
                     <ul class="list-unstyled d-flex flex-column gap-2 small">
                         <li><a href="{% url 'product_list' %}" class="text-decoration-none text-lux-gray hover-lux-gold">Handbags</a></li>
                         <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Accessories</a></li>
-                        <li><a href="{% url 'collections' %}" class="text-decoration-none text-lux-gray hover-lux-gold">Collections</a></li>
                         <li><a href="{% url 'product_list' %}?sort=latest" class="text-decoration-none text-lux-gray hover-lux-gold">New Arrivals</a></li>
                     </ul>
                 </div>

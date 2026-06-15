@@ -270,6 +270,11 @@ class Product(models.Model):
         return (self.variants.filter(is_default=True, is_deleted=False).first()
                 or self.variants.filter(is_deleted=False).first())
 
+    @property
+    def display_variant(self):
+        listed = self.variants.filter(is_deleted=False, is_listed=True)
+        return listed.filter(is_default=True).first() or listed.first()
+
 
 class ProductVariant(models.Model):
     SIZE_CHOICES = [
@@ -325,7 +330,7 @@ class ProductVariant(models.Model):
         ordering = ["-is_default", "created_at"]
 
     def __str__(self):
-        return f"{self.product.name} - {self.variant_name}"
+        return self.variant_name
 
     def save(self, *args, **kwargs):
         if self.is_default:

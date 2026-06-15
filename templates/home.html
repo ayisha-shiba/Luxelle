@@ -92,7 +92,7 @@
 
             <div class="row g-4 row-cols-1 row-cols-sm-2 row-cols-lg-4">
                 {% for product in featured_products %}
-                    {% with v=product.default_variant %}
+                    {% with v=product.display_variant %}
                     <div class="col">
                         <div class="product-card bg-white rounded-4 overflow-hidden border border-light shadow-sm p-3 position-relative d-flex flex-column h-100">
                             {% if request.user.is_authenticated %}
@@ -178,7 +178,6 @@
                     <ul class="list-unstyled d-flex flex-column gap-2 small">
                         <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Handbags</a></li>
                         <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Accessories</a></li>
-                        <li><a href="{% url 'collections' %}" class="text-decoration-none text-lux-gray hover-lux-gold">Collections</a></li>
                         <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">New Arrivals</a></li>
                     </ul>
                 </div>

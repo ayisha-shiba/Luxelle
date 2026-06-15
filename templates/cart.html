@@ -31,6 +31,13 @@
         .qty-box button:disabled { color: var(--lux-gray-light); cursor:not-allowed; }
         .qty-box input { background:#fff; }
 
+        .modal-content { border-radius: 8px !important; border: none !important; }
+        .modal-header-lux { border-bottom: 1px solid #e2dfd9; padding: 20px 24px; }
+        .modal-body-lux { padding: 24px; }
+        .modal-footer-lux { padding: 16px 24px; border-top: 1px solid #e2dfd9; }
+        .btn-outline-lux { background: transparent; color: #666; border: 1px solid #e2dfd9; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 12px 24px; border-radius: 4px; transition: all 0.3s; text-decoration: none; cursor: pointer; }
+        .btn-outline-lux:hover { border-color: #999; color: #1A1A1A; }
+
         .summary-card { position: sticky; top: 100px; }
 
         @media (max-width: 575.98px) {
@@ -88,12 +95,30 @@
                                 {% endif %}
                             </div>
 
-                            <form method="post" action="{% url 'remove_from_cart' item.id %}">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-link text-lux-gray p-0" title="Remove from cart">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            </form>
+                            <button type="button" class="btn btn-link text-lux-gray p-0" title="Remove from cart" data-bs-toggle="modal" data-bs-target="#confirmRemoveModal{{ item.id }}">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+
+                            <div class="modal fade" id="confirmRemoveModal{{ item.id }}" tabindex="-1" aria-labelledby="confirmRemoveLabel{{ item.id }}" aria-hidden="true">
+                              <div class="modal-dialog">
+                                <div class="modal-content">
+                                  <div class="modal-header-lux">
+                                    <h5 class="modal-title" id="confirmRemoveLabel{{ item.id }}">Remove Item</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                  </div>
+                                  <div class="modal-body-lux">
+                                    Are you sure you want to remove "{{ product.name }}" from your cart?
+                                  </div>
+                                  <div class="modal-footer-lux">
+                                    <button type="button" class="btn btn-outline-lux" data-bs-dismiss="modal">Cancel</button>
+                                    <form method="post" action="{% url 'remove_from_cart' item.id %}" class="d-inline">
+                                      {% csrf_token %}
+                                      <button type="submit" class="btn btn-danger">Remove</button>
+                                    </form>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                         </div>
 
                         <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-3">
@@ -191,7 +216,6 @@
                     <ul class="list-unstyled d-flex flex-column gap-2 small">
                         <li><a href="{% url 'product_list' %}" class="text-decoration-none text-lux-gray hover-lux-gold">Handbags</a></li>
                         <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Accessories</a></li>
-                        <li><a href="{% url 'collections' %}" class="text-decoration-none text-lux-gray hover-lux-gold">Collections</a></li>
                         <li><a href="{% url 'product_list' %}?sort=latest" class="text-decoration-none text-lux-gray hover-lux-gold">New Arrivals</a></li>
                     </ul>
                 </div>

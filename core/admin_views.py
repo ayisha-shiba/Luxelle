@@ -597,7 +597,8 @@ def _build_variant_name(variant, product):
         parts.append(variant.color.strip())
     if variant.material_id:
         parts.append(variant.material.name)
-    return " ".join(p for p in parts if p).strip() or product.name
+    attrs = " ".join(p for p in parts if p).strip()
+    return f"{product.name} - {attrs}" if attrs else product.name
 
 
 PRODUCT_IMAGE_SIZE  = (800, 800)
@@ -865,10 +866,10 @@ def admin_variant_add_view(request, product_id):
         messages.error(request, "Product not found.")
         return redirect("admin_products")
 
-    variant_form = ProductVariantForm()
+    variant_form = ProductVariantForm(product=product)
 
     if request.method == "POST":
-        variant_form = ProductVariantForm(request.POST)
+        variant_form = ProductVariantForm(request.POST, product=product)
         images = request.FILES.getlist("images")
 
         extra_errors = []
@@ -893,7 +894,7 @@ def admin_variant_add_view(request, product_id):
                 variant.save()
                 for index, cf in enumerate(processed_images):
                     VariantImage.objects.create(variant=variant, image=cf, is_primary=(index == 0))
-            messages.success(request, f"Variant '{variant.variant_name}' added to '{product.name}'.")
+            messages.success(request, f"Variant '{variant.variant_name}' added.")
             return redirect("admin_product_detail", product_id=product.id)
 
         for err in extra_errors:

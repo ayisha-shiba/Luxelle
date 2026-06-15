@@ -4,7 +4,6 @@ from django.db.models import Q, Min, Avg, F
 
 import logging
 import math
-from itertools import groupby
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -881,48 +880,6 @@ def product_list_view(request):
     return render(request, "product_list.html", context)
 
 
-def collections_view(request):
-    products = Product.objects.filter(
-        is_deleted=False,
-        is_listed=True,
-        category__is_deleted=False,
-        category__is_listed=True,
-    ).select_related("brand", "category").prefetch_related("variants__images")
-
-    products = products.order_by("category__name", "-created_at")
-
-    paginator = Paginator(products, 12)
-    page_number = request.GET.get("page")
-    try:
-        page_obj = paginator.page(page_number)
-    except PageNotAnInteger:
-        page_obj = paginator.page(1)
-    except EmptyPage:
-        page_obj = paginator.page(paginator.num_pages)
-
-    wishlist_ids = set()
-    cart_product_ids = set()
-    if request.user.is_authenticated:
-        wishlist_ids = set(Wishlist.objects.filter(user=request.user).values_list("product_id", flat=True))
-        cart_product_ids = set(
-            CartItem.objects.filter(cart__user=request.user).values_list("variant__product_id", flat=True)
-        )
-
-    categorized_products = []
-    for category, items in groupby(page_obj.object_list, key=lambda p: p.category):
-        categorized_products.append({"category": category, "products": list(items)})
-
-    context = {
-        "products": page_obj.object_list,
-        "categorized_products": categorized_products,
-        "page_obj": page_obj,
-        "is_paginated": page_obj.has_other_pages(),
-        "wishlist_ids": wishlist_ids,
-        "cart_product_ids": cart_product_ids,
-    }
-    return render(request, "collections.html", context)
-
-
 def product_detail_view(request, slug):
     product = get_object_or_404(Product, slug=slug, is_deleted=False)
     if not product.is_listed or product.category.is_deleted or not product.category.is_listed:
@@ -934,8 +891,22 @@ def product_detail_view(request, slug):
     if variant_id.isdigit():
         variant = variants.filter(id=variant_id).first()
     if not variant:
-        variant = product.default_variant
-    
+        variant = variants.filter(is_default=True).first() or variants.first()
+
+    # One representative variant per distinct color/size, preferring the one
+    # that also matches the currently selected variant's other attribute.
+    color_options = []
+    size_options = []
+    if variant:
+        seen_colors, seen_sizes = set(), set()
+        for v in variants:
+            if v.color and v.color.lower() not in seen_colors:
+                seen_colors.add(v.color.lower())
+                color_options.append(variants.filter(color__iexact=v.color, size=variant.size).first() or v)
+            if v.size and v.size not in seen_sizes:
+                seen_sizes.add(v.size)
+                size_options.append(variants.filter(size=v.size, color__iexact=variant.color).first() or v)
+
     reviews = Review.objects.filter(product=product).select_related("user")
     review_count = reviews.count()
     avg_rating = reviews.aggregate(Avg("rating"))["rating__avg"]
@@ -958,6 +929,8 @@ def product_detail_view(request, slug):
         "product": product,
         "variant": variant,
         "variants": variants,
+        "color_options": color_options,
+        "size_options": size_options,
         "avg_rating": avg_rating,
         "review_count": review_count,
         "reviews": reviews[:6],
@@ -1038,8 +1011,8 @@ def add_all_wishlist_to_cart_view(request):
             item.delete()
             continue
 
-        variant = product.default_variant
-        if not variant or not variant.is_listed or variant.stock == 0:
+        variant = product.display_variant
+        if not variant or variant.stock == 0:
             unavailable += 1
             continue
 
@@ -1133,7 +1106,9 @@ def add_to_cart_view(request, variant_id):
 @login_required
 @require_POST
 def update_cart_item_view(request, item_id):
-    item = get_object_or_404(CartItem, pk=item_id, cart__user=request.user)
+    item = CartItem.objects.filter(pk=item_id, cart__user=request.user).first()
+    if item is None:
+        return redirect("cart")
     action = request.POST.get("action")
 
     if action == "increment":
@@ -1156,7 +1131,9 @@ def update_cart_item_view(request, item_id):
 @login_required
 @require_POST
 def remove_from_cart_view(request, item_id):
-    item = get_object_or_404(CartItem, pk=item_id, cart__user=request.user)
+    item = CartItem.objects.filter(pk=item_id, cart__user=request.user).first()
+    if item is None:
+        return redirect("cart")
     item.delete()
     messages.success(request, "Item removed from your cart.")
     return redirect("cart")
