@@ -804,6 +804,10 @@ def address_set_default_view(request, address_id):
         messages.success(request, "Default address updated.")
     return redirect("addresses")
 
+
+#prodt
+
+
 def product_list_view(request):
     products = Product.objects.filter(
         is_deleted=False,
@@ -848,7 +852,7 @@ def product_list_view(request):
     }
     products = products.order_by(sort_options.get(sort, "-created_at"))
 
-    paginator = Paginator(products, 12)
+    paginator = Paginator(products, 9)
     page_number = request.GET.get("page")
     try:
         page_obj = paginator.page(page_number)
@@ -926,7 +930,6 @@ def product_detail_view(request, slug):
             Wishlist.objects.filter(user=request.user, product=product)
             .values_list("variant_id", flat=True)
         )
-        # Heart reflects the CURRENTLY selected variant, not the whole product.
         in_wishlist = bool(variant) and variant.id in wishlisted_variant_ids
         in_cart = CartItem.objects.filter(cart__user=request.user, variant__product=product).exists()
 
@@ -962,8 +965,6 @@ def orders_view(request):
 @login_required
 @never_cache
 def wishlist_view(request):
-    # Keep every wishlisted item visible — including products the admin has
-    # blocked/disabled — and flag each item's availability for the template.
     items = list(
         Wishlist.objects.filter(user=request.user)
         .select_related("product", "product__brand", "product__category")
@@ -976,7 +977,6 @@ def wishlist_view(request):
             product.is_deleted or not product.is_listed
             or product.category.is_deleted or not product.category.is_listed
         )
-        # Evaluate the EXACT variant the user saved — never silently swap it.
         variant = item.variant
         variant_active = (
             variant is not None and not variant.is_deleted and variant.is_listed
@@ -987,8 +987,6 @@ def wishlist_view(request):
         item.is_out_of_stock = variant_active and variant.stock == 0
         item.is_available = variant_active and variant.stock > 0
 
-        # If the saved variant is unavailable but the product itself is fine,
-        # offer the other active, in-stock variants so the user can switch.
         if item.is_unavailable and not product_blocked:
             item.alt_variants = [
                 v for v in product.variants.all()
@@ -1013,8 +1011,6 @@ def toggle_wishlist_view(request, product_id):
     variant_id = int(variant_id) if variant_id.isdigit() else None
 
     if variant_id is not None:
-        # Variant-level toggle (product detail page): add/remove ONLY this
-        # specific (user, variant) combination — never other variants.
         entry = Wishlist.objects.filter(
             user=request.user, product_id=product_id, variant_id=variant_id
         )
@@ -1034,8 +1030,6 @@ def toggle_wishlist_view(request, product_id):
             Wishlist.objects.create(user=request.user, product=product, variant=variant)
             wishlisted = True
     else:
-        # Product-level toggle (listing cards, no variant chosen): a product is
-        # "wishlisted" if any of its variants is, so remove all / add default.
         entry = Wishlist.objects.filter(user=request.user, product_id=product_id)
         if entry.exists():
             entry.delete()
@@ -1108,11 +1102,9 @@ def add_all_wishlist_to_cart_view(request):
             product.is_deleted or not product.is_listed
             or product.category.is_deleted or not product.category.is_listed
         )
-        # Add the EXACT saved variant only — never substitute another one.
         variant = item.variant
         variant_active = variant is not None and not variant.is_deleted and variant.is_listed
 
-        # Unavailable items are skipped and kept in the wishlist.
         if product_blocked or not variant_active or variant.stock == 0:
             unavailable += 1
             continue
@@ -1163,8 +1155,6 @@ def cart_view(request):
         stock = item.variant.stock
         item.is_out_of_stock = stock == 0
 
-        # Re-validate the stored quantity against current stock. For available
-        # items whose quantity now exceeds stock, clamp DOWN and persist it.
         if not item.is_blocked and not item.is_out_of_stock and item.quantity > stock:
             item.quantity = stock
             item.save(update_fields=["quantity"])
@@ -1178,7 +1168,6 @@ def cart_view(request):
         if item.is_blocked or item.is_out_of_stock:
             can_checkout = False
         else:
-            # Only available items count toward the payable total.
             cart_total += item.total_price
 
     context = {
@@ -1224,7 +1213,7 @@ def add_to_cart_view(request, variant_id):
 
     item.save()
 
-    Wishlist.objects.filter(user=request.user, product=product).delete()
+    Wishlist.objects.filter(user=request.user, variant=variant).delete()
 
     messages.success(request, "Added to your cart.")
     return redirect("cart")

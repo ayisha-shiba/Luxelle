@@ -672,9 +672,6 @@ class ProductVariantForm(forms.ModelForm):
         self.fields["size"].error_messages["invalid_choice"]     = "Please select a valid size."
         self.fields["pattern"].error_messages["invalid_choice"]  = "Please select a valid pattern."
 
-        # Width/height/depth: friendly messages for non-numeric input,
-        # too many digits, or too many decimal places (covers "1e10"-style
-        # scientific notation that Decimal would otherwise accept).
         dimension_labels = {"width_cm": "Width", "height_cm": "Height", "depth_cm": "Depth"}
         for name, label in dimension_labels.items():
             self.fields[name].error_messages.update({

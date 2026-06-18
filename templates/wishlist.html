@@ -1,20 +1,4 @@
 {% load static %}
-<!--
-  CONTEXT CONTRACT — wishlist_view must put these in context:
-    items : list of Wishlist (select_related product/brand,
-            prefetch_related product__variants__images), latest first
-            - includes blocked/disabled products (they stay visible, marked
-              "Unavailable"); the view annotates each item with:
-                item.variant         -> the EXACT saved variant (never swapped)
-                item.is_unavailable  -> product blocked OR saved variant inactive
-                item.is_out_of_stock -> saved variant active but stock == 0
-                item.is_available    -> saved variant active and stock > 0
-                item.alt_variants    -> other active in-stock variants to switch to
-    cart_product_ids : set of product ids already in the user's cart
-
-  Each item: item.product, item.added_at
-    item.variant -> v.sale_price, v.original_price, v.discount_percent, v.stock, v.images.first
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>

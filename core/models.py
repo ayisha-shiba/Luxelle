@@ -387,9 +387,6 @@ class Review(models.Model):
 class Wishlist(models.Model):
     user     = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="wishlist_items")
     product  = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="wishlisted_by")
-    # The specific variant the user saved. Nullable so legacy rows and any
-    # product-level add (e.g. from a listing card) can fall back to the
-    # product's display variant.
     variant  = models.ForeignKey(
         "ProductVariant", on_delete=models.SET_NULL,
         related_name="wishlisted_by", null=True, blank=True,
@@ -398,8 +395,6 @@ class Wishlist(models.Model):
 
     class Meta:
         ordering = ["-added_at"]
-        # One entry per (user, variant) so a user can independently wishlist
-        # different variants (size/color) of the same product.
         unique_together = ("user", "variant")
 
     def __str__(self):
@@ -462,5 +457,7 @@ class CartItem(models.Model):
     @property
     def discount_amount(self):
         return self.subtotal - self.total_price
+    
+
 
 

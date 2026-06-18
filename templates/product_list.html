@@ -1,20 +1,4 @@
 {% load static %}
-<!--
-  CONTEXT CONTRACT — product_list_view must put these in context:
-    products        : iterable of Product (page_obj.object_list)
-    page_obj        : Django Paginator page
-    is_paginated    : bool
-    search_query    : str   (current ?search)
-    sort            : str   (latest | price_low | price_high | az | za)
-    selected_category, selected_brand : str ids (current filters)
-    min_price, max_price : str
-    categories      : active Category queryset (for the filter dropdown)
-    brands          : active Brand queryset (for the filter dropdown)
-    wishlist_ids    : set of product IDs the logged-in user has wishlisted
-    cart_product_ids: set of product IDs already in the logged-in user's cart
-  Each product: product.name, product.brand.name,
-    and product.default_variant -> v.sale_price, v.original_price, v.discount_percent, v.stock, v.images.first
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>
