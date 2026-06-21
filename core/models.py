@@ -458,6 +458,126 @@ class CartItem(models.Model):
     def discount_amount(self):
         return self.subtotal - self.total_price
     
+class Order(models.Model):
+    STATUS_PENDING      ="pending"
+    STATUS_SHIPPED      ="shipped"
+    STATUS_OUT_FOR_DELIVERY="out_for_delivery"
+    STATUS_DELIVERED     ="delivered"
+    STATUS_CANCELLED     ="cancelled"
+    STATUS_RETURNED     ="returned"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_SHIPPED, "Shipped"),
+        (STATUS_OUT_FOR_DELIVERY,"Out for Delivery"),
+        (STATUS_DELIVERED,"Delivered"),
+        (STATUS_CANCELLED,"Cancelled"),
+        (STATUS_RETURNED,"Returned"),
+
+    ]
+
+    PAYMENT_COD = "COD"
+    PAYMENT_CHOICES = [
+        (PAYMENT_COD, "Cash on Delivery"),
+    ]
+
+    # Which statuses an order may move to NEXT, from each current status.
+    # Terminal states (delivered / cancelled / returned) have no further moves.
+    ALLOWED_TRANSITIONS = {
+        STATUS_PENDING:          [STATUS_SHIPPED, STATUS_CANCELLED],
+        STATUS_SHIPPED:          [STATUS_OUT_FOR_DELIVERY, STATUS_CANCELLED],
+        STATUS_OUT_FOR_DELIVERY: [STATUS_DELIVERED, STATUS_CANCELLED],
+        STATUS_DELIVERED:        [],
+        STATUS_CANCELLED:        [],
+        STATUS_RETURNED:         [],
+    }
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4,editable=False)
+    order_number = models.CharField(max_length=20,unique=True,editable=False,db_index=True)
+    user = models.ForeignKey(CustomUser,on_delete=models.PROTECT,related_name="orders")
+
+    #address 
+    ship_full_name = models.CharField(max_length=100)
+    ship_phone     = models.CharField(max_length=15)
+    ship_address_line1 = models.CharField(max_length=255)
+    ship_address_line2 = models.CharField(max_length=255, blank=True)
+    ship_city          = models.CharField(max_length=100)
+    ship_state         = models.CharField(max_length=100)
+    ship_postal_code   = models.CharField(max_length=20)
+    ship_country       = models.CharField(max_length=100, default="India")
+
+    status = models.CharField(max_length=20,choices = STATUS_CHOICES, default = STATUS_PENDING,db_index=True)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_CHOICES,default=PAYMENT_COD)
+
+    #money
+    subtotal = models.DecimalField(max_digits=10,decimal_places=2,default=0)
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    shipping = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    tax      = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total    = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    cancellation_reason = models.TextField(blank=True)
+    return_reason       = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.order_number
+
+    def save(self, *args, **kwargs):
+        if not self.order_number:
+            self.order_number = self._generate_order_number()
+        super().save(*args, **kwargs)
+
+    def _generate_order_number(self):
+        from django.utils.crypto import get_random_string
+        date_part = timezone.now().strftime("%Y%m%d")
+        while True:
+            suffix = get_random_string(4, allowed_chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
+            number = f"ORD-{date_part}-{suffix}"
+            if not Order.objects.filter(order_number=number).exists():
+                return number
+
+    def allowed_next_statuses(self):
+        """List of (value, label) the order may move to from its current status."""
+        label_map = dict(self.STATUS_CHOICES)
+        return [(value, label_map[value])
+                for value in self.ALLOWED_TRANSITIONS.get(self.status, [])]
+
+class OrderItem(models.Model):
+    order   = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
+    variant = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, related_name="order_items", null=True, blank=True)
+
+    product_name = models.CharField(max_length=200)
+    variant_name = models.CharField(max_length=200)
+    sku          = models.CharField(max_length=50)
+    unit_price   = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity     = models.PositiveIntegerField()
+    line_total   = models.DecimalField(max_digits=10, decimal_places=2)
+
+    is_cancelled = models.BooleanField(default=False)
+    is_returned  = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.quantity} x {self.product_name}"
+
+
+class OrderStatusEvent(models.Model):
+    """One row per status change — the audit trail behind an order's timeline."""
+    order      = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="status_events")
+    status     = models.CharField(max_length=20, choices=Order.STATUS_CHOICES)
+    note       = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.order.order_number} → {self.status}"
 
 
 

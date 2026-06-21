@@ -33,7 +33,7 @@ def _validate_name_field(name, label):
         return f"{label} name can only contain letters and spaces."
     return None
 from .forms import SetNewPasswordForm, CategoryForm, ProductForm, ProductVariantForm
-from .models import CustomUser, Category, Product, Brand, Material, ProductVariant, VariantImage
+from .models import CustomUser, Category, Product, Brand, Material, ProductVariant, VariantImage, Order, OrderItem, OrderStatusEvent
 from .utils import (
     OTP_EXPIRY_MINUTES,
     check_resend_cooldown,
@@ -98,12 +98,18 @@ def admin_dashboard_view(request):
     non_superusers = CustomUser.objects.filter(is_staff=False)
     first_of_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
+    orders        = Order.objects.all()
+    total_revenue = (orders.exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
+                     .aggregate(s=Sum("total"))["s"] or 0)
+
     context = {
         "total_users":       non_superusers.count(),
         "active_count":      non_superusers.filter(is_active=True).count(),
         "blocked_count":     non_superusers.filter(is_active=False).count(),
         "this_month_count":  non_superusers.filter(date_joined__gte=first_of_month).count(),
         "recent_users":      non_superusers.order_by("-date_joined")[:5],
+        "total_orders":      orders.count(),
+        "total_revenue":     total_revenue,
     }
     return render(request, "admin_panel/dashboard.html", context)
 
@@ -1057,3 +1063,122 @@ def admin_variant_restore_view(request, variant_id):
     variant.save()
     messages.success(request, f"Variant '{variant.variant_name}' restored.")
     return redirect(f"{reverse('admin_product_detail', args=[variant.product_id])}?show=trash")
+
+
+# ============================ ORDER MANAGEMENT ============================
+
+ORDER_SORT_OPTIONS = {
+    "latest":      "-created_at",
+    "oldest":      "created_at",
+    "amount_high": "-total",
+    "amount_low":  "total",
+}
+
+
+@admin_required
+def admin_order_list_view(request):
+    search_query = request.GET.get("search", "").strip()
+    status       = request.GET.get("status", "all")
+    sort         = request.GET.get("sort", "latest")
+
+    orders = Order.objects.select_related("user")
+
+    valid_statuses = dict(Order.STATUS_CHOICES)
+    if status in valid_statuses:
+        orders = orders.filter(status=status)
+    else:
+        status = "all"
+
+    if search_query:
+        orders = orders.filter(
+            Q(order_number__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(user__full_name__icontains=search_query)
+        )
+
+    orders = orders.order_by(ORDER_SORT_OPTIONS.get(sort, "-created_at"))
+
+    paginator   = Paginator(orders, 10)
+    page_number = request.GET.get("page")
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    all_orders = Order.objects.all()
+    context = {
+        "orders":          page_obj.object_list,
+        "page_obj":        page_obj,
+        "is_paginated":    page_obj.has_other_pages(),
+        "search_query":    search_query,
+        "status":          status,
+        "sort":            sort,
+        "status_choices":  Order.STATUS_CHOICES,
+        "total_count":     all_orders.count(),
+        "pending_count":   all_orders.filter(status=Order.STATUS_PENDING).count(),
+        "delivered_count": all_orders.filter(status=Order.STATUS_DELIVERED).count(),
+        "cancelled_count": all_orders.filter(status=Order.STATUS_CANCELLED).count(),
+    }
+    return render(request, "admin_panel/order_list.html", context)
+
+
+@admin_required
+def admin_order_detail_view(request, order_id):
+    order = (Order.objects.select_related("user")
+             .prefetch_related("items__variant__product")
+             .filter(id=order_id).first())
+    if not order:
+        messages.error(request, "Order not found.")
+        return redirect("admin_orders")
+
+    context = {
+        "order":            order,
+        "items":            order.items.all(),
+        "allowed_statuses": order.allowed_next_statuses(),
+    }
+    return render(request, "admin_panel/order_detail.html", context)
+
+
+@admin_required
+@require_POST
+def admin_order_update_status_view(request, order_id):
+    order = Order.objects.filter(id=order_id).first()
+    if not order:
+        messages.error(request, "Order not found.")
+        return redirect("admin_orders")
+
+    new_status = request.POST.get("status")
+    valid_statuses = dict(Order.STATUS_CHOICES)
+
+    allowed = dict(order.allowed_next_statuses())
+    if new_status not in allowed:
+        messages.error(
+            request,
+            f"Cannot change a {order.get_status_display()} order to "
+            f"{valid_statuses.get(new_status, new_status)}.",
+        )
+        return redirect("admin_order_detail", order_id=order.id)
+
+    if new_status == Order.STATUS_CANCELLED and order.status != Order.STATUS_CANCELLED:
+        with transaction.atomic():
+            for item in order.items.select_related("variant"):
+                if item.variant and not item.is_cancelled:
+                    item.variant.stock += item.quantity
+                    item.variant.save(update_fields=["stock"])
+                    item.is_cancelled = True
+                    item.save(update_fields=["is_cancelled"])
+            order.status = new_status
+            order.save(update_fields=["status"])
+    else:
+        order.status = new_status
+        order.save(update_fields=["status"])
+
+    OrderStatusEvent.objects.create(
+        order=order, status=new_status,
+        note=f"Status updated to {valid_statuses[new_status]} by admin.",
+    )
+
+    messages.success(request, f"Order {order.order_number} marked as {valid_statuses[new_status]}.")
+    return redirect("admin_order_detail", order_id=order.id)

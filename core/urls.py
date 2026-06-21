@@ -37,6 +37,8 @@ urlpatterns = [
     path("profile/addresses/<uuid:address_id>/set-default/", views.address_set_default_view, name="address_set_default"),
 
     path("orders/", views.orders_view, name="orders"),
+    path("orders/<str:order_number>/", views.order_detail_view, name="order_detail"),
+    path("orders/<str:order_number>/invoice/", views.order_invoice_view, name="order_invoice"),
 
     path("wishlist/", views.wishlist_view, name="wishlist"),
     path("wishlist/toggle/<int:product_id>/", views.toggle_wishlist_view, name="toggle_wishlist"),
@@ -47,6 +49,10 @@ urlpatterns = [
     path("cart/add/<int:variant_id>/", views.add_to_cart_view, name="add_to_cart"),
     path("cart/update/<int:item_id>/", views.update_cart_item_view, name="update_cart_item"),
     path("cart/remove/<int:item_id>/", views.remove_from_cart_view, name="remove_from_cart"),
+    path("checkout/", views.checkout_view, name="checkout"),
+    path("order/success/<str:order_number>/", views.order_success_view, name="order_success"),
+
+
 
     # Admin
     path("admin-panel/", admin_views.admin_login_view, name="admin_login"),
@@ -80,6 +86,10 @@ urlpatterns = [
     path("admin-panel/variants/<int:variant_id>/toggle-status/", admin_views.admin_variant_toggle_status_view, name="admin_variant_toggle_status"),
     path("admin-panel/variants/<int:variant_id>/delete/", admin_views.admin_variant_delete_view, name="admin_variant_delete"),
     path("admin-panel/variants/<int:variant_id>/restore/", admin_views.admin_variant_restore_view, name="admin_variant_restore"),
+
+    path("admin-panel/orders/", admin_views.admin_order_list_view, name="admin_orders"),
+    path("admin-panel/orders/<uuid:order_id>/", admin_views.admin_order_detail_view, name="admin_order_detail"),
+    path("admin-panel/orders/<uuid:order_id>/status/", admin_views.admin_order_update_status_view, name="admin_order_update_status"),
 
     path("admin-panel/forgot-password/", admin_views.admin_forgot_password_view, name="admin_forgot_password"),
     path("admin-panel/forgot-password/otp/", admin_views.admin_forgot_password_otp_view, name="admin_forgot_password_otp"),

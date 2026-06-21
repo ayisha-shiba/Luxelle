@@ -1,0 +1,225 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle Admin - Order {{ order.order_number }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/admin_common.css' %}" rel="stylesheet">
+    <style>
+        .alert { margin-bottom: 1.5rem; border-radius: 8px; padding: 1rem 1.25rem; }
+        .alert-success { background-color: rgba(39,174,96,0.1); border:1px solid rgba(39,174,96,0.3); color:#27ae60; }
+        .alert-error { background-color: rgba(231,76,60,0.1); border:1px solid rgba(231,76,60,0.3); color:#e74c3c; }
+
+        .back-link { color:#c5a059; text-decoration:none; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.4rem; margin-bottom:1.2rem; }
+        .back-link:hover { text-decoration:underline; }
+
+        .info-card { background:#0f0f0f; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:1.4rem; margin-bottom:1.25rem; }
+        .info-card h3 { font-size:0.78rem; letter-spacing:0.1em; text-transform:uppercase; color:#888; margin:0 0 1rem; }
+        .info-row { display:flex; justify-content:space-between; color:#cfcfcf; font-size:0.88rem; margin-bottom:0.55rem; }
+        .info-row .lbl { color:#888; }
+        .addr-line { color:#cfcfcf; font-size:0.88rem; line-height:1.6; }
+
+        .st-badge { padding:0.35rem 0.8rem; border-radius:20px; font-size:0.78rem; font-weight:600; }
+        .st-pending { background:rgba(224,162,59,0.14); color:#e0a23b; }
+        .st-shipped { background:rgba(52,152,219,0.14); color:#3498db; }
+        .st-out_for_delivery { background:rgba(155,89,182,0.16); color:#a569bd; }
+        .st-delivered { background:rgba(39,174,96,0.14); color:#27ae60; }
+        .st-cancelled { background:rgba(231,76,60,0.14); color:#e74c3c; }
+        .st-returned { background:rgba(149,165,166,0.16); color:#95a5a6; }
+
+        .prod-thumb { width:48px; height:48px; border-radius:8px; object-fit:cover; background:#1a1a1a; }
+        .line-cancelled { opacity:0.5; text-decoration:line-through; }
+
+        .status-form { display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap; }
+        .status-form select { background:#161616; border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:0.6rem 1rem; color:#fff; font-size:0.88rem; min-width:200px; }
+        .status-form button { background:#c5a059; border:none; border-radius:8px; padding:0.6rem 1.4rem; color:#fff; font-weight:600; font-size:0.85rem; cursor:pointer; }
+        .status-form button:hover { background:#b08d45; }
+
+        .timeline-btn { background:rgba(255,255,255,0.06); color:#fff; border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:0.5rem 1rem; font-size:0.82rem; cursor:pointer; }
+        .timeline-btn:hover { border-color:#c5a059; color:#c5a059; }
+
+        .timeline { list-style:none; margin:0; padding:0; }
+        .timeline-item { position:relative; padding:0 0 1.4rem 1.6rem; border-left:2px solid rgba(255,255,255,0.12); }
+        .timeline-item:last-child { border-left-color:transparent; padding-bottom:0; }
+        .timeline-dot { position:absolute; left:-7px; top:2px; width:12px; height:12px; border-radius:50%; background:#c5a059; }
+        .timeline-dot.st-delivered { background:#27ae60; }
+        .timeline-dot.st-cancelled { background:#e74c3c; }
+        .timeline-dot.st-shipped { background:#3498db; }
+        .timeline-dot.st-out_for_delivery { background:#a569bd; }
+        .timeline-dot.st-returned { background:#95a5a6; }
+        .timeline-status { font-weight:600; color:#fff; font-size:0.9rem; }
+        .timeline-note { color:#cfcfcf; font-size:0.82rem; margin-top:0.15rem; }
+        .timeline-time { color:#777; font-size:0.76rem; margin-top:0.2rem; }
+    </style>
+</head>
+<body>
+    {% include 'admin_panel/partials/sidebar.html' with active='orders' %}
+
+    <main class="main">
+        <a href="{% url 'admin_orders' %}" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Orders</a>
+
+        <div class="top-bar">
+            <div>
+                <h1 class="page-title">Order #{{ order.order_number }}</h1>
+                <p class="page-sub">Placed on {{ order.created_at|date:"d M Y · h:i A" }}</p>
+            </div>
+            <div style="display:flex; align-items:center; gap:1rem;">
+                <button type="button" class="timeline-btn" onclick="toggleTimeline()">
+                    <i class="fa-solid fa-route"></i> <span id="timelineBtnText">View Timeline</span>
+                </button>
+                <span class="st-badge st-{{ order.status }}">{{ order.get_status_display }}</span>
+            </div>
+        </div>
+
+        <!-- Order Timeline (toggled) -->
+        <div class="info-card" id="timelinePanel" style="display:none;">
+            <h3>Order Timeline</h3>
+            <ul class="timeline">
+                {% for event in order.status_events.all reversed %}
+                    <li class="timeline-item">
+                        <span class="timeline-dot st-{{ event.status }}"></span>
+                        <div class="timeline-status st-text-{{ event.status }}">{{ event.get_status_display }}</div>
+                        <div class="timeline-note">{{ event.note }}</div>
+                        <div class="timeline-time">{{ event.created_at|date:"d M Y · h:i A" }}</div>
+                    </li>
+                {% empty %}
+                    <li class="timeline-item">
+                        <span class="timeline-dot st-pending"></span>
+                        <div class="timeline-status">Order Placed</div>
+                        <div class="timeline-note">Order placed successfully.</div>
+                        <div class="timeline-time">{{ order.created_at|date:"d M Y · h:i A" }}</div>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="row g-0" style="gap:0;">
+            <div class="col-lg-7 pe-lg-3">
+                <!-- Customer -->
+                <div class="info-card">
+                    <h3>Customer</h3>
+                    <div class="info-row"><span class="lbl">Name</span><span>{{ order.user.get_full_name }}</span></div>
+                    <div class="info-row"><span class="lbl">Email</span><span>{{ order.user.email }}</span></div>
+                    <div class="info-row"><span class="lbl">Phone</span><span>{{ order.ship_phone|default:"—" }}</span></div>
+                </div>
+
+                <!-- Shipping address (snapshot) -->
+                <div class="info-card">
+                    <h3>Shipping Address</h3>
+                    <div class="addr-line">
+                        {{ order.ship_full_name }}<br>
+                        {{ order.ship_address_line1 }}{% if order.ship_address_line2 %}, {{ order.ship_address_line2 }}{% endif %}<br>
+                        {{ order.ship_city }}, {{ order.ship_state }} - {{ order.ship_postal_code }}<br>
+                        {{ order.ship_country }}<br>
+                        Phone: {{ order.ship_phone }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5 ps-lg-3">
+                <!-- Payment summary -->
+                <div class="info-card">
+                    <h3>Payment Summary</h3>
+                    <div class="info-row"><span class="lbl">Subtotal</span><span>₹{{ order.subtotal }}</span></div>
+                    <div class="info-row"><span class="lbl">Discount</span><span>− ₹{{ order.discount }}</span></div>
+                    <div class="info-row"><span class="lbl">Delivery</span><span>₹{{ order.shipping }}</span></div>
+                    <div class="info-row"><span class="lbl">Tax</span><span>₹{{ order.tax }}</span></div>
+                    <hr style="border-color:rgba(255,255,255,0.1);">
+                    <div class="info-row" style="font-size:1.05rem; color:#c5a059; font-weight:700;">
+                        <span>Total</span><span>₹{{ order.total }}</span>
+                    </div>
+                    <div class="info-row mt-2"><span class="lbl">Payment Method</span><span>{{ order.get_payment_method_display }}</span></div>
+                </div>
+
+                <!-- Status change -->
+                <div class="info-card">
+                    <h3>Update Order Status</h3>
+                    {% if allowed_statuses %}
+                        <form method="post" action="{% url 'admin_order_update_status' order.id %}" class="status-form">
+                            {% csrf_token %}
+                            <select name="status">
+                                <option value="" disabled selected>— Select next status —</option>
+                                {% for value, label in allowed_statuses %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit">Update Status</button>
+                        </form>
+                    {% else %}
+                        <p style="color:#888; font-size:0.85rem; margin:0;">
+                            This order is <strong style="color:#cfcfcf;">{{ order.get_status_display }}</strong> — no further status changes are possible.
+                        </p>
+                    {% endif %}
+                    {% if order.cancellation_reason %}
+                        <p style="color:#888; font-size:0.8rem; margin-top:0.8rem;">Cancellation reason: {{ order.cancellation_reason }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Products -->
+        <div class="panel mt-2">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>SKU</th>
+                        <th>Qty</th>
+                        <th>Unit Price</th>
+                        <th>Line Total</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                        <tr class="{% if item.is_cancelled %}line-cancelled{% endif %}">
+                            <td>
+                                <div class="user-cell">
+                                    <img class="prod-thumb" src="{% if item.variant.images.first %}{{ item.variant.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}" alt="{{ item.product_name }}">
+                                    <div>
+                                        <div class="user-name">{{ item.product_name }}</div>
+                                        <div style="color:#888; font-size:0.78rem;">{{ item.variant_name }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="color:#aaa;">{{ item.sku }}</td>
+                            <td style="color:#cfcfcf;">{{ item.quantity }}</td>
+                            <td style="color:#cfcfcf;">₹{{ item.unit_price }}</td>
+                            <td style="color:#fff; font-weight:600;">₹{{ item.line_total }}</td>
+                            <td>
+                                {% if item.is_cancelled %}<span class="st-badge st-cancelled">Cancelled</span>
+                                {% elif item.is_returned %}<span class="st-badge st-returned">Returned</span>
+                                {% else %}<span class="st-badge st-delivered">Active</span>{% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function toggleTimeline() {
+            var panel = document.getElementById('timelinePanel');
+            var text  = document.getElementById('timelineBtnText');
+            var open  = panel.style.display === 'none';
+            panel.style.display = open ? 'block' : 'none';
+            text.textContent = open ? 'Hide Timeline' : 'View Timeline';
+        }
+    </script>
+</body>
+</html>

@@ -5,6 +5,10 @@ from django.db.models import Q, Min, Avg, F
 import logging
 import math
 
+from django.db import transaction
+from decimal import Decimal
+
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -21,7 +25,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from django.shortcuts import get_object_or_404, redirect, render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
@@ -40,7 +44,7 @@ from .forms import (
     SetNewPasswordForm,
     UserProfileForm,
 )
-from .models import Address, CustomUser, UserProfile, OTPVerification, Product, Category, Brand, Review, Wishlist, Cart, CartItem, ProductVariant
+from .models import Address, CustomUser, UserProfile, OTPVerification, Product, Category, Brand, Review, Wishlist, Cart, CartItem, ProductVariant, Order, OrderItem, OrderStatusEvent
 from .utils import (
     check_resend_cooldown,
     clear_pending_user_session,
@@ -959,7 +963,58 @@ def product_detail_view(request, slug):
 @login_required
 @never_cache
 def orders_view(request):
-    return render(request, "orders.html")
+    search_query = request.GET.get("search", "").strip()
+
+    orders = (Order.objects.filter(user=request.user)
+              .prefetch_related("items__variant__images")
+              .order_by("-created_at"))
+
+    if search_query:
+        orders = orders.filter(
+            Q(order_number__icontains=search_query) |
+            Q(items__product_name__icontains=search_query)
+        ).distinct()
+
+    context = {"orders": orders, "search_query": search_query}
+    return render(request, "orders.html", context)
+
+
+@login_required
+@never_cache
+def order_detail_view(request, order_number):
+    order = (Order.objects.filter(order_number=order_number, user=request.user)
+             .prefetch_related("items__variant__images").first())
+    if not order:
+        messages.error(request, "Order not found.")
+        return redirect("orders")
+
+    context = {"order": order, "items": order.items.all()}
+    return render(request, "order_detail.html", context)
+
+
+@login_required
+def order_invoice_view(request, order_number):
+    from io import BytesIO
+    from django.template.loader import render_to_string
+    from xhtml2pdf import pisa
+
+    order = (Order.objects.filter(order_number=order_number, user=request.user)
+             .prefetch_related("items").first())
+    if not order:
+        messages.error(request, "Order not found.")
+        return redirect("orders")
+
+    html = render_to_string("invoice.html", {"order": order, "items": order.items.all()})
+
+    result = BytesIO()
+    pdf_status = pisa.CreatePDF(html, dest=result, encoding="utf-8")
+    if pdf_status.err:
+        messages.error(request, "Could not generate the invoice. Please try again.")
+        return redirect("order_detail", order_number=order.order_number)
+
+    response = HttpResponse(result.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="Luxelle-Invoice-{order.order_number}.pdf"'
+    return response
 
 
 @login_required
@@ -1222,10 +1277,18 @@ def add_to_cart_view(request, variant_id):
 @login_required
 @require_POST
 def update_cart_item_view(request, item_id):
-    item = CartItem.objects.filter(pk=item_id, cart__user=request.user).first()
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+    item = (CartItem.objects.filter(pk=item_id, cart__user=request.user)
+            .select_related("variant__product__category").first())
     if item is None:
+        if is_ajax:
+            return JsonResponse({"success": False, "error": "Item not found."}, status=404)
         return redirect("cart")
-    action = request.POST.get("action")
+
+    action  = request.POST.get("action")
+    removed = False
+    warning = ""
 
     if action == "increment":
         max_allowed = min(item.variant.stock, CartItem.MAX_QUANTITY)
@@ -1233,15 +1296,50 @@ def update_cart_item_view(request, item_id):
             item.quantity += 1
             item.save()
         else:
-            messages.warning(request, "You've reached the maximum quantity for this item.")
+            warning = "You've reached the maximum quantity for this item."
+            if not is_ajax:
+                messages.warning(request, warning)
     elif action == "decrement":
         if item.quantity > 1:
             item.quantity -= 1
             item.save()
         else:
             item.delete()
+            removed = True
 
-    return redirect("cart")
+    if not is_ajax:
+        return redirect("cart")
+
+    # Recompute the cart total exactly like cart_view (available items only)
+    cart = Cart.objects.get(user=request.user)
+    cart_total = 0
+    for ci in cart.items.select_related("variant__product__category"):
+        p = ci.variant.product
+        blocked = (
+            p.is_deleted or not p.is_listed
+            or p.category.is_deleted or not p.category.is_listed
+            or ci.variant.is_deleted or not ci.variant.is_listed
+        )
+        if not blocked and ci.variant.stock > 0:
+            cart_total += ci.total_price
+
+    data = {
+        "success":    True,
+        "removed":    removed,
+        "warning":    warning,
+        "cart_total": str(cart_total),
+        "cart_count": cart.total_items,
+    }
+    if not removed:
+        max_qty = min(item.variant.stock, CartItem.MAX_QUANTITY)
+        data.update({
+            "quantity":      item.quantity,
+            "line_calc":     f"₹{item.variant.original_price} × {item.quantity} = ₹{item.subtotal}",
+            "line_discount": f"Discount: −₹{item.discount_amount}",
+            "line_total":    str(item.total_price),
+            "at_max":        item.quantity >= max_qty,
+        })
+    return JsonResponse(data)
 
 
 @login_required
@@ -1254,3 +1352,115 @@ def remove_from_cart_view(request, item_id):
     messages.success(request, "Item removed from your cart.")
     return redirect("cart")
 
+def payment_handler(request,order):
+    method = order.payment_method
+
+    if method == Order.PAYMENT_COD:
+        return redirect("order_success", order_number=order.order_number)
+
+
+    raise ValueError(f"Unsupported payment method: {method}")
+
+@login_required
+@never_cache
+def checkout_view(request):
+    cart, _ = Cart.objects.get_or_create(user=request.user)
+    items   = list(cart.items.select_related("variant__product", "variant__product__category"))
+
+    for item in items:
+        product = item.variant.product
+        blocked = (
+            product.is_deleted or not product.is_listed
+            or product.category.is_deleted or not product.category.is_listed or item.variant.is_deleted or not item.variant.is_listed
+        )
+        if blocked or item.variant.stock == 0 or item.quantity > item.variant.stock:
+            messages.error(request, "Some items in your cart are unavailable. Please reveiew your cart")
+            return redirect("cart")
+    
+    if not items:
+        messages.info(request, "Your cart is empty.")
+        return redirect("cart")
+    
+    addresses = request.user.addresses.all()
+    if not addresses:
+        messages.info(request, "Please add a delivery addresss to continue")
+        return redirect("addresses")
+    
+    if request.method == "POST":
+        address = Address.objects.filter(pk=request.POST.get("address_id"), user=request.user).first()
+        if address is None:
+            messages.error(request,"Please select a valid delivery address.")
+            return redirect("checkout")
+
+        try:
+            with transaction.atomic():
+                order = Order.objects.create(
+                    user=request.user,
+                    ship_full_name=address.full_name,
+                    ship_phone=address.phone,
+                    ship_address_line1=address.address_line1,
+                    ship_address_line2=address.address_line2,
+                    ship_city=address.city,
+                    ship_state=address.state,
+                    ship_postal_code=address.postal_code,
+                    ship_country=address.country,
+                    payment_method=Order.PAYMENT_COD,
+                )
+
+                subtotal = Decimal("0")
+                discount = Decimal("0")
+                for item in items:
+                    variant = ProductVariant.objects.select_for_update().get(pk=item.variant_id)
+                    if variant.stock < item.quantity:
+                        raise ValueError(f"{variant.variant_name} just went out of stock.")
+                    line_total = variant.sale_price * item.quantity
+                    OrderItem.objects.create(
+                        order=order,
+                        variant=variant,
+                        product_name=variant.product.name,
+                        variant_name=variant.variant_name,
+                        sku=variant.sku,
+                        unit_price=variant.sale_price,
+                        quantity=item.quantity,
+                        line_total=line_total,
+                    
+                    )
+
+                    variant.stock -= item.quantity
+                    variant.save(update_fields=["stock"])
+
+                    subtotal += variant.original_price * item.quantity
+                    discount += (variant.original_price - variant.sale_price) * item.quantity
+
+                order.subtotal = subtotal
+                order.discount = discount
+                order.total = subtotal - discount
+                order.save()
+
+                OrderStatusEvent.objects.create(
+                    order=order, status=order.status, note="Order placed successfully.",
+                )
+
+                cart.items.all().delete()
+
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("cart")
+        
+        return payment_handler(request,order)
+    
+    context = {
+        "items": items,
+        "addresses": addresses,
+        "subtotal": cart.subtotal,
+        "discount":cart.total_discount,
+        "total": cart.total_price,
+    }
+    return render(request, "checkout.html",context)
+
+@login_required
+@never_cache
+def order_success_view(request, order_number):
+    order = get_object_or_404(Order, order_number=order_number, user = request.user)
+    return render(request, "order_success.html", {"order":order})
+    
