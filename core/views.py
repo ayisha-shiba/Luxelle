@@ -1467,6 +1467,10 @@ def payment_handler(request,order):
     if method == Order.PAYMENT_COD:
         return redirect("order_success", order_number=order.order_number)
 
+    if method == Order.PAYMENT_RAZORPAY:
+        # Razorpay logic lives in the payments app; core only knows the URL name.
+        return redirect("payment_start", order_number=order.order_number)
+
     raise ValueError(f"Unsupported payment method: {method}")
 
 @login_required
@@ -1510,6 +1514,11 @@ def checkout_view(request):
             messages.error(request,"Please select a valid delivery address.")
             return redirect("checkout")
 
+        payment_method = request.POST.get("payment_method", Order.PAYMENT_COD)
+        if payment_method not in dict(Order.PAYMENT_CHOICES):
+            messages.error(request, "Please select a valid payment method.")
+            return redirect("checkout")
+
         try:
             with transaction.atomic():
                 order = Order.objects.create(
@@ -1522,7 +1531,7 @@ def checkout_view(request):
                     ship_state=address.state,
                     ship_postal_code=address.postal_code,
                     ship_country=address.country,
-                    payment_method=Order.PAYMENT_COD,
+                    payment_method=payment_method,
                 )
 
                 for item in items:

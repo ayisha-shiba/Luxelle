@@ -159,10 +159,10 @@
 
                         <div class="row g-3 mb-3">
                             <div class="col-4">
-                                <label class="pay-tile is-disabled d-block">
-                                    <input type="radio" name="payment_method" value="online" class="d-none" disabled>
-                                    <i class="fa-regular fa-credit-card fs-4 text-lux-gray d-block mb-2"></i>
-                                    <span class="small text-uppercase tracking-wider text-lux-gray">Card / UPI</span>
+                                <label class="pay-tile d-block">
+                                    <input type="radio" name="payment_method" value="razorpay" class="d-none">
+                                    <i class="fa-regular fa-credit-card fs-4 text-lux-black d-block mb-2"></i>
+                                    <span class="small text-uppercase tracking-wider text-lux-black">Card / UPI</span>
                                 </label>
                             </div>
                             <div class="col-4">
@@ -174,7 +174,7 @@
                             </div>
                             <div class="col-4">
                                 <label class="pay-tile is-selected d-block">
-                                    <input type="radio" name="payment_method" value="cod" class="d-none" checked>
+                                    <input type="radio" name="payment_method" value="COD" class="d-none" checked>
                                     <i class="fa-solid fa-shield-halved fs-4 text-lux-black d-block mb-2"></i>
                                     <span class="small text-uppercase tracking-wider text-lux-black">Cash on Delivery</span>
                                 </label>
@@ -184,8 +184,8 @@
                         <div class="d-flex align-items-start gap-2 p-3 rounded-3" style="background:#faf8f4;">
                             <i class="fa-solid fa-circle-info text-lux-gold mt-1"></i>
                             <p class="text-lux-gray small mb-0">
-                                Card, UPI and wallet payments are arriving shortly. For now, pay conveniently with
-                                <span class="text-lux-black fw-semibold">Cash on Delivery</span> when your handbag reaches you.
+                                Pay securely online via <span class="text-lux-black fw-semibold">Card / UPI</span> (Razorpay),
+                                or choose <span class="text-lux-black fw-semibold">Cash on Delivery</span>. Wallet payments are arriving shortly.
                             </p>
                         </div>
                     </div>
@@ -438,6 +438,15 @@
                 radio.addEventListener('change', function () {
                     document.querySelectorAll('input[name="address_id"]').forEach(function (r) {
                         r.closest('.option-tile').classList.toggle('is-selected', r.checked);
+                    });
+                });
+            });
+
+            // Payment tiles (skip disabled ones)
+            document.querySelectorAll('input[name="payment_method"]:not([disabled])').forEach(function (radio) {
+                radio.addEventListener('change', function () {
+                    document.querySelectorAll('input[name="payment_method"]').forEach(function (r) {
+                        r.closest('.pay-tile').classList.toggle('is-selected', r.checked);
                     });
                 });
             });

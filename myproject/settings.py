@@ -1,20 +1,14 @@
 from pathlib import Path
 import os
 
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load .env manually
-env_path = BASE_DIR / ".env"
-if env_path.exists():
-    with open(env_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#"):
-                try:
-                    key, val = line.split("=", 1)
-                    os.environ.setdefault(key.strip(), val.strip())
-                except ValueError:
-                    pass
+# Load .env into os.environ. override=True so the .env file is the source of
+# truth in dev, even if a stale variable lingers in the shell session.
+# (In production there's no .env, so real environment variables are used.)
+load_dotenv(BASE_DIR / ".env", override=True)
 
 SECRET_KEY = os.environ.get(
     "SECRET_KEY",
@@ -44,6 +38,7 @@ INSTALLED_APPS = [
     "allauth.socialaccount",
     "allauth.socialaccount.providers.google",
     "core",
+    "payments",
 ]
 
 MIDDLEWARE = [
@@ -203,6 +198,10 @@ EMAIL_USE_TLS       = os.environ.get("EMAIL_USE_TLS", "True").lower() == "true"
 EMAIL_HOST_USER     = os.environ.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL  = EMAIL_HOST_USER
+
+# Razorpay (test keys live in .env, never commit real keys)
+RAZORPAY_KEY_ID     = os.environ.get("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 
 # Logging
 
