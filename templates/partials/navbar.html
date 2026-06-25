@@ -21,7 +21,7 @@
                     <a class="nav-link {% if active == 'deals' %}active text-lux-black{% else %}text-lux-gray hover-lux-gold{% endif %}" href="{% url 'deals' %}">Deals</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link text-lux-gray hover-lux-gold" href="#">About Us</a>
+                    <a class="nav-link {% if active == 'about' %}active text-lux-black{% else %}text-lux-gray hover-lux-gold{% endif %}" href="{% url 'about' %}">About Us</a>
                 </li>
             </ul>
         </div>

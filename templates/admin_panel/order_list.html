@@ -30,6 +30,15 @@
         /* Status badges */
         .st-badge { padding:0.3rem 0.7rem; border-radius:20px; font-size:0.74rem; font-weight:600; text-transform:capitalize; white-space:nowrap; }
         .st-pending { background:rgba(224,162,59,0.14); color:#e0a23b; }
+        .st-confirmed { background:rgba(52,152,219,0.14); color:#5dade2; }
+        .st-packed { background:rgba(241,196,15,0.14); color:#f1c40f; }
+        .st-return_requested { background:rgba(230,126,34,0.16); color:#e67e22; }
+        .st-return_approved { background:rgba(26,188,156,0.16); color:#1abc9c; }
+        .st-return_rejected { background:rgba(231,76,60,0.16); color:#e74c3c; }
+        .st-pickup_scheduled { background:rgba(52,152,219,0.14); color:#5dade2; }
+        .st-return_picked { background:rgba(241,196,15,0.14); color:#f1c40f; }
+        .st-return_repair { background:rgba(211,84,0,0.18); color:#e67e22; }
+        .st-mixed { background:rgba(149,165,166,0.18); color:#bdc3c7; }
         .st-shipped { background:rgba(52,152,219,0.14); color:#3498db; }
         .st-out_for_delivery { background:rgba(155,89,182,0.16); color:#a569bd; }
         .st-delivered { background:rgba(39,174,96,0.14); color:#27ae60; }
@@ -124,7 +133,11 @@
                                 </td>
                                 <td style="color:#fff; font-weight:600;">₹{{ order.total }}</td>
                                 <td><span class="pay-badge">{{ order.get_payment_method_display }}</span></td>
-                                <td><span class="st-badge st-{{ order.status }}">{{ order.get_status_display }}</span></td>
+                                <td>
+                                    {% for value, label in order.item_status_summary %}
+                                        <span class="st-badge st-{{ value }}" style="display:inline-block; margin:1px;">{{ label }}</span>
+                                    {% endfor %}
+                                </td>
                                 <td style="color:#aaa;">{{ order.created_at|date:"d M Y" }}</td>
                                 <td>
                                     <a href="{% url 'admin_order_detail' order.id %}" class="view-btn"><i class="fa-regular fa-eye"></i> View Order</a>

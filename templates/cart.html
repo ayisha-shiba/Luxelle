@@ -24,8 +24,12 @@
         .breadcrumb-bar a { color: var(--lux-gray); text-decoration:none; }
         .breadcrumb-bar a:hover { color: var(--lux-gold); }
 
+        .product-img-wrapper {
+            width: 110px; height: 110px;
+            display: flex; align-items: center; justify-content: center;
+        }
         .cart-item-img {
-            width: 110px; height: 110px; object-fit: cover;
+            width: 100%; height: 100%; object-fit: cover; display: block;
         }
 
         .qty-box button:disabled { color: var(--lux-gray-light); cursor:not-allowed; }
@@ -41,7 +45,7 @@
         .summary-card { position: sticky; top: 100px; }
 
         @media (max-width: 575.98px) {
-            .cart-item-img { width: 80px; height: 80px; }
+            .product-img-wrapper { width: 80px; height: 80px; }
         }
     </style>
 </head>
@@ -101,12 +105,12 @@
                         </div>
 
                         <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-3">
-                            <form method="post" action="{% url 'update_cart_item' item.id %}" class="qty-box js-qty-form" data-item-id="{{ item.id }}">
+                            <div class="qty-box js-qty-form" data-item-id="{{ item.id }}" data-url="{% url 'update_cart_item' item.id %}">
                                 {% csrf_token %}
-                                <button type="submit" name="action" value="decrement" class="js-dec" {% if item.is_blocked %}disabled{% endif %}>−</button>
+                                <button type="button" class="js-qty-btn js-dec" data-action="decrement" onclick="luxQty(this)" {% if item.is_blocked %}disabled{% endif %}>−</button>
                                 <input type="text" class="js-qty-value" value="{{ item.quantity }}" readonly>
-                                <button type="submit" name="action" value="increment" class="js-inc" {% if item.is_blocked or item.is_out_of_stock or item.quantity >= item.max_qty %}disabled{% endif %}>+</button>
-                            </form>
+                                <button type="button" class="js-qty-btn js-inc" data-action="increment" onclick="luxQty(this)" {% if item.is_blocked or item.is_out_of_stock or item.quantity >= item.max_qty %}disabled{% endif %}>+</button>
+                            </div>
 
                             <div class="item-price-box text-end">
                                 <div class="text-lux-gray small js-line-calc">
@@ -167,12 +171,24 @@
 
                     <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
                         <span>Subtotal</span>
-                        <span id="cartSubtotal">₹{{ cart_total }}</span>
+                        <span id="cartSubtotal">₹{{ summary.subtotal }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
+                        <span>CGST (9%)</span>
+                        <span id="cartCgst">₹{{ summary.cgst }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
+                        <span>SGST (9%)</span>
+                        <span id="cartSgst">₹{{ summary.sgst }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
+                        <span>Delivery</span>
+                        <span class="text-lux-gold">Free</span>
                     </div>
                     <hr class="border-light">
                     <div class="d-flex justify-content-between mb-4 fw-bold text-lux-black fs-5 font-inter">
                         <span>Total</span>
-                        <span id="cartTotal">₹{{ cart_total }}</span>
+                        <span id="cartTotal">₹{{ summary.grand_total }}</span>
                     </div>
 
                     {% if can_checkout %}
@@ -258,60 +274,62 @@
 
     <!-- AJAX quantity update -->
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            document.querySelectorAll('.js-qty-form').forEach(function (form) {
-                form.addEventListener('submit', function (e) {
-                    e.preventDefault();
+        function luxQty(btn) {
+            if (btn.disabled) return;
+            var box    = btn.closest('.js-qty-form');
+            var itemId = box.getAttribute('data-item-id');
+            var url    = box.getAttribute('data-url');
+            var action = btn.getAttribute('data-action');
+            var tokenEl = box.querySelector('[name=csrfmiddlewaretoken]');
+            var token   = tokenEl ? tokenEl.value : '';
 
-                    var action = e.submitter ? e.submitter.value : 'increment';
-                    var itemId = form.dataset.itemId;
-                    var token  = form.querySelector('[name=csrfmiddlewaretoken]').value;
+            var body = new URLSearchParams();
+            body.append('action', action);
+            body.append('csrfmiddlewaretoken', token);
 
-                    var body = new URLSearchParams();
-                    body.append('action', action);
-                    body.append('csrfmiddlewaretoken', token);
+            // prevent double-clicks while the request is in flight
+            box.querySelectorAll('.js-qty-btn').forEach(function (b) { b.disabled = true; });
 
-                    fetch(form.action, {
-                        method: 'POST',
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                        body: body
-                    })
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
-                        if (!data.success) return;
-                        // Item fully removed (decrement at qty 1) — let the server re-render.
-                        if (data.removed) { window.location.reload(); return; }
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': token },
+                body: body
+            })
+            .then(function (r) {
+                if (!r.ok) throw new Error('Server responded ' + r.status);
+                return r.json();
+            })
+            .then(function (data) {
+                if (!data.success) { window.location.reload(); return; }
+                if (data.removed)  { window.location.reload(); return; }
 
-                        var row = document.querySelector('[data-cart-row="' + itemId + '"]');
-                        if (row) {
-                            row.querySelector('.js-qty-value').value = data.quantity;
-                            var calc = row.querySelector('.js-line-calc');
-                            if (calc) calc.textContent = data.line_calc;
-                            var disc = row.querySelector('.js-line-discount');
-                            if (disc) disc.textContent = data.line_discount;
-                            var total = row.querySelector('.js-line-total');
-                            if (total) total.textContent = 'Item Total: ₹' + data.line_total;
-                            var inc = row.querySelector('.js-inc');
-                            if (inc) inc.disabled = data.at_max;
-                        }
+                var row = document.querySelector('[data-cart-row="' + itemId + '"]');
+                if (row) {
+                    var q = row.querySelector('.js-qty-value');     if (q) q.value = data.quantity;
+                    var c = row.querySelector('.js-line-calc');     if (c) c.textContent = data.line_calc;
+                    var d = row.querySelector('.js-line-discount'); if (d) d.textContent = data.line_discount;
+                    var t = row.querySelector('.js-line-total');    if (t) t.textContent = 'Item Total: ₹' + data.line_total;
+                    var inc = row.querySelector('.js-inc');         if (inc) inc.disabled = data.at_max;
+                    var dec = row.querySelector('.js-dec');         if (dec) dec.disabled = false;
+                }
 
-                        var summary = document.querySelector('[data-summary-row="' + itemId + '"]');
-                        if (summary) {
-                            var sq = summary.querySelector('.js-summary-qty');
-                            if (sq) sq.textContent = data.quantity;
-                            var st = summary.querySelector('.js-summary-total');
-                            if (st) st.textContent = '₹' + data.line_total;
-                        }
+                var sm = document.querySelector('[data-summary-row="' + itemId + '"]');
+                if (sm) {
+                    var sq  = sm.querySelector('.js-summary-qty');   if (sq) sq.textContent = data.quantity;
+                    var stt = sm.querySelector('.js-summary-total'); if (stt) stt.textContent = '₹' + data.line_total;
+                }
 
-                        var sub = document.getElementById('cartSubtotal');
-                        var tot = document.getElementById('cartTotal');
-                        if (sub) sub.textContent = '₹' + data.cart_total;
-                        if (tot) tot.textContent = '₹' + data.cart_total;
-                    })
-                    .catch(function () { window.location.reload(); });
-                });
+                function setMoney(id, v) { var e = document.getElementById(id); if (e) e.textContent = '₹' + v; }
+                setMoney('cartSubtotal', data.subtotal);
+                setMoney('cartCgst', data.cgst);
+                setMoney('cartSgst', data.sgst);
+                setMoney('cartTotal', data.grand_total);
+            })
+            .catch(function (err) {
+                console.error('Cart qty update failed:', err);
+                window.location.reload();
             });
-        });
+        }
     </script>
 
     <!-- Toast Notifications -->

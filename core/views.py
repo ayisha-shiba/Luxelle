@@ -45,6 +45,7 @@ from .forms import (
     UserProfileForm,
 )
 from .models import Address, CustomUser, UserProfile, OTPVerification, Product, Category, Brand, Review, Wishlist, Cart, CartItem, ProductVariant, Order, OrderItem, OrderStatusEvent
+from . import pricing
 from .utils import (
     check_resend_cooldown,
     clear_pending_user_session,
@@ -97,6 +98,10 @@ def _get_pending_otp_resend_seconds_remaining(request):
 
 
 # HOME
+
+def about_view(request):
+    return render(request, "about.html")
+
 
 def home_view(request):
     base_qs = Product.objects.filter(
@@ -983,12 +988,18 @@ def orders_view(request):
 @never_cache
 def order_detail_view(request, order_number):
     order = (Order.objects.filter(order_number=order_number, user=request.user)
-             .prefetch_related("items__variant__images").first())
+             .prefetch_related("items__variant__images", "items__status_events").first())
     if not order:
         messages.error(request, "Order not found.")
         return redirect("orders")
 
-    context = {"order": order, "items": order.items.all()}
+    status_value, status_label = order.derived_status
+    context = {
+        "order": order,
+        "items": order.items.all(),
+        "status_value": status_value,
+        "status_label": status_label,
+    }
     return render(request, "order_detail.html", context)
 
 
@@ -1004,7 +1015,22 @@ def order_invoice_view(request, order_number):
         messages.error(request, "Order not found.")
         return redirect("orders")
 
-    html = render_to_string("invoice.html", {"order": order, "items": order.items.all()})
+    if not order.can_download_invoice:
+        messages.error(request, "Invoice is available only after an item has been delivered.")
+        return redirect("order_detail", order_number=order.order_number)
+
+    # Totals are kept current on the order itself (recalculate_totals runs on
+    # every cancel/return), so the invoice, the user order page and the admin
+    # order page all read the same persisted figures. Bill only what the
+    # customer keeps; list cancelled/returned items separately, not in totals.
+    billed = [i for i in order.items.all() if i.is_billable]
+    status_value, status_label = order.derived_status
+
+    html = render_to_string("invoice.html", {
+        "order": order,
+        "items": billed,
+        "status_label": status_label,
+    })
 
     result = BytesIO()
     pdf_status = pisa.CreatePDF(html, dest=result, encoding="utf-8")
@@ -1015,6 +1041,82 @@ def order_invoice_view(request, order_number):
     response = HttpResponse(result.getvalue(), content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="Luxelle-Invoice-{order.order_number}.pdf"'
     return response
+
+
+@login_required
+@require_POST
+def cancel_order_item_view(request, item_id):
+    item = (OrderItem.objects.select_related("order", "variant")
+            .filter(pk=item_id, order__user=request.user).first())
+    if item is None:
+        messages.error(request, "Item not found.")
+        return redirect("orders")
+
+    if not item.can_cancel:
+        messages.error(request, "This item can no longer be cancelled.")
+        return redirect("order_detail", order_number=item.order.order_number)
+
+    reason = request.POST.get("reason", "").strip()
+
+    with transaction.atomic():
+        if item.variant:
+            item.variant.stock += item.quantity
+            item.variant.save(update_fields=["stock"])
+
+        item.status              = OrderItem.STATUS_CANCELLED
+        item.cancellation_reason = reason
+        item.save(update_fields=["status", "cancellation_reason"])
+
+        OrderStatusEvent.objects.create(
+            order_item=item, status=OrderItem.STATUS_CANCELLED,
+            note="Cancelled by customer." + (f" Reason: {reason}" if reason else ""),
+        )
+
+        item.order.recalculate_totals()
+
+    messages.success(request, f"{item.product_name} has been cancelled successfully.")
+    return redirect("order_detail", order_number=item.order.order_number)
+
+
+@login_required
+@require_POST
+def return_order_item_view(request, item_id):
+    item = (OrderItem.objects.select_related("order")
+            .filter(pk=item_id, order__user=request.user).first())
+    if item is None:
+        messages.error(request, "Item not found.")
+        return redirect("orders")
+
+    if not item.can_return:
+        messages.error(request, "This item is not eligible for return.")
+        return redirect("order_detail", order_number=item.order.order_number)
+
+    reason = request.POST.get("reason", "").strip()
+    detail_url = item.order.order_number
+
+    if not reason:
+        messages.error(request, "Please provide a reason for the return.")
+        return redirect("order_detail", order_number=detail_url)
+    if len(reason) < 10:
+        messages.error(request, "Please describe the reason in a little more detail (at least 10 characters).")
+        return redirect("order_detail", order_number=detail_url)
+    if not any(ch.isalpha() for ch in reason):
+        messages.error(request, "Please enter a valid return reason in words.")
+        return redirect("order_detail", order_number=detail_url)
+    reason = reason[:500]
+
+    item.status              = OrderItem.STATUS_RETURN_REQUESTED
+    item.return_reason       = reason
+    item.return_requested_at = timezone.now()
+    item.save(update_fields=["status", "return_reason", "return_requested_at"])
+
+    OrderStatusEvent.objects.create(
+        order_item=item, status=OrderItem.STATUS_RETURN_REQUESTED,
+        note=f"Return requested by customer. Reason: {reason}",
+    )
+
+    messages.success(request, f"Return requested for {item.product_name}.")
+    return redirect("order_detail", order_number=item.order.order_number)
 
 
 @login_required
@@ -1199,7 +1301,7 @@ def cart_view(request):
     ))
 
     can_checkout = bool(items)
-    cart_total = 0
+    available_items = []
     for item in items:
         product = item.variant.product
         item.is_blocked = (
@@ -1223,12 +1325,14 @@ def cart_view(request):
         if item.is_blocked or item.is_out_of_stock:
             can_checkout = False
         else:
-            cart_total += item.total_price
+            available_items.append(item)
+
+    summary = pricing.summarize_items(available_items)
 
     context = {
         "cart": cart,
         "items": items,
-        "cart_total": cart_total,
+        "summary": summary,
         "can_checkout": can_checkout,
     }
     return render(request, "cart.html", context)
@@ -1310,9 +1414,8 @@ def update_cart_item_view(request, item_id):
     if not is_ajax:
         return redirect("cart")
 
-    # Recompute the cart total exactly like cart_view (available items only)
     cart = Cart.objects.get(user=request.user)
-    cart_total = 0
+    available = []
     for ci in cart.items.select_related("variant__product__category"):
         p = ci.variant.product
         blocked = (
@@ -1321,14 +1424,20 @@ def update_cart_item_view(request, item_id):
             or ci.variant.is_deleted or not ci.variant.is_listed
         )
         if not blocked and ci.variant.stock > 0:
-            cart_total += ci.total_price
+            available.append(ci)
+
+    summary = pricing.summarize_items(available)
 
     data = {
-        "success":    True,
-        "removed":    removed,
-        "warning":    warning,
-        "cart_total": str(cart_total),
-        "cart_count": cart.total_items,
+        "success":     True,
+        "removed":     removed,
+        "warning":     warning,
+        "subtotal":    str(summary["subtotal"]),
+        "cgst":        str(summary["cgst"]),
+        "sgst":        str(summary["sgst"]),
+        "gst":         str(summary["gst"]),
+        "grand_total": str(summary["grand_total"]),
+        "cart_count":  cart.total_items,
     }
     if not removed:
         max_qty = min(item.variant.stock, CartItem.MAX_QUANTITY)
@@ -1358,7 +1467,6 @@ def payment_handler(request,order):
     if method == Order.PAYMENT_COD:
         return redirect("order_success", order_number=order.order_number)
 
-
     raise ValueError(f"Unsupported payment method: {method}")
 
 @login_required
@@ -1382,11 +1490,21 @@ def checkout_view(request):
         return redirect("cart")
     
     addresses = request.user.addresses.all()
-    if not addresses:
-        messages.info(request, "Please add a delivery addresss to continue")
-        return redirect("addresses")
-    
-    if request.method == "POST":
+    address_form = AddressForm()
+    open_address_modal = False
+
+    if request.method == "POST" and request.POST.get("form_type") == "add_address":
+        address_form = AddressForm(request.POST)
+        if address_form.is_valid():
+            new_address = address_form.save(commit=False)
+            new_address.user = request.user
+            new_address.is_default = True
+            new_address.save()
+            messages.success(request, "Address added and selected for delivery.")
+            return redirect("checkout")
+        open_address_modal = True
+
+    elif request.method == "POST":
         address = Address.objects.filter(pk=request.POST.get("address_id"), user=request.user).first()
         if address is None:
             messages.error(request,"Please select a valid delivery address.")
@@ -1407,39 +1525,32 @@ def checkout_view(request):
                     payment_method=Order.PAYMENT_COD,
                 )
 
-                subtotal = Decimal("0")
-                discount = Decimal("0")
                 for item in items:
                     variant = ProductVariant.objects.select_for_update().get(pk=item.variant_id)
                     if variant.stock < item.quantity:
                         raise ValueError(f"{variant.variant_name} just went out of stock.")
                     line_total = variant.sale_price * item.quantity
-                    OrderItem.objects.create(
+                    order_item = OrderItem.objects.create(
                         order=order,
                         variant=variant,
                         product_name=variant.product.name,
                         variant_name=variant.variant_name,
                         sku=variant.sku,
                         unit_price=variant.sale_price,
+                        original_price=variant.original_price,
                         quantity=item.quantity,
                         line_total=line_total,
-                    
+                    )
+
+                    OrderStatusEvent.objects.create(
+                        order_item=order_item, status=OrderItem.STATUS_PENDING,
+                        note="Order placed successfully.",
                     )
 
                     variant.stock -= item.quantity
                     variant.save(update_fields=["stock"])
 
-                    subtotal += variant.original_price * item.quantity
-                    discount += (variant.original_price - variant.sale_price) * item.quantity
-
-                order.subtotal = subtotal
-                order.discount = discount
-                order.total = subtotal - discount
-                order.save()
-
-                OrderStatusEvent.objects.create(
-                    order=order, status=order.status, note="Order placed successfully.",
-                )
+                order.recalculate_totals()
 
                 cart.items.all().delete()
 
@@ -1449,14 +1560,15 @@ def checkout_view(request):
         
         return payment_handler(request,order)
     
+    summary = pricing.summarize_items(items)
     context = {
         "items": items,
         "addresses": addresses,
-        "subtotal": cart.subtotal,
-        "discount":cart.total_discount,
-        "total": cart.total_price,
+        "summary": summary,
+        "address_form": address_form,
+        "open_address_modal": open_address_modal,
     }
-    return render(request, "checkout.html",context)
+    return render(request, "checkout.html", context)
 
 @login_required
 @never_cache
@@ -1464,3 +1576,4 @@ def order_success_view(request, order_number):
     order = get_object_or_404(Order, order_number=order_number, user = request.user)
     return render(request, "order_success.html", {"order":order})
     
+

@@ -25,6 +25,19 @@
 
         .st-badge { padding:0.35rem 0.8rem; border-radius:20px; font-size:0.78rem; font-weight:600; }
         .st-pending { background:rgba(224,162,59,0.14); color:#e0a23b; }
+        .st-confirmed { background:rgba(52,152,219,0.14); color:#5dade2; }
+        .st-packed { background:rgba(241,196,15,0.14); color:#f1c40f; }
+        .st-return_requested { background:rgba(230,126,34,0.16); color:#e67e22; }
+        .st-return_approved { background:rgba(26,188,156,0.16); color:#1abc9c; }
+        .st-return_rejected { background:rgba(231,76,60,0.16); color:#e74c3c; }
+        .st-pickup_scheduled { background:rgba(52,152,219,0.14); color:#5dade2; }
+        .st-return_picked { background:rgba(241,196,15,0.14); color:#f1c40f; }
+        .st-return_repair { background:rgba(211,84,0,0.18); color:#e67e22; }
+        .st-mixed { background:rgba(149,165,166,0.18); color:#bdc3c7; }
+        .timeline-dot.st-confirmed { background:#5dade2; }
+        .timeline-dot.st-packed { background:#f1c40f; }
+        .timeline-dot.st-return_requested { background:#e67e22; }
+        .timeline-dot.st-return_approved { background:#1abc9c; }
         .st-shipped { background:rgba(52,152,219,0.14); color:#3498db; }
         .st-out_for_delivery { background:rgba(155,89,182,0.16); color:#a569bd; }
         .st-delivered { background:rgba(39,174,96,0.14); color:#27ae60; }
@@ -54,6 +67,19 @@
         .timeline-status { font-weight:600; color:#fff; font-size:0.9rem; }
         .timeline-note { color:#cfcfcf; font-size:0.82rem; margin-top:0.15rem; }
         .timeline-time { color:#777; font-size:0.76rem; margin-top:0.2rem; }
+
+        .btn-approve { background:#1e8449; border:none; color:#fff; border-radius:6px; padding:0.45rem 0.85rem; font-size:0.78rem; cursor:pointer; }
+        .btn-approve:hover { background:#196f3d; }
+        .btn-decline { background:#c0392b; border:none; color:#fff; border-radius:6px; padding:0.45rem 0.85rem; font-size:0.78rem; cursor:pointer; }
+        .btn-decline:hover { background:#a93226; }
+        .btn-reallow { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:6px; padding:0.45rem 0.85rem; font-size:0.78rem; cursor:pointer; }
+
+        .lux-modal .modal-content { background:#141414; border:1px solid rgba(255,255,255,0.1); border-radius:14px; color:#ddd; }
+        .lux-modal .modal-header, .lux-modal .modal-footer { border-color:rgba(255,255,255,0.08); }
+        .lux-modal .modal-title { font-family:'Playfair Display',serif; color:#c5a059; }
+        .lux-modal textarea { background:#0d0d0d; border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:8px; width:100%; padding:0.7rem; }
+        .lux-modal textarea:focus { border-color:#c5a059; outline:none; }
+        .lux-modal .btn-close { filter:invert(0.85); }
     </style>
 </head>
 <body>
@@ -67,34 +93,11 @@
                 <h1 class="page-title">Order #{{ order.order_number }}</h1>
                 <p class="page-sub">Placed on {{ order.created_at|date:"d M Y · h:i A" }}</p>
             </div>
-            <div style="display:flex; align-items:center; gap:1rem;">
-                <button type="button" class="timeline-btn" onclick="toggleTimeline()">
-                    <i class="fa-solid fa-route"></i> <span id="timelineBtnText">View Timeline</span>
-                </button>
-                <span class="st-badge st-{{ order.status }}">{{ order.get_status_display }}</span>
-            </div>
-        </div>
-
-        <!-- Order Timeline (toggled) -->
-        <div class="info-card" id="timelinePanel" style="display:none;">
-            <h3>Order Timeline</h3>
-            <ul class="timeline">
-                {% for event in order.status_events.all reversed %}
-                    <li class="timeline-item">
-                        <span class="timeline-dot st-{{ event.status }}"></span>
-                        <div class="timeline-status st-text-{{ event.status }}">{{ event.get_status_display }}</div>
-                        <div class="timeline-note">{{ event.note }}</div>
-                        <div class="timeline-time">{{ event.created_at|date:"d M Y · h:i A" }}</div>
-                    </li>
-                {% empty %}
-                    <li class="timeline-item">
-                        <span class="timeline-dot st-pending"></span>
-                        <div class="timeline-status">Order Placed</div>
-                        <div class="timeline-note">Order placed successfully.</div>
-                        <div class="timeline-time">{{ order.created_at|date:"d M Y · h:i A" }}</div>
-                    </li>
+            <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                {% for value, label in order.item_status_summary %}
+                    <span class="st-badge st-{{ value }}">{{ label }}</span>
                 {% endfor %}
-            </ul>
+            </div>
         </div>
 
         {% if messages %}
@@ -136,7 +139,8 @@
                     <div class="info-row"><span class="lbl">Subtotal</span><span>₹{{ order.subtotal }}</span></div>
                     <div class="info-row"><span class="lbl">Discount</span><span>− ₹{{ order.discount }}</span></div>
                     <div class="info-row"><span class="lbl">Delivery</span><span>₹{{ order.shipping }}</span></div>
-                    <div class="info-row"><span class="lbl">Tax</span><span>₹{{ order.tax }}</span></div>
+                    <div class="info-row"><span class="lbl">CGST (9%)</span><span>₹{{ order.cgst }}</span></div>
+                    <div class="info-row"><span class="lbl">SGST (9%)</span><span>₹{{ order.sgst }}</span></div>
                     <hr style="border-color:rgba(255,255,255,0.1);">
                     <div class="info-row" style="font-size:1.05rem; color:#c5a059; font-weight:700;">
                         <span>Total</span><span>₹{{ order.total }}</span>
@@ -144,81 +148,148 @@
                     <div class="info-row mt-2"><span class="lbl">Payment Method</span><span>{{ order.get_payment_method_display }}</span></div>
                 </div>
 
-                <!-- Status change -->
+                <!-- Per-item status hint -->
                 <div class="info-card">
-                    <h3>Update Order Status</h3>
-                    {% if allowed_statuses %}
-                        <form method="post" action="{% url 'admin_order_update_status' order.id %}" class="status-form">
-                            {% csrf_token %}
-                            <select name="status">
-                                <option value="" disabled selected>— Select next status —</option>
-                                {% for value, label in allowed_statuses %}
-                                    <option value="{{ value }}">{{ label }}</option>
-                                {% endfor %}
-                            </select>
-                            <button type="submit">Update Status</button>
-                        </form>
-                    {% else %}
-                        <p style="color:#888; font-size:0.85rem; margin:0;">
-                            This order is <strong style="color:#cfcfcf;">{{ order.get_status_display }}</strong> — no further status changes are possible.
-                        </p>
-                    {% endif %}
-                    {% if order.cancellation_reason %}
-                        <p style="color:#888; font-size:0.8rem; margin-top:0.8rem;">Cancellation reason: {{ order.cancellation_reason }}</p>
-                    {% endif %}
+                    <h3>Order Status</h3>
+                    <p style="color:#9a9a9a; font-size:0.85rem; margin:0;">
+                        Each product is fulfilled independently. Update individual product
+                        statuses in the <strong style="color:#cfcfcf;">Products</strong> table below.
+                    </p>
                 </div>
             </div>
         </div>
 
-        <!-- Products -->
+        <!-- Products — each fulfilled independently -->
         <div class="panel mt-2">
             <table class="users-table">
                 <thead>
                     <tr>
                         <th>Product</th>
-                        <th>SKU</th>
                         <th>Qty</th>
-                        <th>Unit Price</th>
-                        <th>Line Total</th>
+                        <th>Total</th>
                         <th>Status</th>
+                        <th>Update Status</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in items %}
-                        <tr class="{% if item.is_cancelled %}line-cancelled{% endif %}">
+                        <tr id="item-{{ item.id }}" class="{% if item.is_cancelled or item.is_returned %}line-cancelled{% endif %}">
                             <td>
                                 <div class="user-cell">
                                     <img class="prod-thumb" src="{% if item.variant.images.first %}{{ item.variant.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}" alt="{{ item.product_name }}">
                                     <div>
                                         <div class="user-name">{{ item.product_name }}</div>
-                                        <div style="color:#888; font-size:0.78rem;">{{ item.variant_name }}</div>
+                                        <div style="color:#888; font-size:0.78rem;">{{ item.sku }} · {{ item.variant_name }}</div>
                                     </div>
                                 </div>
                             </td>
-                            <td style="color:#aaa;">{{ item.sku }}</td>
                             <td style="color:#cfcfcf;">{{ item.quantity }}</td>
-                            <td style="color:#cfcfcf;">₹{{ item.unit_price }}</td>
                             <td style="color:#fff; font-weight:600;">₹{{ item.line_total }}</td>
+                            <td><span class="st-badge st-{{ item.status }}">{{ item.get_status_display }}</span></td>
                             <td>
-                                {% if item.is_cancelled %}<span class="st-badge st-cancelled">Cancelled</span>
-                                {% elif item.is_returned %}<span class="st-badge st-returned">Returned</span>
-                                {% else %}<span class="st-badge st-delivered">Active</span>{% endif %}
+                                {% if item.can_approve_return %}
+                                    {# Return requested — review reason, then approve / reject #}
+                                    {% if item.return_reason %}<div style="color:#cfcfcf; font-size:0.78rem; margin-bottom:6px; max-width:240px;">Reason: {{ item.return_reason }}</div>{% endif %}
+                                    <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                                        <form method="post" action="{% url 'admin_return_approve' item.id %}">{% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.path }}#item-{{ item.id }}">
+                                            <button type="submit" class="btn-approve"><i class="fa-solid fa-check"></i> Approve</button>
+                                        </form>
+                                        <button type="button" class="btn-decline" data-bs-toggle="modal" data-bs-target="#declineModal{{ item.id }}"><i class="fa-solid fa-xmark"></i> Reject</button>
+                                    </div>
+                                {% elif item.return_next_statuses %}
+                                    {# Approved return in progress — Next Step / Inspection #}
+                                    <form method="post" action="{% url 'admin_return_update_status' item.id %}" class="status-form">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.path }}#item-{{ item.id }}">
+                                        <select name="status">
+                                            <option value="" disabled selected>{% if item.status == 'return_picked' %}— Inspection —{% else %}— Next Step —{% endif %}</option>
+                                            {% for value, label in item.return_next_statuses %}
+                                                <option value="{{ value }}">{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit">Update</button>
+                                    </form>
+                                {% elif item.admin_next_statuses %}
+                                    <form method="post" action="{% url 'admin_order_item_update_status' item.id %}" class="status-form">
+                                        {% csrf_token %}
+                                        <select name="status">
+                                            <option value="" disabled selected>— Next —</option>
+                                            {% for value, label in item.admin_next_statuses %}
+                                                <option value="{{ value }}">{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <button type="submit">Update</button>
+                                    </form>
+                                {% else %}
+                                    <span style="color:#777; font-size:0.8rem;">No further changes</span>
+                                {% endif %}
+
+                                {% if item.status == 'return_rejected' and item.return_rejection_reason %}
+                                    <div style="color:#e74c3c; font-size:0.76rem; margin-top:6px; max-width:240px;">Rejected: {{ item.return_rejection_reason }}</div>
+                                {% endif %}
+
+                                <button type="button" class="timeline-btn" style="margin-top:6px;" onclick="toggleItemTimeline('{{ item.id }}')">
+                                    <i class="fa-solid fa-route"></i> Timeline
+                                </button>
+                            </td>
+                        </tr>
+                        <tr id="timeline-{{ item.id }}" style="display:none;">
+                            <td colspan="5" style="background:#0b0b0b;">
+                                <ul class="timeline" style="padding:1rem 0 0.5rem 0.5rem;">
+                                    {% for event in item.status_events.all reversed %}
+                                        <li class="timeline-item">
+                                            <span class="timeline-dot st-{{ event.status }}"></span>
+                                            <div class="timeline-status">{{ event.get_status_display }}</div>
+                                            <div class="timeline-note">{{ event.note }}</div>
+                                            <div class="timeline-time">{{ event.created_at|date:"d M Y · h:i A" }}</div>
+                                        </li>
+                                    {% empty %}
+                                        <li class="timeline-item"><span class="timeline-dot st-pending"></span><div class="timeline-status">No timeline yet</div></li>
+                                    {% endfor %}
+                                </ul>
                             </td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+
+        {# Decline-return modals (kept outside the table for valid HTML) #}
+        {% for item in items %}
+        {% if item.can_decline_return %}
+        <div class="modal fade lux-modal" id="declineModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Decline Return</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <form method="post" action="{% url 'admin_return_decline' item.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}#item-{{ item.id }}">
+                <div class="modal-body">
+                  <p style="color:#9a9a9a; font-size:0.88rem;">Decline the return for <strong style="color:#fff;">{{ item.product_name }}</strong>. The reason is shown to the customer.</p>
+                  <label style="color:#aaa; font-size:0.8rem;">Rejection reason <span style="color:#e74c3c;">*</span></label>
+                  <textarea name="reason" rows="3" required placeholder="Why is this return being rejected?"></textarea>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn-reallow" data-bs-dismiss="modal">Cancel</button>
+                  <button type="submit" class="btn-decline">Confirm Decline</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function toggleTimeline() {
-            var panel = document.getElementById('timelinePanel');
-            var text  = document.getElementById('timelineBtnText');
-            var open  = panel.style.display === 'none';
-            panel.style.display = open ? 'block' : 'none';
-            text.textContent = open ? 'Hide Timeline' : 'View Timeline';
+        function toggleItemTimeline(id) {
+            var row = document.getElementById('timeline-' + id);
+            if (row) row.style.display = (row.style.display === 'none') ? 'table-row' : 'none';
         }
     </script>
 </body>

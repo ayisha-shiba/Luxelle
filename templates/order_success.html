@@ -27,6 +27,8 @@
             margin: 0 auto;
         }
         .confirm-card { border: 1px solid #e2dfd9; border-radius: 10px; background: #fff; }
+        .btn-outline-lux { background: transparent; color: #666; border: 1px solid #e2dfd9; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; border-radius: 4px; transition: all 0.3s; cursor: pointer; }
+        .btn-outline-lux:hover { border-color: #999; color: #1A1A1A; }
     </style>
 </head>
 <body>
@@ -73,9 +75,10 @@
         </div>
 
         <div class="d-flex gap-3 justify-content-center flex-wrap">
-            {# Order detail page is built later this week — wire this URL then #}
-            {# <a href="{% url 'order_detail' order.order_number %}" class="luxury-btn text-white text-uppercase tracking-wider px-4 py-3 border-0 text-decoration-none">View Order Details</a> #}
-            <a href="{% url 'product_list' %}" class="luxury-btn text-white text-uppercase tracking-wider px-4 py-3 border-0 text-decoration-none">
+            <a href="{% url 'order_detail' order.order_number %}" class="luxury-btn text-white text-uppercase tracking-wider px-4 py-3 border-0 text-decoration-none">
+                View Order
+            </a>
+            <a href="{% url 'product_list' %}" class="btn-outline-lux text-uppercase tracking-wider px-4 py-3 text-decoration-none d-inline-flex align-items-center">
                 Continue Shopping
             </a>
         </div>

@@ -45,7 +45,7 @@
                 <table class="meta" style="width:auto; float:right; margin-top:6px;">
                     <tr><td class="lbl">Invoice No:&nbsp;</td><td><b>{{ order.order_number }}</b></td></tr>
                     <tr><td class="lbl">Date:&nbsp;</td><td>{{ order.created_at|date:"d M Y" }}</td></tr>
-                    <tr><td class="lbl">Status:&nbsp;</td><td class="badge">{{ order.get_status_display }}</td></tr>
+                    <tr><td class="lbl">Status:&nbsp;</td><td class="badge">{{ status_label }}</td></tr>
                 </table>
             </td>
         </tr>
@@ -91,7 +91,7 @@
                 <td>{{ forloop.counter }}</td>
                 <td>
                     {{ item.product_name }}
-                    <div class="muted">SKU: {{ item.sku }}{% if item.variant_name %} &middot; {{ item.variant_name }}{% endif %}{% if item.is_cancelled %} &middot; CANCELLED{% elif item.is_returned %} &middot; RETURNED{% endif %}</div>
+                    <div class="muted">SKU: {{ item.sku }}{% if item.variant_name %} &middot; {{ item.variant_name }}{% endif %}{% if item.is_returned %} &middot; RETURNED{% endif %}</div>
                 </td>
                 <td class="center">{{ item.quantity }}</td>
                 <td class="num">Rs. {{ item.unit_price }}</td>
@@ -108,9 +108,10 @@
             <td style="width:45%;">
                 <table class="totals">
                     <tr><td>Subtotal</td><td class="num">Rs. {{ order.subtotal }}</td></tr>
-                    <tr><td>Discount</td><td class="num">- Rs. {{ order.discount }}</td></tr>
+                    {% if order.discount %}<tr><td>Discount</td><td class="num">- Rs. {{ order.discount }}</td></tr>{% endif %}
                     <tr><td>Delivery</td><td class="num">Rs. {{ order.shipping }}</td></tr>
-                    <tr><td>Tax</td><td class="num">Rs. {{ order.tax }}</td></tr>
+                    <tr><td>CGST (9%)</td><td class="num">Rs. {{ order.cgst }}</td></tr>
+                    <tr><td>SGST (9%)</td><td class="num">Rs. {{ order.sgst }}</td></tr>
                     <tr class="grand"><td>Total</td><td class="num">Rs. {{ order.total }}</td></tr>
                 </table>
             </td>

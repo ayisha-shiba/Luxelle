@@ -1,0 +1,207 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle Admin - Return Requests</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/admin_common.css' %}" rel="stylesheet">
+    <style>
+        .alert { margin-bottom: 1.5rem; border-radius: 8px; padding: 1rem 1.25rem; }
+        .alert-success { background-color: rgba(39,174,96,0.1); border:1px solid rgba(39,174,96,0.3); color:#27ae60; }
+        .alert-error { background-color: rgba(231,76,60,0.1); border:1px solid rgba(231,76,60,0.3); color:#e74c3c; }
+        .alert-info { background-color: rgba(52,152,219,0.1); border:1px solid rgba(52,152,219,0.3); color:#5dade2; }
+
+        .filter-chips { display:flex; gap:0.6rem; flex-wrap:wrap; margin-bottom:1.5rem; }
+        .chip { padding:0.55rem 1rem; border-radius:30px; border:1px solid rgba(255,255,255,0.1); color:#cfcfcf; text-decoration:none; font-size:0.82rem; background:#0f0f0f; }
+        .chip:hover { border-color:#c5a059; color:#fff; }
+        .chip.active { background:#c5a059; color:#0b0b0b; border-color:#c5a059; font-weight:600; }
+        .chip .badge-n { font-weight:700; }
+
+        .st-badge { padding:0.3rem 0.7rem; border-radius:20px; font-size:0.74rem; font-weight:600; white-space:nowrap; }
+        .st-return_requested { background:rgba(230,126,34,0.16); color:#e67e22; }
+        .st-return_approved { background:rgba(26,188,156,0.16); color:#1abc9c; }
+        .st-return_rejected { background:rgba(231,76,60,0.16); color:#e74c3c; }
+        .st-pickup_scheduled { background:rgba(52,152,219,0.14); color:#5dade2; }
+        .st-return_picked { background:rgba(241,196,15,0.14); color:#f1c40f; }
+        .st-return_repair { background:rgba(211,84,0,0.18); color:#e67e22; }
+        .st-returned { background:rgba(149,165,166,0.18); color:#95a5a6; }
+
+        .prod-thumb { width:44px; height:44px; border-radius:8px; object-fit:cover; background:#1a1a1a; }
+        .reason-cell { color:#cfcfcf; font-size:0.82rem; max-width:260px; }
+        .act-row { display:flex; gap:0.4rem; flex-wrap:wrap; }
+        .btn-approve { background:#1e8449; border:none; color:#fff; border-radius:6px; padding:0.4rem 0.8rem; font-size:0.78rem; cursor:pointer; }
+        .btn-decline { background:#c0392b; border:none; color:#fff; border-radius:6px; padding:0.4rem 0.8rem; font-size:0.78rem; cursor:pointer; }
+        .btn-returned { background:#c5a059; border:none; color:#0b0b0b; border-radius:6px; padding:0.4rem 0.8rem; font-size:0.78rem; cursor:pointer; font-weight:600; }
+        .btn-reallow { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:6px; padding:0.4rem 0.8rem; font-size:0.78rem; cursor:pointer; }
+
+        .lux-modal .modal-content { background:#141414; border:1px solid rgba(255,255,255,0.1); border-radius:14px; color:#ddd; }
+        .lux-modal .modal-header, .lux-modal .modal-footer { border-color:rgba(255,255,255,0.08); }
+        .lux-modal .modal-title { font-family:'Playfair Display',serif; color:#c5a059; }
+        .lux-modal textarea { background:#0d0d0d; border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:8px; width:100%; padding:0.7rem; }
+        .lux-modal textarea:focus { border-color:#c5a059; outline:none; }
+        .lux-modal .btn-close { filter:invert(0.85); }
+    </style>
+</head>
+<body>
+    {% include 'admin_panel/partials/sidebar.html' with active='returns' %}
+
+    <main class="main">
+        <div class="top-bar">
+            <div><h1 class="page-title">Return Requests</h1><p class="page-sub">Review and process product returns.</p></div>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Filters -->
+        <div class="filter-chips">
+            <a href="{% url 'admin_returns' %}" class="chip {% if status == 'all' %}active{% endif %}">All</a>
+            <a href="?status=return_requested" class="chip {% if status == 'return_requested' %}active{% endif %}">Return Requested <span class="badge-n">({{ count_requested }})</span></a>
+            <a href="?status=return_approved" class="chip {% if status == 'return_approved' %}active{% endif %}">Return Approved <span class="badge-n">({{ count_approved }})</span></a>
+            <a href="?status=return_rejected" class="chip {% if status == 'return_rejected' %}active{% endif %}">Return Rejected <span class="badge-n">({{ count_rejected }})</span></a>
+            <a href="?status=returned" class="chip {% if status == 'returned' %}active{% endif %}">Returned <span class="badge-n">({{ count_returned }})</span></a>
+        </div>
+
+        <div class="panel">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Order</th>
+                        <th>Customer</th>
+                        <th>Requested</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if items %}
+                        {% for item in items %}
+                            <tr>
+                                <td>
+                                    <div class="user-cell">
+                                        <img class="prod-thumb" src="{% if item.variant.images.first %}{{ item.variant.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}" alt="{{ item.product_name }}">
+                                        <div>
+                                            <div class="user-name">{{ item.product_name }}</div>
+                                            <div style="color:#888; font-size:0.76rem;">{{ item.sku }} · Qty {{ item.quantity }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <a href="{% url 'admin_order_detail' item.order.id %}" style="color:#c5a059; text-decoration:none;">#{{ item.order.order_number }}</a>
+                                </td>
+                                <td>
+                                    <div style="color:#fff;">{{ item.order.user.get_full_name }}</div>
+                                    <div style="color:#888; font-size:0.76rem;">{{ item.order.user.email }}</div>
+                                </td>
+                                <td style="color:#aaa; font-size:0.8rem;">{{ item.return_requested_at|date:"d M Y · h:i A"|default:"—" }}</td>
+                                <td class="reason-cell">
+                                    {{ item.return_reason|default:"—" }}
+                                    {% if item.status == 'return_rejected' and item.return_rejection_reason %}
+                                        <div style="color:#e74c3c; font-size:0.76rem; margin-top:4px;">Rejected: {{ item.return_rejection_reason }}</div>
+                                    {% endif %}
+                                </td>
+                                <td><span class="st-badge st-{{ item.status }}">{{ item.get_status_display }}</span></td>
+                                <td>
+                                    <div class="act-row">
+                                        {% if item.can_approve_return %}
+                                            <form method="post" action="{% url 'admin_return_approve' item.id %}">{% csrf_token %}
+                                                <button class="btn-approve" type="submit"><i class="fa-solid fa-check"></i> Approve</button>
+                                            </form>
+                                            <button class="btn-decline" type="button" data-bs-toggle="modal" data-bs-target="#declineModal{{ item.id }}"><i class="fa-solid fa-xmark"></i> Decline</button>
+                                        {% elif item.return_next_statuses %}
+                                            <form method="post" action="{% url 'admin_return_update_status' item.id %}" style="display:flex; gap:0.4rem;">{% csrf_token %}
+                                                <select name="status" style="background:#161616; border:1px solid rgba(255,255,255,0.15); border-radius:6px; color:#fff; padding:0.35rem 0.6rem; font-size:0.78rem;">
+                                                    <option value="" disabled selected>{% if item.status == 'return_picked' %}— Inspection —{% else %}— Next Step —{% endif %}</option>
+                                                    {% for value, label in item.return_next_statuses %}
+                                                        <option value="{{ value }}">{{ label }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                                <button class="btn-returned" type="submit">Update</button>
+                                            </form>
+                                        {% elif item.status == 'return_rejected' %}
+                                            <form method="post" action="{% url 'admin_return_reallow' item.id %}">{% csrf_token %}
+                                                <button class="btn-reallow" type="submit">Allow Re-request</button>
+                                            </form>
+                                        {% else %}
+                                            <span style="color:#777; font-size:0.78rem;">Completed</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+
+                            {% if item.can_decline_return %}
+                            <div class="modal fade lux-modal" id="declineModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+                              <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                  <div class="modal-header">
+                                    <h5 class="modal-title">Decline Return</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                  </div>
+                                  <form method="post" action="{% url 'admin_return_decline' item.id %}">
+                                    {% csrf_token %}
+                                    <div class="modal-body">
+                                      <p style="color:#9a9a9a; font-size:0.88rem;">Decline the return for <strong style="color:#fff;">{{ item.product_name }}</strong>. The reason will be shown to the customer.</p>
+                                      <label style="color:#aaa; font-size:0.8rem;">Rejection reason <span style="color:#e74c3c;">*</span></label>
+                                      <textarea name="reason" rows="3" required placeholder="Why is this return being rejected?"></textarea>
+                                    </div>
+                                    <div class="modal-footer">
+                                      <button type="button" class="btn-reallow" data-bs-dismiss="modal">Cancel</button>
+                                      <button type="submit" class="btn-decline">Confirm Decline</button>
+                                    </div>
+                                  </form>
+                                </div>
+                              </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" style="text-align:center; padding:2rem; color:#888;">
+                                <i class="fa-solid fa-rotate-left" style="font-size:2rem; margin-bottom:1rem; display:block;"></i>
+                                No return requests{% if status != 'all' %} in this status{% endif %}.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+            <div class="pagination-bar" style="display:flex; justify-content:space-between; align-items:center; padding:1rem 1.5rem; border-top:1px solid #f1f2f6;">
+                <div class="page-info text-muted small">
+                    Showing {{ page_obj.start_index|default:0 }} to {{ page_obj.end_index|default:0 }} of {{ page_obj.paginator.count|default:0 }} returns
+                </div>
+                {% if is_paginated %}
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link text-lux-black" href="?page={{ page_obj.previous_page_number }}&status={{ status }}">Prev</a></li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active"><span class="page-link bg-lux-black text-white border-lux-black">{{ num }}</span></li>
+                        {% else %}
+                            <li class="page-item"><a class="page-link text-lux-black" href="?page={{ num }}&status={{ status }}">{{ num }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link text-lux-black" href="?page={{ page_obj.next_page_number }}&status={{ status }}">Next</a></li>
+                    {% endif %}
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

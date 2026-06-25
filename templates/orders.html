@@ -23,6 +23,15 @@
 
         .st-badge { padding:0.3rem 0.8rem; border-radius:20px; font-size:0.74rem; font-weight:600; }
         .st-pending { background:rgba(224,162,59,0.14); color:#c08a2b; }
+        .st-confirmed { background:rgba(52,152,219,0.14); color:#2c7fb8; }
+        .st-packed { background:rgba(241,196,15,0.18); color:#b8860b; }
+        .st-return_requested { background:rgba(230,126,34,0.16); color:#ca6f1e; }
+        .st-return_approved { background:rgba(26,188,156,0.16); color:#16a085; }
+        .st-return_rejected { background:rgba(231,76,60,0.14); color:#c0392b; }
+        .st-pickup_scheduled { background:rgba(52,152,219,0.14); color:#2c7fb8; }
+        .st-return_picked { background:rgba(241,196,15,0.18); color:#b8860b; }
+        .st-return_repair { background:rgba(211,84,0,0.16); color:#ca6f1e; }
+        .st-mixed { background:rgba(149,165,166,0.18); color:#7f8c8d; }
         .st-shipped { background:rgba(52,152,219,0.14); color:#2c7fb8; }
         .st-out_for_delivery { background:rgba(155,89,182,0.16); color:#8e44ad; }
         .st-delivered { background:rgba(39,174,96,0.16); color:#1e8449; }
@@ -62,20 +71,29 @@
                     <span class="order-num">#{{ order.order_number }}</span>
                     <span class="text-lux-gray small text-uppercase ms-2">Placed on {{ order.created_at|date:"d M Y" }}</span>
                 </div>
-                <span class="st-badge st-{{ order.status }}">{{ order.get_status_display }}</span>
+                <div class="d-flex gap-1 flex-wrap justify-content-end">
+                    {% for value, label in order.item_status_summary %}
+                        <span class="st-badge st-{{ value }}">{{ label }}</span>
+                    {% endfor %}
+                </div>
             </div>
 
             <div class="p-3">
                 {% for item in order.items.all %}
-                <div class="d-flex gap-3 align-items-center py-2 {% if not forloop.last %}border-bottom border-light{% endif %}">
+                <div class="d-flex gap-3 align-items-center py-3 {% if not forloop.last %}border-bottom border-light{% endif %}">
                     <img src="{% if item.variant.images.first %}{{ item.variant.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}" alt="{{ item.product_name }}" class="item-img">
                     <div class="flex-grow-1">
                         <div class="fw-bold text-lux-black">{{ item.product_name }}</div>
-                        <div class="text-lux-gray small">SKU: {{ item.sku }} · Qty: {{ item.quantity }}</div>
-                        {% if item.is_cancelled %}<span class="st-badge st-cancelled">Cancelled</span>
-                        {% elif item.is_returned %}<span class="st-badge st-returned">Returned</span>{% endif %}
+                        <div class="text-lux-gray small mb-1">SKU: {{ item.sku }} · Qty: {{ item.quantity }}</div>
+                        <span class="st-badge st-{{ item.status }}">{{ item.get_status_display }}</span>
                     </div>
-                    <div class="fw-bold text-lux-black">₹{{ item.line_total }}</div>
+                    <div class="text-end">
+                        <div class="fw-bold text-lux-black mb-2">₹{{ item.line_total }}</div>
+                        <div class="d-flex gap-2 justify-content-end">
+                            <a href="{% url 'order_detail' order.order_number %}#track-{{ item.id }}" class="btn btn-outline-secondary btn-sm">Track</a>
+                            <a href="{% url 'order_detail' order.order_number %}#item-{{ item.id }}" class="luxury-btn text-white border-0 text-decoration-none px-3 py-1 small">View</a>
+                        </div>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
@@ -84,10 +102,7 @@
                 <div class="text-lux-gray small">
                     {{ order.get_payment_method_display }} · Total <span class="fw-bold text-lux-black">₹{{ order.total }}</span>
                 </div>
-                <div class="d-flex gap-2">
-                    <a href="{% url 'order_detail' order.order_number %}#timeline" class="btn btn-outline-secondary text-uppercase tracking-wider px-3 py-2 small">Track Order</a>
-                    <a href="{% url 'order_detail' order.order_number %}" class="luxury-btn text-white text-uppercase tracking-wider px-4 py-2 border-0 text-decoration-none">View Order</a>
-                </div>
+                <a href="{% url 'order_detail' order.order_number %}" class="text-lux-gray small text-decoration-none hover-lux-gold">View full order →</a>
             </div>
         </div>
         {% empty %}

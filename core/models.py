@@ -543,12 +543,161 @@ class Order(models.Model):
                 return number
 
     def allowed_next_statuses(self):
-        """List of (value, label) the order may move to from its current status."""
         label_map = dict(self.STATUS_CHOICES)
         return [(value, label_map[value])
                 for value in self.ALLOWED_TRANSITIONS.get(self.status, [])]
 
+    @property
+    def cgst(self):
+        from .pricing import money
+        return money(self.tax / 2) if self.tax else self.tax
+
+    @property
+    def sgst(self):
+        from .pricing import money
+        return money(self.tax / 2) if self.tax else self.tax
+
+    @property
+    def can_download_invoice(self):
+        return self.items.filter(status=OrderItem.STATUS_DELIVERED).exists()
+
+    def item_status_summary(self):
+        labels = dict(OrderItem.STATUS_CHOICES)
+        seen = []
+        for s in self.items.values_list("status", flat=True):
+            if s not in seen:
+                seen.append(s)
+        return [(s, labels.get(s, s.title())) for s in seen]
+
+    def recalculate_totals(self, save=True):
+        """Recompute money fields from billable items only and persist.
+
+        Items are fulfilled independently, so cancelled / returned items must
+        drop out of the subtotal, discount, GST and grand total. Call this from
+        every place an item's status changes so all pages stay consistent.
+        """
+        from decimal import Decimal
+        from . import pricing
+
+        billable = [i for i in self.items.all() if i.is_billable]
+        products_total = sum((Decimal(i.line_total) for i in billable), Decimal("0"))
+        mrp_total      = sum((Decimal(i.original_price) * i.quantity for i in billable), Decimal("0"))
+
+        totals = pricing.compute(products_total, mrp_total, self.shipping)
+        self.subtotal = totals["subtotal"]
+        self.discount = totals["discount"]
+        self.tax      = totals["gst"]
+        self.total    = totals["grand_total"]
+        if save:
+            self.save(update_fields=["subtotal", "discount", "tax", "total", "updated_at"])
+        return totals
+
+    @property
+    def derived_status(self):
+        """A single (css_value, label) for the order, derived from its items.
+
+        The order-level ``status`` field isn't moved when items change one by
+        one, so badges read from here instead to reflect the real state.
+        """
+        statuses = list(self.items.values_list("status", flat=True))
+        if not statuses:
+            return (self.status, self.get_status_display())
+
+        labels = dict(OrderItem.STATUS_CHOICES)
+        active = [s for s in statuses if s != OrderItem.STATUS_CANCELLED]
+
+        if not active:                                               # all cancelled
+            return ("cancelled", "Cancelled")
+        if all(s == OrderItem.STATUS_RETURNED for s in active):
+            return ("returned", "Returned")
+        if all(s == OrderItem.STATUS_DELIVERED for s in active):
+            return ("delivered", "Delivered")
+        if len(set(active)) == 1:
+            s = active[0]
+            return (s, labels.get(s, s.title()))
+        return ("mixed", "Processing")
+
+
 class OrderItem(models.Model):
+    STATUS_PENDING          = "pending"
+    STATUS_CONFIRMED        = "confirmed"
+    STATUS_PACKED           = "packed"
+    STATUS_SHIPPED          = "shipped"
+    STATUS_OUT_FOR_DELIVERY = "out_for_delivery"
+    STATUS_DELIVERED        = "delivered"
+    STATUS_CANCELLED        = "cancelled"
+    STATUS_RETURN_REQUESTED = "return_requested"
+    STATUS_RETURN_APPROVED  = "return_approved"
+    STATUS_RETURN_REJECTED  = "return_rejected"
+    STATUS_PICKUP_SCHEDULED = "pickup_scheduled"
+    STATUS_RETURN_PICKED    = "return_picked"
+    STATUS_RETURNED         = "returned"
+    STATUS_RETURN_REPAIR    = "return_repair"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING,          "Pending"),
+        (STATUS_CONFIRMED,        "Confirmed"),
+        (STATUS_PACKED,           "Packed"),
+        (STATUS_SHIPPED,          "Shipped"),
+        (STATUS_OUT_FOR_DELIVERY, "Out for Delivery"),
+        (STATUS_DELIVERED,        "Delivered"),
+        (STATUS_CANCELLED,        "Cancelled"),
+        (STATUS_RETURN_REQUESTED, "Return Requested"),
+        (STATUS_RETURN_APPROVED,  "Return Approved"),
+        (STATUS_RETURN_REJECTED,  "Return Rejected"),
+        (STATUS_PICKUP_SCHEDULED, "Pickup Scheduled"),
+        (STATUS_RETURN_PICKED,    "Return Picked"),
+        (STATUS_RETURNED,         "Returned"),
+        (STATUS_RETURN_REPAIR,    "Sent for Repair"),
+    ]
+
+    RETURN_STATUSES = [
+        STATUS_RETURN_REQUESTED, STATUS_RETURN_APPROVED, STATUS_RETURN_REJECTED,
+        STATUS_PICKUP_SCHEDULED, STATUS_RETURN_PICKED, STATUS_RETURNED, STATUS_RETURN_REPAIR,
+    ]
+
+    RETURN_TRANSITIONS = {
+        STATUS_RETURN_APPROVED:  [STATUS_PICKUP_SCHEDULED],
+        STATUS_PICKUP_SCHEDULED: [STATUS_RETURN_PICKED],
+        STATUS_RETURN_PICKED:    [STATUS_RETURNED, STATUS_RETURN_REPAIR],
+    }
+    RETURN_STEP_LABELS = {
+        STATUS_PICKUP_SCHEDULED: "Pickup Scheduled",
+        STATUS_RETURN_PICKED:    "Return Picked",
+        STATUS_RETURNED:         "Returned (Move to Stock)",
+        STATUS_RETURN_REPAIR:    "Returned (Send for Repair)",
+    }
+
+    ADMIN_TRANSITIONS = {
+        STATUS_PENDING:          [STATUS_CONFIRMED, STATUS_CANCELLED],
+        STATUS_CONFIRMED:        [STATUS_PACKED, STATUS_CANCELLED],
+        STATUS_PACKED:           [STATUS_SHIPPED, STATUS_CANCELLED],
+        STATUS_SHIPPED:          [STATUS_OUT_FOR_DELIVERY],
+        STATUS_OUT_FOR_DELIVERY: [STATUS_DELIVERED],
+        STATUS_DELIVERED:        [],
+        STATUS_RETURN_REQUESTED: [],
+        STATUS_RETURN_APPROVED:  [],
+        STATUS_RETURN_REJECTED:  [],
+        STATUS_CANCELLED:        [],
+        STATUS_RETURNED:         [],
+    }
+
+    ACTIVE_STATUSES = [
+        STATUS_PENDING, STATUS_CONFIRMED, STATUS_PACKED,
+        STATUS_SHIPPED, STATUS_OUT_FOR_DELIVERY, STATUS_DELIVERED,
+    ]
+    CANCELLABLE_STATUSES = [
+        STATUS_PENDING, STATUS_CONFIRMED, STATUS_PACKED,
+    ]
+    # Statuses where the customer is no longer being charged for the item:
+    # cancelled before fulfilment, or any approved/completed return (refund due).
+    # A *requested* or *rejected* return still counts — the customer keeps & pays.
+    NON_BILLABLE_STATUSES = [
+        STATUS_CANCELLED,
+        STATUS_RETURN_APPROVED, STATUS_PICKUP_SCHEDULED,
+        STATUS_RETURN_PICKED, STATUS_RETURNED, STATUS_RETURN_REPAIR,
+    ]
+
     order   = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     variant = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, related_name="order_items", null=True, blank=True)
 
@@ -556,20 +705,68 @@ class OrderItem(models.Model):
     variant_name = models.CharField(max_length=200)
     sku          = models.CharField(max_length=50)
     unit_price   = models.DecimalField(max_digits=10, decimal_places=2)
+    original_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # MRP snapshot for discount recalculation
     quantity     = models.PositiveIntegerField()
     line_total   = models.DecimalField(max_digits=10, decimal_places=2)
 
-    is_cancelled = models.BooleanField(default=False)
-    is_returned  = models.BooleanField(default=False)
+    status                  = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    cancellation_reason     = models.TextField(blank=True)
+    return_reason           = models.TextField(blank=True)
+    return_rejection_reason = models.TextField(blank=True)
+    return_requested_at     = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.quantity} x {self.product_name}"
 
+    @property
+    def is_cancelled(self):        return self.status == self.STATUS_CANCELLED
+    @property
+    def is_returned(self):         return self.status == self.STATUS_RETURNED
+    @property
+    def is_return_requested(self): return self.status == self.STATUS_RETURN_REQUESTED
+    @property
+    def is_delivered(self):        return self.status == self.STATUS_DELIVERED
+
+    @property
+    def is_billable(self):
+        """True when this item still contributes to the order's payable total."""
+        return self.status not in self.NON_BILLABLE_STATUSES
+
+    @property
+    def is_active(self):
+        return self.status in self.ACTIVE_STATUSES
+
+    @property
+    def can_cancel(self):
+        return self.status in self.CANCELLABLE_STATUSES
+
+    @property
+    def can_return(self):
+        return self.status == self.STATUS_DELIVERED
+
+    @property
+    def can_approve_return(self): return self.status == self.STATUS_RETURN_REQUESTED
+    @property
+    def can_decline_return(self): return self.status == self.STATUS_RETURN_REQUESTED
+
+    def return_next_statuses(self):
+        return [(v, self.RETURN_STEP_LABELS[v])
+                for v in self.RETURN_TRANSITIONS.get(self.status, [])]
+
+    @property
+    def display_status(self):
+        return self.get_status_display()
+
+    def admin_next_statuses(self):
+        label_map = dict(self.STATUS_CHOICES)
+        return [(value, label_map[value])
+                for value in self.ADMIN_TRANSITIONS.get(self.status, [])]
+
 
 class OrderStatusEvent(models.Model):
-    """One row per status change — the audit trail behind an order's timeline."""
-    order      = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="status_events")
-    status     = models.CharField(max_length=20, choices=Order.STATUS_CHOICES)
+    order      = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="status_events", null=True, blank=True)
+    order_item = models.ForeignKey(OrderItem, on_delete=models.CASCADE, related_name="status_events", null=True, blank=True)
+    status     = models.CharField(max_length=20, choices=OrderItem.STATUS_CHOICES)
     note       = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -577,7 +774,7 @@ class OrderStatusEvent(models.Model):
         ordering = ["created_at"]
 
     def __str__(self):
-        return f"{self.order.order_number} → {self.status}"
+        return f"{self.status} @ {self.created_at:%Y-%m-%d %H:%M}"
 
 
 
