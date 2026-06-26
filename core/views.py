@@ -1058,6 +1058,8 @@ def cancel_order_item_view(request, item_id):
 
     reason = request.POST.get("reason", "").strip()
 
+    from wallet import services as wallet_services
+
     with transaction.atomic():
         if item.variant:
             item.variant.stock += item.quantity
@@ -1072,9 +1074,22 @@ def cancel_order_item_view(request, item_id):
             note="Cancelled by customer." + (f" Reason: {reason}" if reason else ""),
         )
 
+        total_before = item.order.total
         item.order.recalculate_totals()
+        refund = total_before - item.order.total
 
-    messages.success(request, f"{item.product_name} has been cancelled successfully.")
+        # Direct refund to wallet — but only if the order was actually paid up
+        # front. COD isn't paid until delivery (and you can't cancel post-delivery),
+        # so there's nothing to refund there.
+        prepaid = (item.order.payment_method == Order.PAYMENT_WALLET
+                   or item.order.payments.filter(status="paid").exists())
+        if prepaid and refund > 0:
+            wallet_services.refund_item(
+                item, refund, f"Refund for cancelled item: {item.product_name}"
+            )
+
+    refund_note = f" Rs. {refund} refunded to your wallet." if (prepaid and refund > 0) else ""
+    messages.success(request, f"{item.product_name} has been cancelled successfully.{refund_note}")
     return redirect("order_detail", order_number=item.order.order_number)
 
 
@@ -1471,6 +1486,18 @@ def payment_handler(request,order):
         # Razorpay logic lives in the payments app; core only knows the URL name.
         return redirect("payment_start", order_number=order.order_number)
 
+    if method == Order.PAYMENT_WALLET:
+        from wallet import services as wallet_services
+        try:
+            wallet_services.debit(
+                request.user, order.total,
+                f"Payment for order {order.order_number}", order=order,
+            )
+        except wallet_services.InsufficientBalance:
+            messages.error(request, "Wallet balance was insufficient to pay for this order.")
+            return redirect("order_detail", order_number=order.order_number)
+        return redirect("order_success", order_number=order.order_number)
+
     raise ValueError(f"Unsupported payment method: {method}")
 
 @login_required
@@ -1518,6 +1545,15 @@ def checkout_view(request):
         if payment_method not in dict(Order.PAYMENT_CHOICES):
             messages.error(request, "Please select a valid payment method.")
             return redirect("checkout")
+
+        # Pay-with-wallet: reject up front if the balance can't cover the order,
+        # so we don't create an order (and decrement stock) we can't settle.
+        if payment_method == Order.PAYMENT_WALLET:
+            from wallet import services as wallet_services
+            est_total = pricing.summarize_items(items)["grand_total"]
+            if wallet_services.get_wallet(request.user).balance < est_total:
+                messages.error(request, "Your wallet balance is insufficient for this order.")
+                return redirect("checkout")
 
         try:
             with transaction.atomic():
@@ -1569,6 +1605,7 @@ def checkout_view(request):
         
         return payment_handler(request,order)
     
+    from wallet import services as wallet_services
     summary = pricing.summarize_items(items)
     context = {
         "items": items,
@@ -1576,6 +1613,7 @@ def checkout_view(request):
         "summary": summary,
         "address_form": address_form,
         "open_address_modal": open_address_modal,
+        "wallet_balance": wallet_services.get_wallet(request.user).balance,
     }
     return render(request, "checkout.html", context)
 

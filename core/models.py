@@ -478,9 +478,11 @@ class Order(models.Model):
 
     PAYMENT_COD = "COD"
     PAYMENT_RAZORPAY = "razorpay"
+    PAYMENT_WALLET = "wallet"
     PAYMENT_CHOICES = [
         (PAYMENT_COD, "Cash on Delivery"),
         (PAYMENT_RAZORPAY, "Razorpay (Online)"),
+        (PAYMENT_WALLET, "Wallet"),
     ]
 
     # Which statuses an order may move to NEXT, from each current status.

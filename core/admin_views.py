@@ -1285,15 +1285,29 @@ def admin_return_approve_view(request, item_id):
         messages.error(request, "This return cannot be approved.")
         return redirect("admin_returns")
 
-    item.status = OrderItem.STATUS_RETURN_APPROVED
-    item.save(update_fields=["status"])
-    OrderStatusEvent.objects.create(
-        order_item=item, status=OrderItem.STATUS_RETURN_APPROVED,
-        note="Return approved by admin.",
-    )
-    # Approved return → item is being refunded → drop it from the payable total.
-    item.order.recalculate_totals()
-    messages.success(request, f"Return approved for {item.product_name}.")
+    from wallet import services as wallet_services
+
+    with transaction.atomic():
+        item.status = OrderItem.STATUS_RETURN_APPROVED
+        item.save(update_fields=["status"])
+        OrderStatusEvent.objects.create(
+            order_item=item, status=OrderItem.STATUS_RETURN_APPROVED,
+            note="Return approved by admin.",
+        )
+        # Approved return → item is being refunded → drop it from the payable total.
+        total_before = item.order.total
+        item.order.recalculate_totals()
+        refund = total_before - item.order.total
+
+        # Returns are only possible on delivered items, which were always paid
+        # for (cash or online), so an approved return always refunds to wallet.
+        if refund > 0:
+            wallet_services.refund_item(
+                item, refund, f"Refund for returned item: {item.product_name}"
+            )
+
+    note = f" Rs. {refund} refunded to the customer's wallet." if refund > 0 else ""
+    messages.success(request, f"Return approved for {item.product_name}.{note}")
     return redirect(request.POST.get("next") or "admin_returns")
 
 

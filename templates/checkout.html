@@ -166,11 +166,21 @@
                                 </label>
                             </div>
                             <div class="col-4">
+                                {% if wallet_balance >= summary.grand_total %}
+                                <label class="pay-tile d-block">
+                                    <input type="radio" name="payment_method" value="wallet" class="d-none">
+                                    <i class="fa-solid fa-wallet fs-4 text-lux-black d-block mb-2"></i>
+                                    <span class="small text-uppercase tracking-wider text-lux-black">Wallet</span>
+                                    <span class="d-block small text-lux-gold">₹{{ wallet_balance }}</span>
+                                </label>
+                                {% else %}
                                 <label class="pay-tile is-disabled d-block">
                                     <input type="radio" name="payment_method" value="wallet" class="d-none" disabled>
                                     <i class="fa-solid fa-wallet fs-4 text-lux-gray d-block mb-2"></i>
-                                    <span class="small text-uppercase tracking-wider text-lux-gray">Wallets</span>
+                                    <span class="small text-uppercase tracking-wider text-lux-gray">Wallet</span>
+                                    <span class="d-block small text-lux-gray">₹{{ wallet_balance }}</span>
                                 </label>
+                                {% endif %}
                             </div>
                             <div class="col-4">
                                 <label class="pay-tile is-selected d-block">
@@ -185,7 +195,8 @@
                             <i class="fa-solid fa-circle-info text-lux-gold mt-1"></i>
                             <p class="text-lux-gray small mb-0">
                                 Pay securely online via <span class="text-lux-black fw-semibold">Card / UPI</span> (Razorpay),
-                                or choose <span class="text-lux-black fw-semibold">Cash on Delivery</span>. Wallet payments are arriving shortly.
+                                use your <span class="text-lux-black fw-semibold">Wallet</span> balance,
+                                or choose <span class="text-lux-black fw-semibold">Cash on Delivery</span>.
                             </p>
                         </div>
                     </div>
