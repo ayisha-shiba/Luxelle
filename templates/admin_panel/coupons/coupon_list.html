@@ -52,11 +52,56 @@
         .tog-input:checked + .tog-label::after { transform:translateX(18px); }
 
         /* ── Action buttons ── */
-        .act-wrap { display:flex; gap:.45rem; align-items:center; }
-        .act-btn  { display:inline-flex; align-items:center; gap:.35rem; padding:.38rem .75rem; border-radius:7px; font-size:.72rem; font-weight:600; border:1px solid var(--border); background:transparent; color:var(--gray); cursor:pointer; transition:all .2s; text-decoration:none; white-space:nowrap; }
-        .act-btn:hover { color:var(--white); border-color:rgba(255,255,255,.2); }
-        .act-btn-edit:hover { border-color:var(--gold); color:var(--gold); background:rgba(197,160,89,.06); }
-        .act-btn-del:hover  { border-color:var(--red);  color:var(--red);  background:rgba(231,76,60,.06); }
+        .coupon-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: stretch;
+            max-width: 90px;
+        }
+        .coupon-act-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.22s ease;
+            text-decoration: none;
+            width: 100%;
+            height: 32px;
+        }
+        .coupon-act-btn i {
+            font-size: 0.75rem;
+            color: #aaaaaa;
+        }
+        .coupon-act-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        .coupon-act-btn-edit:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+            background: rgba(197, 160, 89, 0.06);
+        }
+        .coupon-act-btn-edit:hover i {
+            color: var(--gold);
+        }
+        .coupon-act-btn-del:hover {
+            border-color: var(--red);
+            color: var(--red);
+            background: rgba(231, 76, 60, 0.06);
+        }
+        .coupon-act-btn-del:hover i {
+            color: var(--red);
+        }
 
         /* ── Empty state ── */
         .empty-state { text-align:center; padding:3.5rem 1rem; }
@@ -327,8 +372,8 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="act-wrap">
-                                        <button class="act-btn act-btn-edit btn-edit-coupon" title="Edit coupon"
+                                    <div class="coupon-actions">
+                                        <button class="coupon-act-btn coupon-act-btn-edit btn-edit-coupon" title="Edit coupon"
                                             data-id="{{ c.id }}"
                                             data-code="{{ c.code|escapejs }}"
                                             data-title="{{ c.title|default:''|escapejs }}"
@@ -349,7 +394,7 @@
                                             data-categories="[{% for cat in c.specific_categories.all %}{&quot;id&quot;:{{cat.id}},&quot;name&quot;:&quot;{{cat.name|escapejs}}&quot;}{% if not forloop.last %},{% endif %}{% endfor %}]">
                                             <i class="fa-solid fa-pen-to-square"></i> Edit
                                         </button>
-                                        <button class="act-btn act-btn-del" title="Delete coupon"
+                                        <button class="coupon-act-btn coupon-act-btn-del" title="Delete coupon"
                                             onclick="openDeleteModal('{{ c.id }}', '{{ c.code|escapejs }}')">
                                             <i class="fa-solid fa-trash"></i> Delete
                                         </button>
