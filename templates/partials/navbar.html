@@ -37,24 +37,9 @@
                 {% if cart_count > 0 %}<span class="icon-badge">{{ cart_count }}</span>{% endif %}
             </a>
 {% if request.user.is_authenticated %}
-            <div class="dropdown">
-                <a href="#" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale dropdown-toggle no-caret" id="accountDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Account">
-                    <i class="fa-regular fa-user fs-5 {% if active == 'profile' %}text-lux-gold{% endif %}"></i>
-                </a>
-                <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-3 mt-2" aria-labelledby="accountDropdown">
-                    <li><a class="dropdown-item rounded-2 py-2" href="{% url 'profile' %}"><i class="fa-solid fa-user me-2 text-muted"></i>Profile</a></li>
-                    <li><a class="dropdown-item rounded-2 py-2" href="{% url 'wallet' %}"><i class="fa-solid fa-wallet me-2 text-muted"></i>Wallet</a></li>
-                    <li><a class="dropdown-item rounded-2 py-2" href="{% url 'referral' %}"><i class="fa-solid fa-gift me-2 text-muted"></i>Refer a Friend</a></li>
-                    <li>
-                        <form action="{% url 'logout' %}" method="post" class="d-inline">
-                            {% csrf_token %}
-                            <button type="submit" class="dropdown-item rounded-2 py-2">
-                                <i class="fa-solid fa-right-from-bracket me-2 text-muted"></i>Logout
-                            </button>
-                        </form>
-                    </li>
-                </ul>
-            </div>
+            <a href="{% url 'profile' %}" class="text-lux-black text-decoration-none p-1 hover-lux-gold-scale" title="My Account">
+                <i class="fa-regular fa-user fs-5 {% if active == 'profile' %}text-lux-gold{% endif %}"></i>
+            </a>
 {% else %}
             <a href="{% url 'login' %}" class="btn-login-lux d-inline-flex align-items-center">Login</a>
 {% endif %}

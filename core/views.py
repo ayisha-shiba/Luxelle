@@ -520,14 +520,42 @@ def set_new_password_view(request):
 @login_required
 
 def profile_view(request):
+    from decimal import Decimal
+    from django.urls import reverse
+    from offers import services as offers_services
+    from offers.models import ReferralProfile
+
     user      = request.user.__class__.objects.select_related("profile").get(pk=request.user.pk)
     profile   = user.profile
     addresses = user.addresses.all()
+
+    referral = offers_services.get_or_create_profile(user)
+    referral_link = request.build_absolute_uri(f"{reverse('register')}?ref={referral.code}")
+    referred_qs = ReferralProfile.objects.filter(referred_by=user)
+    referred_count = referred_qs.count()
+    # Earnings are only released once a referred user completes their first order.
+    rewards_released = referred_qs.filter(reward_granted=True).count()
+    referral_earnings = rewards_released * offers_services.REFERRAL_REWARD
+
     return render(request, "profile.html", {
         "user":      user,
         "profile":   profile,
         "addresses": addresses,
+        "referral":  referral,
+        "referral_link": referral_link,
+        "referred_count": referred_count,
+        "rewards_released": rewards_released,
+        "referral_earnings": referral_earnings,
     })
+
+
+@never_cache
+@login_required
+def my_reviews_view(request):
+    reviews = (request.user.reviews
+               .select_related("product", "product__brand")
+               .all())
+    return render(request, "my_reviews.html", {"reviews": reviews})
 
 
 @never_cache
@@ -1534,7 +1562,28 @@ def checkout_view(request):
     if not items:
         messages.info(request, "Your cart is empty.")
         return redirect("cart")
-    
+
+    # Resolve any coupon held in the session. Re-validate it against the current
+    # cart so a coupon that no longer qualifies (cart changed) is dropped.
+    from decimal import Decimal
+    from coupons import services as coupon_services
+    from coupons.models import Coupon
+    cart_subtotal = sum((Decimal(i.total_price) for i in items), Decimal("0"))
+    active_coupon = None
+    coupon_discount = Decimal("0")
+    coupon_id = request.session.get("coupon_id")
+    if coupon_id:
+        coupon = Coupon.objects.filter(pk=coupon_id).first()
+        try:
+            if coupon:
+                coupon_services.validate_coupon(coupon.code, request.user, cart_subtotal)
+                active_coupon = coupon
+                coupon_discount = coupon_services.compute_discount(coupon, cart_subtotal)
+            else:
+                raise coupon_services.CouponError("Coupon no longer available.")
+        except coupon_services.CouponError:
+            request.session.pop("coupon_id", None)
+
     addresses = request.user.addresses.all()
     address_form = AddressForm()
     open_address_modal = False
@@ -1565,7 +1614,7 @@ def checkout_view(request):
         # so we don't create an order (and decrement stock) we can't settle.
         if payment_method == Order.PAYMENT_WALLET:
             from wallet import services as wallet_services
-            est_total = pricing.summarize_items(items)["grand_total"]
+            est_total = pricing.summarize_items(items, coupon_discount=coupon_discount)["grand_total"]
             if wallet_services.get_wallet(request.user).balance < est_total:
                 messages.error(request, "Your wallet balance is insufficient for this order.")
                 return redirect("checkout")
@@ -1583,6 +1632,7 @@ def checkout_view(request):
                     ship_postal_code=address.postal_code,
                     ship_country=address.country,
                     payment_method=payment_method,
+                    coupon=active_coupon,
                 )
 
                 for item in items:
@@ -1615,16 +1665,21 @@ def checkout_view(request):
 
                 order.recalculate_totals()
 
+                # Lock in the coupon redemption (once per user) for this order.
+                if active_coupon:
+                    coupon_services.record_usage(active_coupon, request.user, order, order.coupon_discount)
+
                 cart.items.all().delete()
 
         except ValueError as exc:
             messages.error(request, str(exc))
             return redirect("cart")
-        
+
+        request.session.pop("coupon_id", None)
         return payment_handler(request,order)
     
     from wallet import services as wallet_services
-    summary = pricing.summarize_items(items)
+    summary = pricing.summarize_items(items, coupon_discount=coupon_discount)
     context = {
         "items": items,
         "addresses": addresses,
@@ -1632,6 +1687,7 @@ def checkout_view(request):
         "address_form": address_form,
         "open_address_modal": open_address_modal,
         "wallet_balance": wallet_services.get_wallet(request.user).balance,
+        "active_coupon": active_coupon,
     }
     return render(request, "checkout.html", context)
 

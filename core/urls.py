@@ -25,6 +25,7 @@ urlpatterns = [
     path("forgot-password/reset/", views.set_new_password_view, name="set_new_password"),
 
     path("profile/", views.profile_view, name="profile"),
+    path("profile/reviews/", views.my_reviews_view, name="my_reviews"),
     path("profile/edit/", views.profile_edit_view, name="profile_edit"),
     path("profile/change-password/", views.change_password_view, name="change_password"),
     path("profile/change-email/", views.change_email_view, name="change_email"),

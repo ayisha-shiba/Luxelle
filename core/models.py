@@ -561,6 +561,10 @@ class Order(models.Model):
     tax      = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total    = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
+    # Coupon applied to this order (re-evaluated in recalculate_totals).
+    coupon          = models.ForeignKey("coupons.Coupon", on_delete=models.SET_NULL, null=True, blank=True, related_name="orders")
+    coupon_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
     cancellation_reason = models.TextField(blank=True)
     return_reason       = models.TextField(blank=True)
 
@@ -628,13 +632,22 @@ class Order(models.Model):
         products_total = sum((Decimal(i.line_total) for i in billable), Decimal("0"))
         mrp_total      = sum((Decimal(i.original_price) * i.quantity for i in billable), Decimal("0"))
 
-        totals = pricing.compute(products_total, mrp_total, self.shipping)
+        # Re-evaluate the coupon against what's left billable. If items were
+        # cancelled below the minimum, the coupon simply yields 0 now.
+        coupon_discount = Decimal("0")
+        if self.coupon_id and products_total > 0:
+            from coupons.services import compute_discount
+            if products_total >= self.coupon.min_order_amount:
+                coupon_discount = compute_discount(self.coupon, products_total)
+
+        totals = pricing.compute(products_total, mrp_total, self.shipping, coupon_discount)
         self.subtotal = totals["subtotal"]
         self.discount = totals["discount"]
+        self.coupon_discount = totals["coupon_discount"]
         self.tax      = totals["gst"]
         self.total    = totals["grand_total"]
         if save:
-            self.save(update_fields=["subtotal", "discount", "tax", "total", "updated_at"])
+            self.save(update_fields=["subtotal", "discount", "coupon_discount", "tax", "total", "updated_at"])
         return totals
 
     @property

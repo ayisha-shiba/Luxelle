@@ -9,7 +9,7 @@
             <a href="{% url 'admin_returns' %}" class="nav-item {% if active == 'returns' %}active{% endif %}"><i class="fa-solid fa-rotate-left"></i> Returns</a>
             <a class="nav-item {% if active == 'reviews' %}active{% endif %}"><i class="fa-solid fa-star"></i> Reviews</a>
             <a href="{% url 'admin_offers' %}" class="nav-item {% if active == 'offers' %}active{% endif %}"><i class="fa-solid fa-tag"></i> Offers</a>
-            <a class="nav-item {% if active == 'coupons' %}active{% endif %}"><i class="fa-solid fa-ticket"></i> Coupons</a>
+            <a href="{% url 'admin_coupons' %}" class="nav-item {% if active == 'coupons' %}active{% endif %}"><i class="fa-solid fa-ticket"></i> Coupons</a>
             <a href="{% url 'admin_users' %}" class="nav-item {% if active == 'users' %}active{% endif %}"><i class="fa-solid fa-users"></i> Users</a>
             <a class="nav-item {% if active == 'analytics' %}active{% endif %}"><i class="fa-solid fa-chart-line"></i> Analytics</a>
             <a href="javascript:void(0);" onclick="openLogoutModal()" class="nav-item {% if active == 'logout' %}active{% endif %}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
