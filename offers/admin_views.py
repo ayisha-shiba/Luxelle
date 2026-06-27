@@ -12,10 +12,19 @@ from .models import Offer
 
 
 def _list_context(request):
-    offers = Offer.objects.select_related("product", "category")
+    base_offers = Offer.objects.select_related("product", "category")
+    offers = base_offers
+
+    now = timezone.now()
+    
+    # Calculate stats
+    total = base_offers.count()
+    active_count = base_offers.filter(is_active=True, valid_from__lte=now, valid_to__gte=now).count()
+    scheduled_count = base_offers.filter(is_active=True, valid_from__gt=now).count()
+    expired_count = base_offers.filter(Q(valid_to__lt=now) | Q(is_active=False)).count()
+    disabled_count = base_offers.filter(is_active=False).count()
 
     status = request.GET.get("status", "all")
-    now = timezone.now()
     if status == "active":
         offers = offers.filter(is_active=True, valid_from__lte=now, valid_to__gte=now)
     elif status == "scheduled":
@@ -38,6 +47,11 @@ def _list_context(request):
         "categories": Category.objects.filter(is_deleted=False).order_by("name"),
         "offer_type_product": Offer.PRODUCT,
         "offer_type_category": Offer.CATEGORY,
+        "stat_total": total,
+        "stat_active": active_count,
+        "stat_scheduled": scheduled_count,
+        "stat_expired": expired_count,
+        "stat_disabled": disabled_count,
     }
 
 
