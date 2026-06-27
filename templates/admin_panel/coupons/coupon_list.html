@@ -15,36 +15,19 @@
         .alert-success { background:rgba(39,174,96,.1); border:1px solid rgba(39,174,96,.25); color:#27ae60; }
         .alert-error   { background:rgba(231,76,60,.1); border:1px solid rgba(231,76,60,.25); color:#e74c3c; }
         .alert-dismissible .btn-close { filter:invert(1); opacity:.5; }
-
-        /* ── Stat cards strip ── */
-        .stats-strip { display:grid; grid-template-columns:repeat(6,1fr); gap:1rem; margin-bottom:2rem; }
-        .stat-chip { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem 1.25rem; }
-        .stat-chip .sc-label { font-size:.58rem; letter-spacing:.14em; text-transform:uppercase; color:var(--gray); font-weight:600; margin-bottom:.3rem; }
-        .stat-chip .sc-value { font-family:'Playfair Display',serif; font-size:1.55rem; font-weight:700; }
-        .sc-total    .sc-value { color:var(--white); }
-        .sc-active   .sc-value { color:#27ae60; }
-        .sc-sched    .sc-value { color:#3498db; }
-        .sc-expired  .sc-value { color:#e74c3c; }
-        .sc-disabled .sc-value { color:var(--gray); }
-        .sc-usage    .sc-value { color:var(--gold); }
-
-        /* ── Filter bar ── */
-        .filter-row { display:flex; gap:.75rem; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; }
-        .filter-row .search-wrap { flex:1; min-width:240px; position:relative; }
-        .filter-row .search-wrap i { position:absolute; left:.9rem; top:50%; transform:translateY(-50%); color:var(--gray); font-size:.82rem; pointer-events:none; }
-        .filter-row .search-wrap input { width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:.7rem 1rem .7rem 2.5rem; color:var(--white); font-size:.83rem; transition:border-color .2s; }
-        .filter-row .search-wrap input:focus { outline:none; border-color:var(--gold); }
-        .filter-row .fsel { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:.7rem 1rem; color:var(--white); font-size:.8rem; cursor:pointer; min-width:120px; }
-        .filter-row .fsel:focus { outline:none; border-color:var(--gold); }
-        .filter-row .apply-btn { background:var(--gold); color:#0b0b0b; border:none; border-radius:10px; padding:.7rem 1.4rem; font-size:.8rem; font-weight:700; cursor:pointer; transition:background .2s; white-space:nowrap; }
-        .filter-row .apply-btn:hover { background:var(--gold-b); }
-
-        /* ── Table ── */
-        .coupon-table { width:100%; border-collapse:separate; border-spacing:0; min-width:820px; }
-        .coupon-table th { font-size:.58rem; letter-spacing:.14em; text-transform:uppercase; color:var(--gray); font-weight:600; padding:.8rem 1rem; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
-        .coupon-table td { padding:.9rem 1rem; font-size:.82rem; color:var(--white); border-bottom:1px solid var(--border); vertical-align:middle; }
-        .coupon-table tr:last-child td { border-bottom:none; }
-        .coupon-table tr:hover td { background:rgba(255,255,255,.012); }
+ 
+        /* ── Stat cards overrides ── */
+        .stats-row.six-cols {
+            grid-template-columns: repeat(6, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        @media (max-width: 1200px) {
+            .stats-row.six-cols { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .stats-row.six-cols { grid-template-columns: repeat(2, 1fr); }
+        }ckground:rgba(255,255,255,.012); }
 
         /* ── Code pill ── */
         .code-pill { display:inline-block; background:rgba(197,160,89,.13); color:var(--gold); padding:.3rem .75rem; border-radius:6px; font-weight:700; font-size:.78rem; letter-spacing:.07em; border:1px solid rgba(197,160,89,.2); }
@@ -208,67 +191,71 @@
         {% endif %}
 
         <!-- ── Stats strip ── -->
-        <div class="stats-strip">
-            <div class="stat-chip sc-total">
-                <div class="sc-label">Total Coupons</div>
-                <div class="sc-value">{{ stat_total }}</div>
+        <div class="stats-row six-cols">
+            <div class="stat-card">
+                <div class="stat-label">Total Coupons</div>
+                <div class="stat-value">{{ stat_total }}</div>
+                <div class="stat-icon"><i class="fa-solid fa-ticket"></i></div>
             </div>
-            <div class="stat-chip sc-active">
-                <div class="sc-label">Active</div>
-                <div class="sc-value">{{ stat_active }}</div>
+            <div class="stat-card">
+                <div class="stat-label">Active</div>
+                <div class="stat-value" style="color: #27ae60;">{{ stat_active }}</div>
+                <div class="stat-icon"><i class="fa-solid fa-circle-check"></i></div>
             </div>
-            <div class="stat-chip sc-sched">
-                <div class="sc-label">Scheduled</div>
-                <div class="sc-value">{{ stat_scheduled }}</div>
+            <div class="stat-card">
+                <div class="stat-label">Scheduled</div>
+                <div class="stat-value" style="color: #3498db;">{{ stat_scheduled }}</div>
+                <div class="stat-icon"><i class="fa-regular fa-clock"></i></div>
             </div>
-            <div class="stat-chip sc-expired">
-                <div class="sc-label">Expired</div>
-                <div class="sc-value">{{ stat_expired }}</div>
+            <div class="stat-card">
+                <div class="stat-label">Expired</div>
+                <div class="stat-value" style="color: #e74c3c;">{{ stat_expired }}</div>
+                <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
             </div>
-            <div class="stat-chip sc-disabled">
-                <div class="sc-label">Disabled</div>
-                <div class="sc-value">{{ stat_disabled }}</div>
+            <div class="stat-card">
+                <div class="stat-label">Disabled</div>
+                <div class="stat-value" style="color: #888;">{{ stat_disabled }}</div>
+                <div class="stat-icon"><i class="fa-solid fa-ban"></i></div>
             </div>
-            <div class="stat-chip sc-usage">
-                <div class="sc-label">Total Usage</div>
-                <div class="sc-value">{{ stat_usage }}</div>
+            <div class="stat-card">
+                <div class="stat-label">Total Usage</div>
+                <div class="stat-value" style="color: var(--gold);">{{ stat_usage }}</div>
+                <div class="stat-icon"><i class="fa-solid fa-chart-line"></i></div>
             </div>
         </div>
 
         <!-- ── Filter bar ── -->
-        <form method="GET" action="{% url 'admin_coupons' %}" id="filterForm">
-            <div class="filter-row">
-                <div class="search-wrap">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" name="search" id="searchInput" value="{{ search_query|default:'' }}" placeholder="Search coupon code or title…">
-                </div>
-                <select class="fsel" name="status" id="statusSel">
-                    <option value="all"      {% if status == 'all' %}selected{% endif %}>All Status</option>
-                    <option value="active"   {% if status == 'active' %}selected{% endif %}>Active</option>
-                    <option value="scheduled"{% if status == 'scheduled' %}selected{% endif %}>Scheduled</option>
-                    <option value="expired"  {% if status == 'expired' %}selected{% endif %}>Expired</option>
-                    <option value="disabled" {% if status == 'disabled' %}selected{% endif %}>Disabled</option>
-                </select>
-                <select class="fsel" name="dtype" id="dtypeSel">
-                    <option value="all"        {% if dtype == 'all' %}selected{% endif %}>All Types</option>
-                    <option value="percentage" {% if dtype == 'percentage' %}selected{% endif %}>Percentage</option>
-                    <option value="flat"       {% if dtype == 'flat' %}selected{% endif %}>Fixed Amount</option>
-                </select>
-                <select class="fsel" name="sort" id="sortSel">
-                    <option value="latest"          {% if sort == 'latest' %}selected{% endif %}>Latest</option>
-                    <option value="oldest"          {% if sort == 'oldest' %}selected{% endif %}>Oldest</option>
-                    <option value="highest_discount"{% if sort == 'highest_discount' %}selected{% endif %}>Highest Discount</option>
-                    <option value="most_used"       {% if sort == 'most_used' %}selected{% endif %}>Most Used</option>
-                    <option value="expiring_soon"   {% if sort == 'expiring_soon' %}selected{% endif %}>Expiring Soon</option>
-                </select>
-                <button type="submit" class="apply-btn"><i class="fa-solid fa-sliders" style="margin-right:.4rem;"></i>Apply</button>
+        <form method="GET" action="{% url 'admin_coupons' %}" id="filterForm" class="filter-bar">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" name="search" id="searchInput" value="{{ search_query|default:'' }}" placeholder="Search coupon code or title…">
             </div>
+            <select class="filter-select" name="status" id="statusSel">
+                <option value="all"      {% if status == 'all' %}selected{% endif %}>All Status</option>
+                <option value="active"   {% if status == 'active' %}selected{% endif %}>Active</option>
+                <option value="scheduled"{% if status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                <option value="expired"  {% if status == 'expired' %}selected{% endif %}>Expired</option>
+                <option value="disabled" {% if status == 'disabled' %}selected{% endif %}>Disabled</option>
+            </select>
+            <select class="filter-select" name="dtype" id="dtypeSel">
+                <option value="all"        {% if dtype == 'all' %}selected{% endif %}>All Types</option>
+                <option value="percentage" {% if dtype == 'percentage' %}selected{% endif %}>Percentage</option>
+                <option value="flat"       {% if dtype == 'flat' %}selected{% endif %}>Fixed Amount</option>
+            </select>
+            <select class="filter-select" name="sort" id="sortSel">
+                <option value="latest"          {% if sort == 'latest' %}selected{% endif %}>Latest</option>
+                <option value="oldest"          {% if sort == 'oldest' %}selected{% endif %}>Oldest</option>
+                <option value="highest_discount"{% if sort == 'highest_discount' %}selected{% endif %}>Highest Discount</option>
+                <option value="most_used"       {% if sort == 'most_used' %}selected{% endif %}>Most Used</option>
+                <option value="expiring_soon"   {% if sort == 'expiring_soon' %}selected{% endif %}>Expiring Soon</option>
+            </select>
+            <button type="submit" class="top-btn top-btn-gold"><i class="fa-solid fa-sliders" style="margin-right:.4rem;"></i>Apply</button>
         </form>
 
         <!-- ── Table panel ── -->
-        <div class="panel" style="padding:0; overflow:hidden;">
-            <div style="overflow-x:auto; padding:0 0 .5rem;">
-                <table class="coupon-table">
+        <div class="panel">
+            <div style="overflow-x:auto;">
+                <table class="users-table">
                     <thead>
                         <tr>
                             <th>Coupon Code</th>
@@ -341,27 +328,25 @@
                                 </td>
                                 <td>
                                     <div class="act-wrap">
-                                        <button class="act-btn act-btn-edit" title="Edit coupon"
-                                            onclick="openEditModal(
-                                                '{{ c.id }}',
-                                                '{{ c.code|escapejs }}',
-                                                '{{ c.title|default:''|escapejs }}',
-                                                '{{ c.description|default:''|escapejs }}',
-                                                '{{ c.discount_type }}',
-                                                '{{ c.discount_value }}',
-                                                '{{ c.max_discount_amount|default:'' }}',
-                                                '{{ c.min_order_amount }}',
-                                                '{{ c.applies_to }}',
-                                                '{{ c.usage_limit }}',
-                                                '{{ c.per_user_limit }}',
-                                                {{ c.first_time_only|yesno:'true,false' }},
-                                                '{{ c.payment_methods|default:'all' }}',
-                                                '{{ c.valid_from|date:'Y-m-d' }}',
-                                                '{{ c.valid_to|date:'Y-m-d' }}',
-                                                {{ c.is_active|yesno:'true,false' }},
-                                                '[{% for p in c.specific_products.all %}{\"id\":{{p.id}},\"name\":\"{{p.name|escapejs}}\"}{% if not forloop.last %},{% endif %}{% endfor %}]',
-                                                '[{% for cat in c.specific_categories.all %}{\"id\":{{cat.id}},\"name\":\"{{cat.name|escapejs}}\"}{% if not forloop.last %},{% endif %}{% endfor %}]'
-                                            )">
+                                        <button class="act-btn act-btn-edit btn-edit-coupon" title="Edit coupon"
+                                            data-id="{{ c.id }}"
+                                            data-code="{{ c.code|escapejs }}"
+                                            data-title="{{ c.title|default:''|escapejs }}"
+                                            data-description="{{ c.description|default:''|escapejs }}"
+                                            data-discount-type="{{ c.discount_type }}"
+                                            data-discount-value="{{ c.discount_value }}"
+                                            data-max-discount-amount="{{ c.max_discount_amount|default:'' }}"
+                                            data-min-order-amount="{{ c.min_order_amount }}"
+                                            data-applies-to="{{ c.applies_to }}"
+                                            data-usage-limit="{{ c.usage_limit }}"
+                                            data-per-user-limit="{{ c.per_user_limit }}"
+                                            data-first-time-only="{{ c.first_time_only|yesno:'true,false' }}"
+                                            data-payment-methods="{{ c.payment_methods|default:'all' }}"
+                                            data-valid-from="{{ c.valid_from|date:'Y-m-d' }}"
+                                            data-valid-to="{{ c.valid_to|date:'Y-m-d' }}"
+                                            data-is-active="{{ c.is_active|yesno:'true,false' }}"
+                                            data-products="[{% for p in c.specific_products.all %}{&quot;id&quot;:{{p.id}},&quot;name&quot;:&quot;{{p.name|escapejs}}&quot;}{% if not forloop.last %},{% endif %}{% endfor %}]"
+                                            data-categories="[{% for cat in c.specific_categories.all %}{&quot;id&quot;:{{cat.id}},&quot;name&quot;:&quot;{{cat.name|escapejs}}&quot;}{% if not forloop.last %},{% endif %}{% endfor %}]">
                                             <i class="fa-solid fa-pen-to-square"></i> Edit
                                         </button>
                                         <button class="act-btn act-btn-del" title="Delete coupon"
@@ -1003,6 +988,34 @@
             '[{% for cat in edit_coupon.specific_categories.all %}{\"id\":{{cat.id}},\"name\":\"{{cat.name|escapejs}}\"}{% if not forloop.last %},{% endif %}{% endfor %}]'
         );
         {% endif %}
+
+        /* ── Event Listener for Edit Coupon Buttons ── */
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.btn-edit-coupon').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = this.dataset.id;
+                    const code = this.dataset.code;
+                    const title = this.dataset.title;
+                    const desc = this.dataset.description;
+                    const type = this.dataset.discountType;
+                    const value = this.dataset.discountValue;
+                    const max = this.dataset.maxDiscountAmount;
+                    const min = this.dataset.minOrderAmount;
+                    const applies = this.dataset.appliesTo;
+                    const limit = this.dataset.usageLimit;
+                    const perLimit = this.dataset.perUserLimit;
+                    const fto = this.dataset.firstTimeOnly === 'true';
+                    const pm = this.dataset.paymentMethods;
+                    const from = this.dataset.validFrom;
+                    const to = this.dataset.validTo;
+                    const isActive = this.dataset.isActive === 'true';
+                    const productsJson = this.dataset.products;
+                    const categoriesJson = this.dataset.categories;
+
+                    openEditModal(id, code, title, desc, type, value, max, min, applies, limit, perLimit, fto, pm, from, to, isActive, productsJson, categoriesJson);
+                });
+            });
+        });
 
         /* init type-change state */
         onTypeChange();
