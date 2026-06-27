@@ -15,11 +15,13 @@ class Coupon(models.Model):
     ]
 
     # Applicability choices
-    GLOBAL       = "global"
-    SPECIFIC     = "specific"
+    GLOBAL              = "global"
+    SPECIFIC_PRODUCTS   = "specific_products"
+    SPECIFIC_CATEGORIES = "specific_categories"
     TARGET_CHOICES = [
-        (GLOBAL,   "All Products (Global)"),
-        (SPECIFIC, "Specific Products/Categories"),
+        (GLOBAL,              "All Products (Global)"),
+        (SPECIFIC_PRODUCTS,   "Specific Products"),
+        (SPECIFIC_CATEGORIES, "Specific Categories"),
     ]
 
     # Payment method choices (stored as comma-separated)
@@ -40,7 +42,9 @@ class Coupon(models.Model):
     min_order_amount    = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
 
     # Applicability
-    applies_to   = models.CharField(max_length=10, choices=TARGET_CHOICES, default=GLOBAL)
+    applies_to   = models.CharField(max_length=20, choices=TARGET_CHOICES, default=GLOBAL)
+    specific_products   = models.ManyToManyField("core.Product",   blank=True, related_name="coupons")
+    specific_categories = models.ManyToManyField("core.Category",  blank=True, related_name="coupons")
 
     valid_from = models.DateTimeField()
     valid_to   = models.DateTimeField()

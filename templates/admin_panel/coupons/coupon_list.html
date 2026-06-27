@@ -153,6 +153,28 @@
         .del-desc  { color:var(--gray); font-size:.82rem; line-height:1.6; margin-bottom:2rem; }
         .del-acts  { display:flex; gap:.85rem; justify-content:center; }
 
+        /* ── Multi-select dropdown widget ── */
+        .ms-wrap { position:relative; }
+        .ms-box { min-height:42px; background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:.35rem .6rem; cursor:text; display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; transition:border-color .22s; }
+        .ms-box:focus-within { border-color:var(--gold); box-shadow:0 0 0 3px rgba(197,160,89,.08); }
+        .ms-tag { display:inline-flex; align-items:center; gap:.3rem; background:rgba(197,160,89,.15); color:var(--gold); border:1px solid rgba(197,160,89,.25); border-radius:5px; padding:.18rem .5rem; font-size:.72rem; font-weight:600; white-space:nowrap; }
+        .ms-tag .rm { cursor:pointer; font-size:.7rem; opacity:.7; transition:opacity .15s; }
+        .ms-tag .rm:hover { opacity:1; }
+        .ms-search { flex:1; min-width:100px; background:transparent; border:none; outline:none; color:var(--white); font-size:.83rem; font-family:'Inter',sans-serif; padding:.2rem .3rem; }
+        .ms-search::placeholder { color:var(--gray); }
+        .ms-dropdown { position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--card); border:1px solid rgba(197,160,89,.2); border-radius:10px; z-index:2000; max-height:200px; overflow-y:auto; box-shadow:0 12px 35px rgba(0,0,0,.55); display:none; }
+        .ms-dropdown.open { display:block; }
+        .ms-dropdown .ms-empty { padding:.85rem 1rem; font-size:.78rem; color:var(--gray); text-align:center; }
+        .ms-dropdown .ms-item { padding:.6rem 1rem; font-size:.82rem; color:var(--white); cursor:pointer; transition:background .15s; display:flex; align-items:center; gap:.5rem; }
+        .ms-dropdown .ms-item:hover, .ms-dropdown .ms-item.selected { background:rgba(197,160,89,.08); color:var(--gold); }
+        .ms-dropdown .ms-item .ms-check { width:14px; height:14px; border-radius:3px; border:1px solid var(--gray2); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:.55rem; }
+        .ms-dropdown .ms-item.selected .ms-check { background:var(--gold); border-color:var(--gold); color:#0b0b0b; }
+
+        /* Specific-selection panel */
+        .specific-panel { display:none; margin-top:.75rem; animation:fadeSlide .22s ease; }
+        .specific-panel.visible { display:block; }
+        @keyframes fadeSlide { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+
         @media(max-width:1200px){ .stats-strip{grid-template-columns:repeat(3,1fr);} }
         @media(max-width:768px){ .stats-strip{grid-template-columns:repeat(2,1fr);} .cm-row{grid-template-columns:1fr;} .cm-row.triple{grid-template-columns:1fr;} }
     </style>
@@ -280,7 +302,15 @@
                                 </td>
                                 <td>
                                     <span style="font-size:.75rem; color:var(--gray);">
-                                        {% if c.applies_to == 'global' %}Global{% else %}Specific{% endif %}
+                                        {% if c.applies_to == 'global' %}
+                                            Global
+                                        {% elif c.applies_to == 'specific_products' %}
+                                            Specific Products
+                                        {% elif c.applies_to == 'specific_categories' %}
+                                            Specific Categories
+                                        {% else %}
+                                            {{ c.applies_to }}
+                                        {% endif %}
                                     </span>
                                 </td>
                                 <td style="color:var(--gray); font-size:.82rem;">
@@ -328,7 +358,9 @@
                                                 '{{ c.payment_methods|default:'all' }}',
                                                 '{{ c.valid_from|date:'Y-m-d' }}',
                                                 '{{ c.valid_to|date:'Y-m-d' }}',
-                                                {{ c.is_active|yesno:'true,false' }}
+                                                {{ c.is_active|yesno:'true,false' }},
+                                                '[{% for p in c.specific_products.all %}{\"id\":{{p.id}},\"name\":\"{{p.name|escapejs}}\"}{% if not forloop.last %},{% endif %}{% endfor %}]',
+                                                '[{% for cat in c.specific_categories.all %}{\"id\":{{cat.id}},\"name\":\"{{cat.name|escapejs}}\"}{% if not forloop.last %},{% endif %}{% endfor %}]'
                                             )">
                                             <i class="fa-solid fa-pen-to-square"></i> Edit
                                         </button>
@@ -458,13 +490,56 @@
                     <!-- C) APPLICABILITY -->
                     <div class="cm-section">
                         <div class="cm-section-title"><i class="fa-solid fa-heart"></i> C) Applicability</div>
-                        <div class="cm-row single">
+                        <div class="cm-row">
                             <div class="cm-group">
                                 <label class="cm-label">Applies To <span class="req">*</span></label>
-                                <select name="applies_to" id="cp_applies" class="cm-select">
+                                <select name="applies_to" id="cp_applies" class="cm-select" onchange="onAppliesToChange()">
                                     <option value="global">All Products (Global)</option>
-                                    <option value="specific">Specific Products / Categories</option>
+                                    <option value="specific_products">Specific Products</option>
+                                    <option value="specific_categories">Specific Categories</option>
                                 </select>
+                            </div>
+                        </div>
+
+                        <!-- Specific PRODUCTS panel -->
+                        <div class="specific-panel" id="panel_products">
+                            <div class="cm-row single">
+                                <div class="cm-group">
+                                    <label class="cm-label">Select Products <span class="req">*</span></label>
+                                    <div class="ms-wrap" id="ms_products">
+                                        <div class="ms-box" id="ms_products_box" onclick="focusSearch('ms_products')">
+                                            <!-- tags injected here -->
+                                            <input type="text" class="ms-search" id="ms_products_search"
+                                                placeholder="Search and select products…"
+                                                oninput="searchItems('ms_products', this.value)"
+                                                onfocus="openDropdown('ms_products')"
+                                                onblur="scheduleClose('ms_products')">
+                                        </div>
+                                        <div class="ms-dropdown" id="ms_products_dd"></div>
+                                    </div>
+                                    <input type="hidden" name="specific_product_ids" id="specific_product_ids" value="">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Specific CATEGORIES panel -->
+                        <div class="specific-panel" id="panel_categories">
+                            <div class="cm-row single">
+                                <div class="cm-group">
+                                    <label class="cm-label">Select Categories <span class="req">*</span></label>
+                                    <div class="ms-wrap" id="ms_categories">
+                                        <div class="ms-box" id="ms_categories_box" onclick="focusSearch('ms_categories')">
+                                            <!-- tags injected here -->
+                                            <input type="text" class="ms-search" id="ms_categories_search"
+                                                placeholder="Search and select categories…"
+                                                oninput="searchItems('ms_categories', this.value)"
+                                                onfocus="openDropdown('ms_categories')"
+                                                onblur="scheduleClose('ms_categories')">
+                                        </div>
+                                        <div class="ms-dropdown" id="ms_categories_dd"></div>
+                                    </div>
+                                    <input type="hidden" name="specific_category_ids" id="specific_category_ids" value="">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -634,6 +709,161 @@
             });
         }
 
+        /* ── Multi-Select State and Logic ── */
+        const SEARCH_URLS = {
+            'ms_products': "{% url 'admin_coupon_search_products' %}",
+            'ms_categories': "{% url 'admin_coupon_search_categories' %}"
+        };
+
+        const selectedState = {
+            'ms_products': [],
+            'ms_categories': []
+        };
+
+        const activeTimers = {};
+
+        function onAppliesToChange() {
+            const val = document.getElementById('cp_applies').value;
+            const pProducts = document.getElementById('panel_products');
+            const pCategories = document.getElementById('panel_categories');
+
+            pProducts.classList.toggle('visible', val === 'specific_products');
+            pCategories.classList.toggle('visible', val === 'specific_categories');
+
+            if (val === 'specific_products') {
+                focusSearch('ms_products');
+            } else if (val === 'specific_categories') {
+                focusSearch('ms_categories');
+            }
+        }
+
+        function focusSearch(widgetId) {
+            document.getElementById(widgetId + '_search').focus();
+        }
+
+        function openDropdown(widgetId) {
+            const dd = document.getElementById(widgetId + '_dd');
+            dd.classList.add('open');
+            if (!dd.innerHTML.trim()) {
+                searchItems(widgetId, '');
+            }
+        }
+
+        function scheduleClose(widgetId) {
+            activeTimers[widgetId] = setTimeout(() => {
+                document.getElementById(widgetId + '_dd').classList.remove('open');
+            }, 250);
+        }
+
+        function searchItems(widgetId, query) {
+            if (activeTimers[widgetId + '_search']) {
+                clearTimeout(activeTimers[widgetId + '_search']);
+            }
+
+            activeTimers[widgetId + '_search'] = setTimeout(() => {
+                const url = `${SEARCH_URLS[widgetId]}?q=${encodeURIComponent(query)}`;
+                fetch(url)
+                    .then(r => r.json())
+                    .then(data => {
+                        renderDropdown(widgetId, data.results || []);
+                    });
+            }, 150);
+        }
+
+        function renderDropdown(widgetId, items) {
+            const dd = document.getElementById(widgetId + '_dd');
+            dd.innerHTML = '';
+
+            if (items.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'ms-empty';
+                empty.textContent = 'No results found';
+                dd.appendChild(empty);
+                return;
+            }
+
+            items.forEach(item => {
+                const isSelected = selectedState[widgetId].some(s => s.id == item.id);
+                const el = document.createElement('div');
+                el.className = 'ms-item' + (isSelected ? ' selected' : '');
+                
+                el.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    toggleSelection(widgetId, item);
+                });
+
+                const check = document.createElement('div');
+                check.className = 'ms-check';
+                if (isSelected) {
+                    check.innerHTML = '<i class="fa-solid fa-check"></i>';
+                }
+                
+                const label = document.createElement('span');
+                label.textContent = item.name;
+
+                el.appendChild(check);
+                el.appendChild(label);
+                dd.appendChild(el);
+            });
+        }
+
+        function toggleSelection(widgetId, item) {
+            const index = selectedState[widgetId].findIndex(s => s.id == item.id);
+            if (index > -1) {
+                selectedState[widgetId].splice(index, 1);
+            } else {
+                selectedState[widgetId].push(item);
+            }
+            updateWidget(widgetId);
+            const searchVal = document.getElementById(widgetId + '_search').value;
+            searchItems(widgetId, searchVal);
+        }
+
+        function removeTag(widgetId, itemId, event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            selectedState[widgetId] = selectedState[widgetId].filter(s => s.id != itemId);
+            updateWidget(widgetId);
+            const searchVal = document.getElementById(widgetId + '_search').value;
+            searchItems(widgetId, searchVal);
+        }
+
+        function updateWidget(widgetId) {
+            const box = document.getElementById(widgetId + '_box');
+            const searchInput = document.getElementById(widgetId + '_search');
+            
+            const tags = box.querySelectorAll('.ms-tag');
+            tags.forEach(t => t.remove());
+
+            selectedState[widgetId].forEach(item => {
+                const tag = document.createElement('span');
+                tag.className = 'ms-tag';
+                tag.innerHTML = `${escapeHtml(item.name)} <span class="rm" onclick="removeTag('${widgetId}', ${item.id}, event)"><i class="fa-solid fa-xmark"></i></span>`;
+                box.insertBefore(tag, searchInput);
+            });
+
+            const hiddenId = widgetId === 'ms_products' ? 'specific_product_ids' : 'specific_category_ids';
+            const ids = selectedState[widgetId].map(s => s.id);
+            document.getElementById(hiddenId).value = ids.join(',');
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function clearWidgets() {
+            selectedState['ms_products'] = [];
+            selectedState['ms_categories'] = [];
+            updateWidget('ms_products');
+            updateWidget('ms_categories');
+            document.getElementById('ms_products_dd').innerHTML = '';
+            document.getElementById('ms_categories_dd').innerHTML = '';
+        }
+
         /* ── Show / hide max cap based on type ── */
         function onTypeChange() {
             const t = document.getElementById('cp_type').value;
@@ -665,11 +895,13 @@
             f.action = ADD_URL;
             setPmValue('all');
             onTypeChange();
+            clearWidgets();
+            onAppliesToChange();
             document.getElementById('couponModal').classList.add('show');
         }
 
         /* ── Open modal (edit) ── */
-        function openEditModal(id, code, title, desc, type, value, max, min, applies, limit, perLimit, fto, pm, from, to, isActive) {
+        function openEditModal(id, code, title, desc, type, value, max, min, applies, limit, perLimit, fto, pm, from, to, isActive, specificProductsJson, specificCategoriesJson) {
             const f = document.getElementById('couponForm');
             f.reset();
             document.getElementById('modalIcon').className = 'fa-solid fa-pen-to-square';
@@ -693,6 +925,23 @@
             document.getElementById('cp_active').checked= isActive;
             setPmValue(pm);
             onTypeChange();
+
+            // Populate multi-select states
+            try {
+                selectedState['ms_products'] = JSON.parse(specificProductsJson || '[]');
+            } catch (e) {
+                selectedState['ms_products'] = [];
+            }
+            try {
+                selectedState['ms_categories'] = JSON.parse(specificCategoriesJson || '[]');
+            } catch (e) {
+                selectedState['ms_categories'] = [];
+            }
+
+            updateWidget('ms_products');
+            updateWidget('ms_categories');
+            onAppliesToChange();
+
             document.getElementById('couponModal').classList.add('show');
         }
 
@@ -718,7 +967,7 @@
             }).then(r => r.json()).then(d => {
                 el.checked = d.is_active;
             }).catch(() => {
-                el.checked = !el.checked; // revert on error
+                el.checked = !el.checked;
             });
         }
 
@@ -749,7 +998,9 @@
             '{{ edit_coupon.payment_methods|default:'all' }}',
             '{{ edit_coupon.valid_from|date:'Y-m-d' }}',
             '{{ edit_coupon.valid_to|date:'Y-m-d' }}',
-            {{ edit_coupon.is_active|yesno:'true,false' }}
+            {{ edit_coupon.is_active|yesno:'true,false' }},
+            '[{% for p in edit_coupon.specific_products.all %}{\"id\":{{p.id}},\"name\":\"{{p.name|escapejs}}\"}{% if not forloop.last %},{% endif %}{% endfor %}]',
+            '[{% for cat in edit_coupon.specific_categories.all %}{\"id\":{{cat.id}},\"name\":\"{{cat.name|escapejs}}\"}{% if not forloop.last %},{% endif %}{% endfor %}]'
         );
         {% endif %}
 
