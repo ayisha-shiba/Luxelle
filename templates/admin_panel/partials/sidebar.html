@@ -5,8 +5,8 @@
             <a href="{% url 'admin_dashboard' %}" class="nav-item {% if active == 'dashboard' %}active{% endif %}"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
             <a href="{% url 'admin_products' %}" class="nav-item {% if active == 'products' %}active{% endif %}"><i class="fa-solid fa-boxes-stacked"></i> Products</a>
             <a href="{% url 'admin_categories' %}" class="nav-item {% if active == 'categories' %}active{% endif %}"><i class="fa-solid fa-tags"></i> Categories</a>
-            <a class="nav-item {% if active == 'orders' %}active{% endif %}"><i class="fa-solid fa-bag-shopping"></i> Orders</a>
-            <a class="nav-item {% if active == 'returns' %}active{% endif %}"><i class="fa-solid fa-rotate-left"></i> Returns</a>
+            <a href="{% url 'admin_orders' %}" class="nav-item {% if active == 'orders' %}active{% endif %}"><i class="fa-solid fa-bag-shopping"></i> Orders</a>
+            <a href="{% url 'admin_returns' %}" class="nav-item {% if active == 'returns' %}active{% endif %}"><i class="fa-solid fa-rotate-left"></i> Returns</a>
             <a class="nav-item {% if active == 'reviews' %}active{% endif %}"><i class="fa-solid fa-star"></i> Reviews</a>
             <a class="nav-item {% if active == 'offers' %}active{% endif %}"><i class="fa-solid fa-tag"></i> Offers</a>
             <a class="nav-item {% if active == 'coupons' %}active{% endif %}"><i class="fa-solid fa-ticket"></i> Coupons</a>

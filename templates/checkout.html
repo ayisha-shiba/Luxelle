@@ -1,0 +1,476 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Checkout | Luxelle</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{% static 'image/favicon.svg' %}">
+    <link rel="icon" type="image/x-icon" href="{% static 'image/favicon.ico' %}">
+    <link rel="apple-touch-icon" href="{% static 'image/apple-touch-icon.png' %}">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    <style>
+        .breadcrumb-bar a { color: var(--lux-gray); text-decoration:none; }
+        .breadcrumb-bar a:hover { color: var(--lux-gold); }
+
+        .section-eyebrow { letter-spacing: 0.18em; }
+        .checkout-card { border: 1px solid #e2dfd9; border-radius: 10px; background: #fff; }
+
+        .option-tile {
+            border: 1px solid #e2dfd9; border-radius: 10px; cursor: pointer;
+            transition: border-color .25s, box-shadow .25s;
+        }
+        .option-tile:hover { border-color: var(--lux-gold); }
+        .option-tile input:checked ~ .option-body,
+        .option-tile.selected { border-color: var(--lux-gold); }
+        .option-tile.is-selected { border-color: var(--lux-gold); box-shadow: 0 0 0 1px var(--lux-gold) inset; }
+        .option-tile.is-disabled { opacity: .5; cursor: not-allowed; }
+
+        .pay-tile {
+            border: 1px solid #e2dfd9; border-radius: 10px; padding: 22px 12px;
+            text-align: center; cursor: pointer; transition: border-color .25s, box-shadow .25s;
+        }
+        .pay-tile.is-selected { border-color: var(--lux-gold); box-shadow: 0 0 0 1px var(--lux-gold) inset; }
+        .pay-tile.is-disabled { opacity: .45; cursor: not-allowed; }
+
+        .summary-card { position: sticky; top: 24px; }
+        .item-img { width: 84px; height: 84px; object-fit: cover; border-radius: 8px; }
+        .muted-dash { color: var(--lux-gray-light); }
+    </style>
+</head>
+<body>
+
+    {% include 'partials/navbar.html' with active='cart' %}
+
+    <!-- Breadcrumb -->
+    <div class="container pt-4 breadcrumb-bar small text-uppercase tracking-wider">
+        <a href="{% url 'home' %}">Home</a>
+        <span class="text-lux-gray mx-1">/</span>
+        <a href="{% url 'cart' %}">My Bag</a>
+        <span class="text-lux-gray mx-1">/</span>
+        <span class="text-lux-black">Checkout</span>
+    </div>
+
+    <div class="container py-4">
+
+        <!-- Hero -->
+        <div class="mb-5">
+            <h1 class="font-playfair fw-bold text-lux-black mb-2">Secure Checkout</h1>
+            <p class="text-lux-gray font-inter mb-2">Complete your luxury handbag purchase with confidence.</p>
+            <div style="width:80px; height:3px; background: var(--lux-gold);"></div>
+        </div>
+
+        <form method="post" action="{% url 'checkout' %}">
+            {% csrf_token %}
+            <div class="row g-4">
+
+                <!-- ============================= LEFT COLUMN ============================= -->
+                <div class="col-lg-8">
+
+                    <!-- Shipping Destination -->
+                    <div class="checkout-card p-4 mb-4">
+                        <div class="text-uppercase text-lux-gray section-eyebrow small mb-1">Step 01</div>
+                        <h3 class="font-playfair fw-bold text-lux-black mb-3">Shipping Destination</h3>
+
+                        {% for address in addresses %}
+                        <label class="option-tile d-block p-3 mb-3 {% if address.is_default %}is-selected{% endif %}">
+                            <div class="d-flex align-items-start gap-3">
+                                <input type="radio" name="address_id" value="{{ address.id }}" class="mt-1"
+                                       {% if address.is_default %}checked{% endif %} required>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="fw-bold text-lux-black">{{ address.full_name }}</div>
+                                        <span class="badge bg-light text-lux-gray text-uppercase">{{ address.get_address_type_display }}</span>
+                                    </div>
+                                    <div class="text-lux-gray small mb-1">{{ address.phone }}</div>
+                                    <div class="text-lux-gray small">
+                                        {{ address.address_line1 }}{% if address.address_line2 %}, {{ address.address_line2 }}{% endif %}<br>
+                                        {{ address.city }}, {{ address.state }} {{ address.postal_code }}<br>
+                                        {{ address.country }}
+                                    </div>
+                                    {% if address.is_default %}
+                                    <span class="badge bg-lux-gold text-white mt-2">Default Address</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </label>
+                        {% empty %}
+                        <div class="text-center py-4 mb-2" style="background:#faf8f4; border-radius:10px;">
+                            <i class="fa-solid fa-location-dot text-lux-gold fs-3 mb-2"></i>
+                            <p class="text-lux-black fw-semibold mb-1">No saved addresses found</p>
+                            <p class="text-lux-gray small mb-0">Please add a delivery address to continue.</p>
+                        </div>
+                        {% endfor %}
+
+                        <div class="d-flex gap-3 align-items-center mt-1">
+                            <button type="button" class="d-inline-flex align-items-center gap-2 text-lux-black fw-semibold small border-0 bg-transparent p-0 hover-lux-gold"
+                                    data-bs-toggle="modal" data-bs-target="#addAddressModal">
+                                <i class="fa-solid fa-plus"></i> Add New Address
+                            </button>
+                            {% if addresses %}
+                            <a href="{% url 'addresses' %}" class="text-lux-gray small text-decoration-none hover-lux-gold">Manage / Edit Addresses</a>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Delivery Options (DUMMY — display only for now) -->
+                    <div class="checkout-card p-4 mb-4">
+                        <div class="text-uppercase text-lux-gray section-eyebrow small mb-1">Step 02</div>
+                        <h3 class="font-playfair fw-bold text-lux-black mb-3">Delivery Options</h3>
+
+                        <label class="option-tile is-selected d-flex justify-content-between align-items-center p-3 mb-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <input type="radio" name="delivery_option" value="standard" checked>
+                                <div>
+                                    <div class="fw-bold text-lux-black">Standard Delivery</div>
+                                    <div class="text-lux-gray small">Signature white-glove dispatch, 4–6 business days</div>
+                                </div>
+                            </div>
+                            <span class="text-lux-gold fw-semibold">Free</span>
+                        </label>
+
+                        <label class="option-tile is-disabled d-flex justify-content-between align-items-center p-3">
+                            <div class="d-flex align-items-center gap-3">
+                                <input type="radio" name="delivery_option" value="express" disabled>
+                                <div>
+                                    <div class="fw-bold text-lux-black">Express Delivery <span class="badge bg-light text-lux-gray ms-1">Coming soon</span></div>
+                                    <div class="text-lux-gray small">Priority courier, 1–2 business days</div>
+                                </div>
+                            </div>
+                            <span class="text-lux-gray muted-dash">—</span>
+                        </label>
+                    </div>
+
+                    <!-- Payment Method (only COD enabled) -->
+                    <div class="checkout-card p-4 mb-4">
+                        <div class="text-uppercase text-lux-gray section-eyebrow small mb-1">Step 03</div>
+                        <h3 class="font-playfair fw-bold text-lux-black mb-3">Payment Method</h3>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-4">
+                                <label class="pay-tile d-block">
+                                    <input type="radio" name="payment_method" value="razorpay" class="d-none">
+                                    <i class="fa-regular fa-credit-card fs-4 text-lux-black d-block mb-2"></i>
+                                    <span class="small text-uppercase tracking-wider text-lux-black">Card / UPI</span>
+                                </label>
+                            </div>
+                            <div class="col-4">
+                                {% if wallet_balance >= summary.grand_total %}
+                                <label class="pay-tile d-block">
+                                    <input type="radio" name="payment_method" value="wallet" class="d-none">
+                                    <i class="fa-solid fa-wallet fs-4 text-lux-black d-block mb-2"></i>
+                                    <span class="small text-uppercase tracking-wider text-lux-black">Wallet</span>
+                                    <span class="d-block small text-lux-gold">₹{{ wallet_balance }}</span>
+                                </label>
+                                {% else %}
+                                <label class="pay-tile is-disabled d-block">
+                                    <input type="radio" name="payment_method" value="wallet" class="d-none" disabled>
+                                    <i class="fa-solid fa-wallet fs-4 text-lux-gray d-block mb-2"></i>
+                                    <span class="small text-uppercase tracking-wider text-lux-gray">Wallet</span>
+                                    <span class="d-block small text-lux-gray">₹{{ wallet_balance }}</span>
+                                </label>
+                                {% endif %}
+                            </div>
+                            <div class="col-4">
+                                <label class="pay-tile is-selected d-block">
+                                    <input type="radio" name="payment_method" value="COD" class="d-none" checked>
+                                    <i class="fa-solid fa-shield-halved fs-4 text-lux-black d-block mb-2"></i>
+                                    <span class="small text-uppercase tracking-wider text-lux-black">Cash on Delivery</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-start gap-2 p-3 rounded-3" style="background:#faf8f4;">
+                            <i class="fa-solid fa-circle-info text-lux-gold mt-1"></i>
+                            <p class="text-lux-gray small mb-0">
+                                Pay securely online via <span class="text-lux-black fw-semibold">Card / UPI</span> (Razorpay),
+                                use your <span class="text-lux-black fw-semibold">Wallet</span> balance,
+                                or choose <span class="text-lux-black fw-semibold">Cash on Delivery</span>.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Bag Summary (products) -->
+                    <div class="checkout-card p-4 mb-4">
+                        <div class="text-uppercase text-lux-gray section-eyebrow small mb-1">In Your Bag</div>
+                        <h3 class="font-playfair fw-bold text-lux-black mb-3">Bag Summary</h3>
+
+                        {% for item in items %}
+                        {% with variant=item.variant product=item.variant.product %}
+                        <div class="d-flex gap-3 align-items-center py-3 {% if not forloop.last %}border-bottom border-light{% endif %}">
+                            <img src="{% if variant.images.first %}{{ variant.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}"
+                                 alt="{{ product.name }}" class="item-img">
+                            <div class="flex-grow-1">
+                                <div class="text-uppercase text-lux-gray tracking-wider small">{{ product.brand.name|default:"Luxelle" }}</div>
+                                <div class="fw-bold text-lux-black">{{ product.name }}</div>
+                                <div class="text-lux-gray small">
+                                    {% if variant.color %}Color: {{ variant.color }}{% endif %}
+                                    {% if variant.material %} &middot; Material: {{ variant.material.name }}{% endif %}
+                                </div>
+                                <div class="text-lux-gray small">Qty: {{ item.quantity }}</div>
+                            </div>
+                            <div class="fw-bold text-lux-black">₹{{ item.total_price }}</div>
+                        </div>
+                        {% endwith %}
+                        {% endfor %}
+                    </div>
+
+                    <!-- Promo Code (DUMMY) -->
+                    <div class="checkout-card p-4 mb-4">
+                        <div class="text-uppercase text-lux-gray section-eyebrow small mb-1">Savings</div>
+                        <h3 class="font-playfair fw-bold text-lux-black mb-3">Promo Code</h3>
+                        <div class="d-flex gap-2">
+                            <input type="text" class="form-control" placeholder="Enter promo code" disabled>
+                            <button type="button" class="btn btn-outline-secondary px-4" disabled>Apply</button>
+                        </div>
+                        <p class="text-lux-gray small mt-2 mb-0">Promo and coupon offers will be available soon.</p>
+                    </div>
+
+                </div>
+
+                <!-- ============================= RIGHT COLUMN ============================= -->
+                <div class="col-lg-4">
+                    <div class="summary-card checkout-card p-4">
+                        <h3 class="font-playfair fw-bold text-lux-black mb-4">Order Summary</h3>
+
+                        <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
+                            <span>Subtotal</span><span class="text-lux-black">₹{{ summary.subtotal }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
+                            <span>Offer Discount</span>
+                            <span class="text-success">{% if summary.discount %}− ₹{{ summary.discount }}{% else %}—{% endif %}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
+                            <span>Coupon Discount</span><span class="muted-dash">—</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
+                            <span>Delivery</span><span class="text-lux-gold">Free</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
+                            <span>CGST (9%)</span><span class="text-lux-black">₹{{ summary.cgst }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
+                            <span>SGST (9%)</span><span class="text-lux-black">₹{{ summary.sgst }}</span>
+                        </div>
+
+                        <hr class="border-light">
+
+                        <div class="d-flex justify-content-between mb-1 fw-bold text-lux-black fs-4 font-playfair">
+                            <span>Total</span><span>₹{{ summary.grand_total }}</span>
+                        </div>
+                        <p class="text-lux-gray small mb-4">Inclusive of all applicable taxes.</p>
+
+                        {% if addresses %}
+                        <button type="submit" class="luxury-btn text-white text-uppercase tracking-wider px-4 py-3 border-0 w-100">
+                            Place Order
+                        </button>
+                        {% else %}
+                        <button type="button" class="luxury-btn text-white text-uppercase tracking-wider px-4 py-3 border-0 w-100"
+                                data-bs-toggle="modal" data-bs-target="#addAddressModal">
+                            Add Address to Continue
+                        </button>
+                        {% endif %}
+
+                        <div class="d-flex align-items-center justify-content-center gap-2 mt-3 text-lux-gray small">
+                            <i class="fa-solid fa-lock text-lux-gold"></i> Secured &amp; encrypted checkout
+                        </div>
+
+                        <!-- Reassurance -->
+                        <hr class="border-light my-4">
+                        <div class="d-flex align-items-start gap-2 mb-3">
+                            <i class="fa-solid fa-rotate-left text-lux-gold mt-1"></i>
+                            <div class="small text-lux-gray">
+                                <span class="text-lux-black fw-semibold d-block">Easy Returns &amp; Exchange</span>
+                                7-day return or exchange on eligible handbags once delivered.
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-start gap-2 mb-3">
+                            <i class="fa-solid fa-shield-heart text-lux-gold mt-1"></i>
+                            <div class="small text-lux-gray">
+                                <span class="text-lux-black fw-semibold d-block">Authenticity Guaranteed</span>
+                                Every Luxelle piece is crafted and quality-checked in-house.
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="fa-solid fa-headset text-lux-gold mt-1"></i>
+                            <div class="small text-lux-gray">
+                                <span class="text-lux-black fw-semibold d-block">Concierge Support</span>
+                                Reach our client care team at care@luxelle.com.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </form>
+    </div>
+
+    <!-- Add Address Modal (separate form — must live outside the checkout form) -->
+    <div class="modal fade" id="addAddressModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content" style="border-radius:14px;">
+                <div class="modal-header">
+                    <h5 class="modal-title font-playfair fw-bold text-lux-black">Add Delivery Address</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post" action="{% url 'checkout' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="add_address">
+                    <div class="modal-body">
+                        {% if address_form.non_field_errors %}
+                            <div class="alert alert-danger py-2">{{ address_form.non_field_errors }}</div>
+                        {% endif %}
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small text-lux-gray">Full Name</label>
+                                {{ address_form.full_name }}
+                                {% if address_form.full_name.errors %}<div class="text-danger small mt-1">{{ address_form.full_name.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-lux-gray">Phone</label>
+                                {{ address_form.phone }}
+                                {% if address_form.phone.errors %}<div class="text-danger small mt-1">{{ address_form.phone.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small text-lux-gray">Address Line 1</label>
+                                {{ address_form.address_line1 }}
+                                {% if address_form.address_line1.errors %}<div class="text-danger small mt-1">{{ address_form.address_line1.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small text-lux-gray">Address Line 2 <span class="text-lux-gray">(optional)</span></label>
+                                {{ address_form.address_line2 }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-lux-gray">City</label>
+                                {{ address_form.city }}
+                                {% if address_form.city.errors %}<div class="text-danger small mt-1">{{ address_form.city.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-lux-gray">State / Province</label>
+                                {{ address_form.state }}
+                                {% if address_form.state.errors %}<div class="text-danger small mt-1">{{ address_form.state.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-lux-gray">Postal / ZIP Code</label>
+                                {{ address_form.postal_code }}
+                                {% if address_form.postal_code.errors %}<div class="text-danger small mt-1">{{ address_form.postal_code.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-lux-gray">Country</label>
+                                {{ address_form.country }}
+                                {% if address_form.country.errors %}<div class="text-danger small mt-1">{{ address_form.country.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-lux-gray">Address Type</label>
+                                {{ address_form.address_type }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="luxury-btn text-white text-uppercase tracking-wider px-4 py-2 border-0">Save &amp; Use Address</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-top border-light pt-5 px-4 font-inter mt-5">
+        <div class="container pt-4 pb-5">
+            <div class="row g-5">
+                <div class="col-12 col-md-4">
+                    <h3 class="font-playfair fw-bold fs-2 text-lux-black mb-3">LUXELLE</h3>
+                    <p class="text-lux-gray small fw-light mb-4 lh-relaxed max-w-sm">Crafting timeless designs for the modern sophisticated woman. Luxury handbags designed with heart and soul.</p>
+                    <div class="d-flex align-items-center gap-3 social-icons text-lux-black">
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-instagram fs-4"></i></a>
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-pinterest fs-4"></i></a>
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-facebook fs-4"></i></a>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-2 offset-md-1">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Shop</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="{% url 'product_list' %}" class="text-decoration-none text-lux-gray hover-lux-gold">Handbags</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Accessories</a></li>
+                        <li><a href="{% url 'product_list' %}?sort=latest" class="text-decoration-none text-lux-gray hover-lux-gold">New Arrivals</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-6 col-md-2">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Company</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Our Story</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Careers</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Terms & Services</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Customer Care</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Contact Us</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Shipping & Returns</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">FAQ</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Privacy Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center pt-4 mt-5 border-top border-light text-lux-gray small fw-light">
+                <p class="mb-2 mb-md-0">&copy; 2026 Luxelle. Crafted by Antigravity.</p>
+                <div class="d-flex gap-4">
+                    <a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Terms of Use</a>
+                    <a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Privacy Policy</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Highlight selected address / payment tiles -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Address tiles
+            document.querySelectorAll('input[name="address_id"]').forEach(function (radio) {
+                radio.addEventListener('change', function () {
+                    document.querySelectorAll('input[name="address_id"]').forEach(function (r) {
+                        r.closest('.option-tile').classList.toggle('is-selected', r.checked);
+                    });
+                });
+            });
+
+            // Payment tiles (skip disabled ones)
+            document.querySelectorAll('input[name="payment_method"]:not([disabled])').forEach(function (radio) {
+                radio.addEventListener('change', function () {
+                    document.querySelectorAll('input[name="payment_method"]').forEach(function (r) {
+                        r.closest('.pay-tile').classList.toggle('is-selected', r.checked);
+                    });
+                });
+            });
+
+            // Re-open the Add Address modal if the form had validation errors
+            {% if open_address_modal %}
+            var addr = document.getElementById('addAddressModal');
+            if (addr) new bootstrap.Modal(addr).show();
+            {% endif %}
+        });
+    </script>
+
+    <!-- Toast Notifications -->
+    {% include 'partials/toast.html' %}
+</body>
+</html>

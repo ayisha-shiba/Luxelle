@@ -1,11 +1,4 @@
 {% load static %}
-<!--
-  CONTEXT CONTRACT — deals_view must put these in context:
-    deal_products   : iterable of Product where is_deal_of_day=True, active, in-stock
-    wishlist_ids    : set of product IDs the logged-in user has wishlisted
-  Each product: product.name, product.brand.name, product.category,
-    and product.default_variant -> v.sale_price, v.original_price, v.discount_percent, v.stock, v.images.first
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>

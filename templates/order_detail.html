@@ -1,0 +1,282 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order {{ order.order_number }} | Luxelle</title>
+    <link rel="icon" type="image/svg+xml" href="{% static 'image/favicon.svg' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    <style>
+        .breadcrumb-bar a { color: var(--lux-gray); text-decoration:none; }
+        .breadcrumb-bar a:hover { color: var(--lux-gold); }
+        .info-card { border:1px solid #e2dfd9; border-radius:12px; background:#fff; padding:1.5rem; height:100%; }
+        .info-card h3 { font-family:'Playfair Display',serif; color:#c5a059; font-size:1.15rem; display:flex; align-items:center; gap:0.5rem; margin-bottom:1.2rem; }
+        .info-row { display:flex; justify-content:space-between; color:#555; font-size:0.9rem; margin-bottom:0.6rem; }
+        .item-img { width:84px; height:84px; object-fit:cover; border-radius:8px; background:#f3f1ec; }
+        .st-badge { padding:0.3rem 0.8rem; border-radius:20px; font-size:0.74rem; font-weight:600; }
+        .st-pending { background:rgba(224,162,59,0.14); color:#c08a2b; }
+        .st-confirmed { background:rgba(52,152,219,0.14); color:#2c7fb8; }
+        .st-packed { background:rgba(241,196,15,0.18); color:#b8860b; }
+        .st-return_requested { background:rgba(230,126,34,0.16); color:#ca6f1e; }
+        .st-return_approved { background:rgba(26,188,156,0.16); color:#16a085; }
+        .st-return_rejected { background:rgba(231,76,60,0.14); color:#c0392b; }
+        .st-pickup_scheduled { background:rgba(52,152,219,0.14); color:#2c7fb8; }
+        .st-return_picked { background:rgba(241,196,15,0.18); color:#b8860b; }
+        .st-return_repair { background:rgba(211,84,0,0.16); color:#ca6f1e; }
+        .st-shipped { background:rgba(52,152,219,0.14); color:#2c7fb8; }
+        .st-out_for_delivery { background:rgba(155,89,182,0.16); color:#8e44ad; }
+        .st-delivered { background:rgba(39,174,96,0.16); color:#1e8449; }
+        .st-cancelled { background:rgba(231,76,60,0.14); color:#c0392b; }
+        .st-returned { background:rgba(149,165,166,0.18); color:#7f8c8d; }
+        .st-mixed { background:rgba(52,152,219,0.14); color:#2c7fb8; }
+
+        .timeline { list-style:none; margin:0; padding:0; }
+        .timeline-item { position:relative; padding:0 0 1.5rem 1.8rem; border-left:2px solid #e2dfd9; }
+        .timeline-item:last-child { border-left-color:transparent; padding-bottom:0; }
+        .timeline-dot { position:absolute; left:-8px; top:2px; width:14px; height:14px; border-radius:50%; background:#c5a059; border:2px solid #fff; box-shadow:0 0 0 1px #e2dfd9; }
+        .timeline-dot.st-delivered { background:#1e8449; }
+        .timeline-dot.st-cancelled { background:#c0392b; }
+        .timeline-dot.st-shipped { background:#2c7fb8; }
+        .timeline-dot.st-out_for_delivery { background:#8e44ad; }
+        .timeline-dot.st-returned { background:#7f8c8d; }
+        .timeline-status { font-weight:700; color:#1a1a1a; }
+        .timeline-note { color:#666; font-size:0.85rem; margin-top:0.1rem; }
+        .timeline-time { color:#999; font-size:0.78rem; margin-top:0.15rem; }
+
+        /* Premium light confirmation modal */
+        .lux-modal .modal-content { background:#fff; border:1px solid #e2dfd9; border-radius:16px; color:#333; }
+        .lux-modal .modal-header { border-bottom:none; padding:1.6rem 1.6rem 0.4rem; }
+        .lux-modal .modal-title { font-family:'Playfair Display',serif; color:#c5a059; font-size:1.6rem; font-weight:700; }
+        .lux-modal .modal-body { padding:0.4rem 1.6rem; }
+        .lux-modal .modal-desc { color:#666; font-size:0.95rem; line-height:1.5; margin-bottom:1.2rem; }
+        .lux-modal .modal-footer { border-top:none; padding:1rem 1.6rem 1.6rem; }
+        .lux-modal textarea { background:#fff; border:1px solid #e2dfd9; color:#1a1a1a; border-radius:10px; padding:0.9rem 1rem; width:100%; resize:vertical; }
+        .lux-modal textarea::placeholder { color:#aaa; }
+        .lux-modal textarea:focus { border-color:#c5a059; box-shadow:none; outline:none; }
+        .lux-modal .btn-keep { background:transparent; border:1px solid #d4d0c8; color:#555; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; font-size:0.78rem; padding:0.7rem 1.4rem; }
+        .lux-modal .btn-keep:hover { border-color:#999; color:#1a1a1a; }
+        .lux-modal .btn-danger-confirm { background:#e74c3c; border:none; color:#fff; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; font-size:0.78rem; padding:0.7rem 1.4rem; }
+        .lux-modal .btn-danger-confirm:hover { background:#c0392b; }
+        .lux-modal .btn-gold-confirm { background:#c5a059; border:none; color:#fff; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; font-size:0.78rem; padding:0.7rem 1.4rem; }
+        .lux-modal .btn-gold-confirm:hover { background:#b08d45; }
+    </style>
+</head>
+<body>
+
+    {% include 'partials/navbar.html' with active='orders' %}
+
+    <div class="container pt-4 breadcrumb-bar small text-uppercase tracking-wider">
+        <a href="{% url 'home' %}">Home</a>
+        <span class="text-lux-gray mx-1">/</span>
+        <a href="{% url 'orders' %}">My Orders</a>
+        <span class="text-lux-gray mx-1">/</span>
+        <span class="text-lux-black">Order Details</span>
+    </div>
+
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+            <div>
+                <h1 class="font-playfair fw-bold text-lux-black mb-1">Order Details</h1>
+                <p class="text-lux-gray mb-0">Order ID: <span class="fw-bold text-lux-black">#{{ order.order_number }}</span> &nbsp;|&nbsp; Placed on {{ order.created_at|date:"d F Y" }}</p>
+            </div>
+            <span class="st-badge st-{{ status_value }}">{{ status_label }}</span>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <!-- Shipping -->
+            <div class="col-lg-4">
+                <div class="info-card">
+                    <h3><i class="fa-solid fa-location-dot"></i> Shipping Address</h3>
+                    <div class="fw-bold text-lux-black mb-1">{{ order.ship_full_name }}</div>
+                    <div class="text-lux-gray small">
+                        {{ order.ship_address_line1 }}{% if order.ship_address_line2 %}, {{ order.ship_address_line2 }}{% endif %}<br>
+                        {{ order.ship_city }}, {{ order.ship_state }} - {{ order.ship_postal_code }}<br>
+                        {{ order.ship_country }}
+                    </div>
+                    <div class="text-lux-gray small mt-2">Phone: {{ order.ship_phone }}</div>
+                </div>
+            </div>
+
+            <!-- Payment & delivery -->
+            <div class="col-lg-4">
+                <div class="info-card">
+                    <h3><i class="fa-regular fa-credit-card"></i> Payment &amp; Delivery</h3>
+                    <div class="info-row"><span>Payment Method</span><span class="text-lux-black fw-semibold">{{ order.get_payment_method_display }}</span></div>
+                    <div class="info-row"><span>Order Status</span><span class="text-lux-black fw-semibold">{{ status_label }}</span></div>
+                    <div class="info-row"><span>Delivery</span><span class="text-lux-black">Standard</span></div>
+                </div>
+            </div>
+
+            <!-- Summary -->
+            <div class="col-lg-4">
+                <div class="info-card">
+                    <h3><i class="fa-solid fa-receipt"></i> Order Summary</h3>
+                    <div class="info-row"><span>Subtotal</span><span>₹{{ order.subtotal }}</span></div>
+                    <div class="info-row"><span>Discount</span><span>− ₹{{ order.discount }}</span></div>
+                    <div class="info-row"><span>Delivery Charge</span><span>₹{{ order.shipping }}</span></div>
+                    <div class="info-row"><span>CGST (9%)</span><span>₹{{ order.cgst }}</span></div>
+                    <div class="info-row"><span>SGST (9%)</span><span>₹{{ order.sgst }}</span></div>
+                    <hr>
+                    <div class="info-row fw-bold" style="font-size:1.05rem; color:#c5a059;"><span>Total</span><span>₹{{ order.total }}</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ordered products — each tracked independently -->
+        <h2 class="font-playfair fw-bold text-lux-black mb-3" id="timeline">Ordered Products</h2>
+        <div class="info-card">
+            {% for item in items %}
+            <div id="item-{{ item.id }}" class="d-flex gap-3 align-items-start py-3 {% if not forloop.last %}border-bottom border-light{% endif %}">
+                <img src="{% if item.variant.images.first %}{{ item.variant.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}" alt="{{ item.product_name }}" class="item-img">
+                <div class="flex-grow-1">
+                    <div class="fw-bold text-lux-black">{{ item.product_name }}</div>
+                    <div class="text-lux-gray small mb-1">SKU: {{ item.sku }} · Qty: {{ item.quantity }}</div>
+
+                    <span class="st-badge st-{{ item.status }} d-inline-block">{{ item.get_status_display }}</span>
+                    <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 ms-2 hover-lux-gold" style="color:#c5a059;" onclick="toggleItemTimeline('{{ item.id }}')">
+                        <i class="fa-solid fa-route"></i> Track Order
+                    </button>
+
+                    {% if item.can_cancel or item.can_return %}
+                    <div class="mt-2 d-flex gap-2">
+                        {% if item.can_cancel %}
+                        <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#cancelModal{{ item.id }}">Cancel Item</button>
+                        {% endif %}
+                        {% if item.can_return %}
+                        <button type="button" class="btn btn-outline-dark btn-sm" data-bs-toggle="modal" data-bs-target="#returnModal{{ item.id }}">Return Item</button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    {% if item.return_reason %}
+                    <div class="text-lux-gray small mt-1">Return reason: {{ item.return_reason }}</div>
+                    {% endif %}
+                    {% if item.status == 'return_rejected' and item.return_rejection_reason %}
+                    <div class="small mt-1" style="color:#c0392b;"><i class="fa-solid fa-circle-xmark"></i> Return rejected: {{ item.return_rejection_reason }}</div>
+                    {% endif %}
+
+                    {# Per-item timeline (toggled) #}
+                    <div id="track-{{ item.id }}" class="mt-3" style="display:none;">
+                        <ul class="timeline">
+                            {% for event in item.status_events.all reversed %}
+                                <li class="timeline-item">
+                                    <span class="timeline-dot st-{{ event.status }}"></span>
+                                    <div class="timeline-status">{{ event.get_status_display }}</div>
+                                    <div class="timeline-note">{{ event.note }}</div>
+                                    <div class="timeline-time">{{ event.created_at|date:"d M Y · h:i A" }}</div>
+                                </li>
+                            {% empty %}
+                                <li class="timeline-item">
+                                    <span class="timeline-dot st-pending"></span>
+                                    <div class="timeline-status">Order Placed</div>
+                                    <div class="timeline-time">{{ order.created_at|date:"d M Y · h:i A" }}</div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <div class="fw-bold" style="color:#c5a059;">₹{{ item.unit_price }}</div>
+                </div>
+            </div>
+
+            {# Cancel modal — reason OPTIONAL #}
+            {% if item.can_cancel %}
+            <div class="modal fade lux-modal" id="cancelModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Cancel Product</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <form method="post" action="{% url 'cancel_order_item' item.id %}">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                      <p class="modal-desc">Are you sure you want to cancel <strong>{{ item.product_name }}</strong>? This action cannot be undone.</p>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-keep" data-bs-dismiss="modal">Keep Product</button>
+                      <button type="submit" class="btn btn-danger-confirm">Confirm Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+
+            {# Return modal — reason MANDATORY #}
+            {% if item.can_return %}
+            <div class="modal fade lux-modal" id="returnModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Return Product</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <form method="post" action="{% url 'return_order_item' item.id %}">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                      <p class="modal-desc">Returns are accepted on delivered items. Please tell us why you're returning this product.</p>
+                      <textarea name="reason" rows="4" required minlength="10" maxlength="500"
+                                placeholder="Required: please tell us why you're returning this product (at least 10 characters)..."></textarea>
+                      <div class="text-lux-gray small mt-2">Minimum 10 characters · please describe the issue in words.</div>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-keep" data-bs-dismiss="modal">Close</button>
+                      <button type="submit" class="btn btn-gold-confirm">Submit Return Request</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        <div class="text-center mt-4">
+            {% if order.can_download_invoice %}
+            <a href="{% url 'order_invoice' order.order_number %}" class="luxury-btn text-white text-uppercase tracking-wider px-5 py-3 border-0 text-decoration-none d-inline-block">
+                <i class="fa-solid fa-file-arrow-down me-2"></i> Download Invoice
+            </a>
+            {% else %}
+            <button class="luxury-btn text-white text-uppercase tracking-wider px-5 py-3 border-0 d-inline-block" disabled style="opacity:0.5; cursor:not-allowed;">
+                <i class="fa-solid fa-file-arrow-down me-2"></i> Invoice available after delivery
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function toggleItemTimeline(id) {
+            var el = document.getElementById('track-' + id);
+            if (el) el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+        }
+
+        // Arriving from a "Track"/"View" link on the orders list — open & scroll to that product.
+        document.addEventListener('DOMContentLoaded', function () {
+            var h = window.location.hash;
+            if (!h) return;
+            var id = null, openTimeline = false;
+            if (h.indexOf('#track-') === 0) { id = h.slice(7); openTimeline = true; }
+            else if (h.indexOf('#item-') === 0) { id = h.slice(6); }
+            if (!id) return;
+
+            if (openTimeline) {
+                var tl = document.getElementById('track-' + id);
+                if (tl) tl.style.display = 'block';
+            }
+            var row = document.getElementById('item-' + id);
+            if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    </script>
+    {% include 'partials/toast.html' %}
+</body>
+</html>

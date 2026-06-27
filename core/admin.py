@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Address, CustomUser, Category, Product,
-    Brand, Material, ProductVariant, VariantImage,
+    Brand, Material, ProductVariant, VariantImage,Order, OrderItem,
 )
 
 admin.site.register(Address)
@@ -40,3 +40,4 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields   = ("name",)
     list_filter     = ("category", "brand", "gender", "is_listed", "is_deleted")
     inlines         = [ProductVariantInline]
+

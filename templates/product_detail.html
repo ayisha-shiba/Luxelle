@@ -1,20 +1,5 @@
 {% load static %}
-<!--
-  CONTEXT CONTRACT — product_detail_view must put these in context:
-    product          : Product instance (view must redirect away if blocked/deleted/unlisted)
-    variant          : selected ProductVariant (default, or the one matching ?variant=<id>)
-    variants         : all variants for this product
-    color_options    : one variant per distinct color, for the variant thumbnails below the main image
-    size_options     : one variant per distinct size, for the size selector
-    avg_rating       : float or None (average of this product's review ratings)
-    review_count     : int (total number of reviews)
-    reviews          : queryset of Review for this product, latest first
-    related_products : queryset of other Products in the same category (exclude current)
 
-  variant fields used: variant_name, color, color_hex, material, size, sku, stock,
-    sale_price, original_price, discount_percent, width_cm, height_cm, depth_cm,
-    closure_type, pattern, compartments, images (VariantImage queryset)
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -552,7 +537,6 @@
             });
         }
 
-        // Wishlist heart — AJAX toggle for the CURRENTLY selected variant only.
         (function () {
             var form = document.getElementById('wishlistForm');
             if (!form) return;

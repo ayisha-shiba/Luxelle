@@ -24,8 +24,12 @@
         .breadcrumb-bar a { color: var(--lux-gray); text-decoration:none; }
         .breadcrumb-bar a:hover { color: var(--lux-gold); }
 
+        .product-img-wrapper {
+            width: 110px; height: 110px;
+            display: flex; align-items: center; justify-content: center;
+        }
         .cart-item-img {
-            width: 110px; height: 110px; object-fit: cover;
+            width: 100%; height: 100%; object-fit: cover; display: block;
         }
 
         .qty-box button:disabled { color: var(--lux-gray-light); cursor:not-allowed; }
@@ -41,7 +45,7 @@
         .summary-card { position: sticky; top: 100px; }
 
         @media (max-width: 575.98px) {
-            .cart-item-img { width: 80px; height: 80px; }
+            .product-img-wrapper { width: 80px; height: 80px; }
         }
     </style>
 </head>
@@ -70,7 +74,7 @@
             <div class="col-lg-8">
                 {% for item in items %}
                 {% with product=item.variant.product %}
-                <div class="d-flex flex-column flex-sm-row gap-3 align-items-start bg-white rounded-4 border border-light shadow-sm p-3 mb-3 {% if item.is_blocked or item.is_out_of_stock %}opacity-75{% endif %}">
+                <div class="d-flex flex-column flex-sm-row gap-3 align-items-start bg-white rounded-4 border border-light shadow-sm p-3 mb-3 {% if item.is_blocked or item.is_out_of_stock %}opacity-75{% endif %}" data-cart-row="{{ item.id }}">
                     <div class="product-img-wrapper bg-light rounded-3 overflow-hidden flex-shrink-0">
                         <img src="{% if item.variant.images.first %}{{ item.variant.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}" alt="{{ product.name }}" class="cart-item-img">
                     </div>
@@ -101,21 +105,21 @@
                         </div>
 
                         <div class="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-3">
-                            <form method="post" action="{% url 'update_cart_item' item.id %}" class="qty-box">
+                            <div class="qty-box js-qty-form" data-item-id="{{ item.id }}" data-url="{% url 'update_cart_item' item.id %}">
                                 {% csrf_token %}
-                                <button type="submit" name="action" value="decrement" {% if item.is_blocked %}disabled{% endif %}>−</button>
-                                <input type="text" value="{{ item.quantity }}" readonly>
-                                <button type="submit" name="action" value="increment" {% if item.is_blocked or item.is_out_of_stock or item.quantity >= item.max_qty %}disabled{% endif %}>+</button>
-                            </form>
+                                <button type="button" class="js-qty-btn js-dec" data-action="decrement" onclick="luxQty(this)" {% if item.is_blocked %}disabled{% endif %}>−</button>
+                                <input type="text" class="js-qty-value" value="{{ item.quantity }}" readonly>
+                                <button type="button" class="js-qty-btn js-inc" data-action="increment" onclick="luxQty(this)" {% if item.is_blocked or item.is_out_of_stock or item.quantity >= item.max_qty %}disabled{% endif %}>+</button>
+                            </div>
 
                             <div class="item-price-box text-end">
-                                <div class="text-lux-gray small">
+                                <div class="text-lux-gray small js-line-calc">
                                     ₹{{ item.variant.original_price }} &times; {{ item.quantity }} = ₹{{ item.subtotal }}
                                 </div>
                                 {% if item.discount_amount > 0 %}
-                                <div class="text-success small">Discount: &minus;₹{{ item.discount_amount }}</div>
+                                <div class="text-success small js-line-discount">Discount: &minus;₹{{ item.discount_amount }}</div>
                                 {% endif %}
-                                <div class="font-inter fw-bold text-lux-black fs-5 mt-1">Item Total: ₹{{ item.total_price }}</div>
+                                <div class="font-inter fw-bold text-lux-black fs-5 mt-1 js-line-total">Item Total: ₹{{ item.total_price }}</div>
                             </div>
                         </div>
                     </div>
@@ -153,12 +157,12 @@
                     <h4 class="font-playfair fw-bold text-lux-black mb-4">Order Summary</h4>
 
                     {% for item in items %}
-                    <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter small">
-                        <span>{{ item.variant.product.name }} &times; {{ item.quantity }}</span>
+                    <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter small" data-summary-row="{{ item.id }}">
+                        <span>{{ item.variant.product.name }} &times; <span class="js-summary-qty">{{ item.quantity }}</span></span>
                         {% if item.is_blocked or item.is_out_of_stock %}
                             <span class="text-danger">Not included</span>
                         {% else %}
-                            <span class="text-lux-black">₹{{ item.total_price }}</span>
+                            <span class="text-lux-black js-summary-total">₹{{ item.total_price }}</span>
                         {% endif %}
                     </div>
                     {% endfor %}
@@ -167,16 +171,28 @@
 
                     <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
                         <span>Subtotal</span>
-                        <span>₹{{ cart_total }}</span>
+                        <span id="cartSubtotal">₹{{ summary.subtotal }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
+                        <span>CGST (9%)</span>
+                        <span id="cartCgst">₹{{ summary.cgst }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
+                        <span>SGST (9%)</span>
+                        <span id="cartSgst">₹{{ summary.sgst }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
+                        <span>Delivery</span>
+                        <span class="text-lux-gold">Free</span>
                     </div>
                     <hr class="border-light">
                     <div class="d-flex justify-content-between mb-4 fw-bold text-lux-black fs-5 font-inter">
                         <span>Total</span>
-                        <span>₹{{ cart_total }}</span>
+                        <span id="cartTotal">₹{{ summary.grand_total }}</span>
                     </div>
 
                     {% if can_checkout %}
-                        <a href="#" class="luxury-btn text-white text-uppercase tracking-wider px-4 py-3 border-0 d-block text-center text-decoration-none">Proceed to Checkout</a>
+                        <a href="{% url 'checkout' %}" class="luxury-btn text-white text-uppercase tracking-wider px-4 py-3 border-0 d-block text-center text-decoration-none">Proceed to Checkout</a>
                     {% else %}
                         <button class="luxury-btn text-white text-uppercase tracking-wider px-4 py-3 border-0 w-100" disabled>Proceed to Checkout</button>
                         <p class="text-danger small mt-2 mb-0">Remove unavailable or out-of-stock items to proceed.</p>
@@ -255,6 +271,66 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- AJAX quantity update -->
+    <script>
+        function luxQty(btn) {
+            if (btn.disabled) return;
+            var box    = btn.closest('.js-qty-form');
+            var itemId = box.getAttribute('data-item-id');
+            var url    = box.getAttribute('data-url');
+            var action = btn.getAttribute('data-action');
+            var tokenEl = box.querySelector('[name=csrfmiddlewaretoken]');
+            var token   = tokenEl ? tokenEl.value : '';
+
+            var body = new URLSearchParams();
+            body.append('action', action);
+            body.append('csrfmiddlewaretoken', token);
+
+            // prevent double-clicks while the request is in flight
+            box.querySelectorAll('.js-qty-btn').forEach(function (b) { b.disabled = true; });
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': token },
+                body: body
+            })
+            .then(function (r) {
+                if (!r.ok) throw new Error('Server responded ' + r.status);
+                return r.json();
+            })
+            .then(function (data) {
+                if (!data.success) { window.location.reload(); return; }
+                if (data.removed)  { window.location.reload(); return; }
+
+                var row = document.querySelector('[data-cart-row="' + itemId + '"]');
+                if (row) {
+                    var q = row.querySelector('.js-qty-value');     if (q) q.value = data.quantity;
+                    var c = row.querySelector('.js-line-calc');     if (c) c.textContent = data.line_calc;
+                    var d = row.querySelector('.js-line-discount'); if (d) d.textContent = data.line_discount;
+                    var t = row.querySelector('.js-line-total');    if (t) t.textContent = 'Item Total: ₹' + data.line_total;
+                    var inc = row.querySelector('.js-inc');         if (inc) inc.disabled = data.at_max;
+                    var dec = row.querySelector('.js-dec');         if (dec) dec.disabled = false;
+                }
+
+                var sm = document.querySelector('[data-summary-row="' + itemId + '"]');
+                if (sm) {
+                    var sq  = sm.querySelector('.js-summary-qty');   if (sq) sq.textContent = data.quantity;
+                    var stt = sm.querySelector('.js-summary-total'); if (stt) stt.textContent = '₹' + data.line_total;
+                }
+
+                function setMoney(id, v) { var e = document.getElementById(id); if (e) e.textContent = '₹' + v; }
+                setMoney('cartSubtotal', data.subtotal);
+                setMoney('cartCgst', data.cgst);
+                setMoney('cartSgst', data.sgst);
+                setMoney('cartTotal', data.grand_total);
+            })
+            .catch(function (err) {
+                console.error('Cart qty update failed:', err);
+                window.location.reload();
+            });
+        }
+    </script>
 
     <!-- Toast Notifications -->
     {% include 'partials/toast.html' %}

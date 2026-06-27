@@ -1,0 +1,256 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Our Story | Luxelle</title>
+    <link rel="icon" type="image/svg+xml" href="{% static 'image/favicon.svg' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    <style>
+        .about-hero {
+            background: linear-gradient(rgba(20,18,15,0.55), rgba(20,18,15,0.55)),
+                        url('https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=1600&q=80') center/cover no-repeat;
+            min-height: 70vh;
+            display: flex; align-items: center; justify-content: center;
+            text-align: center; color: #fff;
+        }
+        .about-hero .eyebrow { letter-spacing: 0.35em; font-size: 0.78rem; color: #e8d3a8; text-transform: uppercase; }
+        .about-hero h1 { font-size: clamp(2.6rem, 6vw, 5rem); line-height: 1.05; }
+        .gold-rule { width: 70px; height: 2px; background: var(--lux-gold); border: none; }
+        .gold-rule.center { margin-left: auto; margin-right: auto; }
+
+        .section-eyebrow { letter-spacing: 0.28em; font-size: 0.75rem; text-transform: uppercase; color: var(--lux-gold); }
+        .lead-quote { font-family: 'Playfair Display', serif; font-style: italic; font-size: clamp(1.5rem, 3vw, 2.3rem); line-height: 1.45; color: var(--lux-black); }
+        .drop-cap::first-letter { font-family: 'Playfair Display', serif; font-size: 3.4rem; line-height: 0.8; float: left; padding: 0.1rem 0.7rem 0 0; color: var(--lux-gold); }
+
+        .value-card { border: 1px solid #e7e3da; border-radius: 14px; padding: 2.2rem 1.8rem; height: 100%; background: #fff; transition: transform .35s ease, box-shadow .35s ease; }
+        .value-card:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(0,0,0,0.06); }
+        .value-icon { width: 56px; height: 56px; border-radius: 50%; background: #faf6ee; display: flex; align-items: center; justify-content: center; color: var(--lux-gold); font-size: 1.4rem; margin-bottom: 1.2rem; }
+
+        .stat-band { background: #14120f; color: #fff; }
+        .stat-num { font-family: 'Playfair Display', serif; font-size: clamp(2.2rem, 4vw, 3.2rem); color: var(--lux-gold); }
+        .stat-label { letter-spacing: 0.18em; text-transform: uppercase; font-size: 0.74rem; color: #bbb1a0; }
+
+        .craft-img { border-radius: 16px; object-fit: cover; width: 100%; height: 100%; min-height: 360px; }
+        .signature { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1.6rem; color: var(--lux-black); }
+        .timeline-year { font-family: 'Playfair Display', serif; color: var(--lux-gold); font-size: 1.6rem; }
+    </style>
+</head>
+<body>
+
+    {% include 'partials/navbar.html' with active='about' %}
+
+    <!-- ===================== HERO ===================== -->
+    <section class="about-hero">
+        <div class="container">
+            <p class="eyebrow mb-3">The House of Luxelle</p>
+            <h1 class="font-playfair fw-bold mb-4">Carried with Intention.<br>Designed to Endure.</h1>
+            <p class="font-inter fw-light mx-auto" style="max-width: 620px; color:#f0ece4;">
+                More than a handbag — a quiet statement of the woman who carries it.
+            </p>
+        </div>
+    </section>
+
+    <!-- ===================== STORY ===================== -->
+    <section class="py-5">
+        <div class="container py-4" style="max-width: 820px;">
+            <div class="text-center mb-5">
+                <p class="section-eyebrow mb-2">Our Story</p>
+                <h2 class="font-playfair fw-bold text-lux-black">It Began with a Single Stitch</h2>
+                <hr class="gold-rule center mt-3">
+            </div>
+            <p class="text-lux-gray font-inter lh-lg drop-cap" style="font-size:1.06rem;">
+                Luxelle was born from a simple frustration — that beauty and longevity so rarely travel together.
+                Our founder, searching for a bag that could hold a life in motion without losing its grace,
+                found shelves full of compromise: the fleeting and the fragile, the loud and the lifeless.
+                So she set out to make the bag she could not find.
+            </p>
+            <p class="text-lux-gray font-inter lh-lg" style="font-size:1.06rem;">
+                What started on a small studio table — one pattern, one length of leather, one stubborn belief
+                that craft still matters — has grown into a house devoted to the modern, sophisticated woman.
+                Every Luxelle piece carries that original intention: to be useful, to be beautiful, and to be
+                <span class="text-lux-black fw-semibold">kept</span>, not discarded with the season.
+            </p>
+
+            <div class="text-center my-5 py-4">
+                <i class="fa-solid fa-quote-left text-lux-gold mb-3" style="font-size:1.6rem;"></i>
+                <p class="lead-quote mb-0">"A handbag is not an accessory.<br>It is a companion — to every door you open."</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== VALUES ===================== -->
+    <section class="py-5" style="background:#faf8f4;">
+        <div class="container py-4">
+            <div class="text-center mb-5">
+                <p class="section-eyebrow mb-2">What We Stand For</p>
+                <h2 class="font-playfair fw-bold text-lux-black">The Luxelle Promise</h2>
+                <hr class="gold-rule center mt-3">
+            </div>
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="value-card">
+                        <div class="value-icon"><i class="fa-solid fa-hand-sparkles"></i></div>
+                        <h5 class="font-playfair fw-bold text-lux-black">Crafted, Not Churned</h5>
+                        <p class="text-lux-gray small mb-0">Each piece is shaped by hand and checked by eye. We make fewer bags, and we make them to last.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="value-card">
+                        <div class="value-icon"><i class="fa-solid fa-leaf"></i></div>
+                        <h5 class="font-playfair fw-bold text-lux-black">Considered Materials</h5>
+                        <p class="text-lux-gray small mb-0">Full-grain leathers and thoughtful hardware, chosen to soften beautifully and age with character.</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="value-card">
+                        <div class="value-icon"><i class="fa-solid fa-heart"></i></div>
+                        <h5 class="font-playfair fw-bold text-lux-black">Designed Around Her</h5>
+                        <p class="text-lux-gray small mb-0">Every pocket, strap and seam answers a real question from a real day. Form that serves a life.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== CRAFT ===================== -->
+    <section class="py-5">
+        <div class="container py-4">
+            <div class="row g-5 align-items-center">
+                <div class="col-lg-6">
+                    <img class="craft-img" src="https://images.unsplash.com/photo-1591561954557-26941169b49e?auto=format&fit=crop&w=1000&q=80" alt="The Luxelle atelier">
+                </div>
+                <div class="col-lg-6">
+                    <p class="section-eyebrow mb-2">The Atelier</p>
+                    <h2 class="font-playfair fw-bold text-lux-black mb-3">Where Patience Becomes Craft</h2>
+                    <hr class="gold-rule mb-4">
+                    <p class="text-lux-gray font-inter lh-lg">
+                        A single Luxelle bag passes through many careful hands before it ever reaches yours.
+                        Leather is cut with the grain, edges are burnished by hand, and every line of stitching
+                        is set to hold for years of daily use.
+                    </p>
+                    <p class="text-lux-gray font-inter lh-lg">
+                        We resist the rush of the season. Good things take time — and the time we take is what
+                        you feel each time you reach for it.
+                    </p>
+                    <ul class="list-unstyled mt-4">
+                        <li class="d-flex align-items-center gap-3 mb-3"><i class="fa-solid fa-check text-lux-gold"></i><span class="text-lux-black">Full-grain, responsibly sourced leather</span></li>
+                        <li class="d-flex align-items-center gap-3 mb-3"><i class="fa-solid fa-check text-lux-gold"></i><span class="text-lux-black">Hand-finished edges &amp; reinforced seams</span></li>
+                        <li class="d-flex align-items-center gap-3"><i class="fa-solid fa-check text-lux-gold"></i><span class="text-lux-black">Quality-checked in-house, piece by piece</span></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== STATS ===================== -->
+    <section class="stat-band py-5">
+        <div class="container py-4">
+            <div class="row text-center g-4">
+                <div class="col-6 col-md-3">
+                    <div class="stat-num">2021</div>
+                    <div class="stat-label mt-2">The First Stitch</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-num">100%</div>
+                    <div class="stat-label mt-2">Crafted In-House</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-num">40+</div>
+                    <div class="stat-label mt-2">Signature Designs</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-num">12k+</div>
+                    <div class="stat-label mt-2">Women, Carried</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== FOUNDER NOTE ===================== -->
+    <section class="py-5">
+        <div class="container py-4 text-center" style="max-width: 760px;">
+            <p class="section-eyebrow mb-3">A Note from the Founder</p>
+            <p class="lead-quote mb-4">
+                "We don't design for the moment a bag is bought.
+                We design for the thousandth morning you pick it up —
+                and it still feels like yours."
+            </p>
+            <p class="signature mb-1">Ayisha</p>
+            <p class="text-lux-gray small text-uppercase tracking-wider">Founder, Luxelle</p>
+        </div>
+    </section>
+
+    <!-- ===================== CTA ===================== -->
+    <section class="py-5" style="background:#faf8f4;">
+        <div class="container py-4 text-center">
+            <h2 class="font-playfair fw-bold text-lux-black mb-3">Find the One You'll Keep</h2>
+            <p class="text-lux-gray font-inter mb-4 mx-auto" style="max-width: 520px;">
+                Discover handbags made to move through your life — and stay there.
+            </p>
+            <a href="{% url 'product_list' %}" class="luxury-btn text-white text-uppercase tracking-wider px-5 py-3 border-0 text-decoration-none d-inline-block">
+                Explore the Collection
+            </a>
+        </div>
+    </section>
+
+    <!-- ===================== FOOTER ===================== -->
+    <footer class="bg-white border-top border-light pt-5 px-4 font-inter">
+        <div class="container pt-4 pb-5">
+            <div class="row g-5">
+                <div class="col-12 col-md-4">
+                    <h3 class="font-playfair fw-bold fs-2 text-lux-black mb-3">LUXELLE</h3>
+                    <p class="text-lux-gray small fw-light mb-4 lh-relaxed max-w-sm">Crafting timeless designs for the modern sophisticated woman. Luxury handbags designed with heart and soul.</p>
+                    <div class="d-flex align-items-center gap-3 social-icons text-lux-black">
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-instagram fs-4"></i></a>
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-pinterest fs-4"></i></a>
+                        <a href="#" class="text-decoration-none text-lux-black hover-lux-gold"><i class="fa-brands fa-facebook fs-4"></i></a>
+                    </div>
+                </div>
+                <div class="col-6 col-md-2 offset-md-1">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Shop</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="{% url 'product_list' %}" class="text-decoration-none text-lux-gray hover-lux-gold">Handbags</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Accessories</a></li>
+                        <li><a href="{% url 'product_list' %}?sort=latest" class="text-decoration-none text-lux-gray hover-lux-gold">New Arrivals</a></li>
+                    </ul>
+                </div>
+                <div class="col-6 col-md-2">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Company</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="{% url 'about' %}" class="text-decoration-none text-lux-gray hover-lux-gold">Our Story</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Careers</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Terms & Services</a></li>
+                    </ul>
+                </div>
+                <div class="col-12 col-md-3">
+                    <h6 class="text-uppercase tracking-wider fw-bold text-lux-black mb-3 small">Customer Care</h6>
+                    <ul class="list-unstyled d-flex flex-column gap-2 small">
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Contact Us</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Shipping & Returns</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">FAQ</a></li>
+                        <li><a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Privacy Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center pt-4 mt-5 border-top border-light text-lux-gray small fw-light">
+                <p class="mb-2 mb-md-0">&copy; 2026 Luxelle. Crafted by Antigravity.</p>
+                <div class="d-flex gap-4">
+                    <a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Terms of Use</a>
+                    <a href="#" class="text-decoration-none text-lux-gray hover-lux-gold">Privacy Policy</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    {% include 'partials/toast.html' %}
+</body>
+</html>

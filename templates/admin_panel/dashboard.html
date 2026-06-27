@@ -911,17 +911,17 @@
                 <div class="stat-value">{{ this_month_count }}</div>
                 <span class="stat-meta">New customers this month</span>
             </div>
-            <div class="stat-card">
+            <a href="{% url 'admin_orders' %}" class="stat-card" style="text-decoration:none;">
                 <div class="stat-icon" style="background:rgba(52,152,219,.12);color:var(--blue);border-color:rgba(52,152,219,.25)"><i class="fa-solid fa-bag-shopping"></i></div>
                 <div class="stat-label">Total Orders</div>
-                <div class="stat-value">-</div>
-                <span class="stat-meta">Coming soon</span>
-            </div>
+                <div class="stat-value">{{ total_orders }}</div>
+                <span class="stat-meta">All-time orders</span>
+            </a>
             <div class="stat-card">
                 <div class="stat-icon" style="background:rgba(39,174,96,.12);color:var(--green);border-color:rgba(39,174,96,.25)"><i class="fa-solid fa-indian-rupee-sign"></i></div>
                 <div class="stat-label">Total Revenue</div>
-                <div class="stat-value">-</div>
-                <span class="stat-meta">Coming soon</span>
+                <div class="stat-value">₹{{ total_revenue }}</div>
+                <span class="stat-meta">Excludes cancelled &amp; returned</span>
             </div>
             <div class="stat-card">
                 <div class="stat-icon" style="background:rgba(155,89,182,.12);color:#9b59b6;border-color:rgba(155,89,182,.25)"><i class="fa-solid fa-gift"></i></div>
@@ -945,12 +945,12 @@
                 <div class="module-name">Users</div>
                 <div class="module-desc">View, block &amp; manage customers</div>
             </a>
-            <div class="module-card disabled">
-                <span class="module-tag tag-soon">Soon</span>
+            <a href="{% url 'admin_orders' %}" class="module-card">
+                <span class="module-tag tag-live">Live</span>
                 <div class="module-icon" style="background:rgba(52,152,219,.1);color:var(--blue)"><i class="fa-solid fa-bag-shopping"></i></div>
                 <div class="module-name">Orders</div>
                 <div class="module-desc">Track &amp; fulfil customer orders</div>
-            </div>
+            </a>
             <a href="{% url 'admin_products' %}" class="module-card">
                 <span class="module-tag tag-live">Live</span>
                 <div class="module-icon" style="background:rgba(39,174,96,.1);color:var(--green)"><i class="fa-solid fa-boxes-stacked"></i></div>

@@ -5,6 +5,10 @@ from django.db.models import Q, Min, Avg, F
 import logging
 import math
 
+from django.db import transaction
+from decimal import Decimal
+
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -21,7 +25,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from django.shortcuts import get_object_or_404, redirect, render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
@@ -40,7 +44,8 @@ from .forms import (
     SetNewPasswordForm,
     UserProfileForm,
 )
-from .models import Address, CustomUser, UserProfile, OTPVerification, Product, Category, Brand, Review, Wishlist, Cart, CartItem, ProductVariant
+from .models import Address, CustomUser, UserProfile, OTPVerification, Product, Category, Brand, Review, Wishlist, Cart, CartItem, ProductVariant, Order, OrderItem, OrderStatusEvent
+from . import pricing
 from .utils import (
     check_resend_cooldown,
     clear_pending_user_session,
@@ -93,6 +98,10 @@ def _get_pending_otp_resend_seconds_remaining(request):
 
 
 # HOME
+
+def about_view(request):
+    return render(request, "about.html")
+
 
 def home_view(request):
     base_qs = Product.objects.filter(
@@ -804,6 +813,10 @@ def address_set_default_view(request, address_id):
         messages.success(request, "Default address updated.")
     return redirect("addresses")
 
+
+#prodt
+
+
 def product_list_view(request):
     products = Product.objects.filter(
         is_deleted=False,
@@ -848,7 +861,7 @@ def product_list_view(request):
     }
     products = products.order_by(sort_options.get(sort, "-created_at"))
 
-    paginator = Paginator(products, 12)
+    paginator = Paginator(products, 9)
     page_number = request.GET.get("page")
     try:
         page_obj = paginator.page(page_number)
@@ -926,7 +939,6 @@ def product_detail_view(request, slug):
             Wishlist.objects.filter(user=request.user, product=product)
             .values_list("variant_id", flat=True)
         )
-        # Heart reflects the CURRENTLY selected variant, not the whole product.
         in_wishlist = bool(variant) and variant.id in wishlisted_variant_ids
         in_cart = CartItem.objects.filter(cart__user=request.user, variant__product=product).exists()
 
@@ -956,14 +968,175 @@ def product_detail_view(request, slug):
 @login_required
 @never_cache
 def orders_view(request):
-    return render(request, "orders.html")
+    search_query = request.GET.get("search", "").strip()
+
+    orders = (Order.objects.filter(user=request.user)
+              .prefetch_related("items__variant__images")
+              .order_by("-created_at"))
+
+    if search_query:
+        orders = orders.filter(
+            Q(order_number__icontains=search_query) |
+            Q(items__product_name__icontains=search_query)
+        ).distinct()
+
+    context = {"orders": orders, "search_query": search_query}
+    return render(request, "orders.html", context)
+
+
+@login_required
+@never_cache
+def order_detail_view(request, order_number):
+    order = (Order.objects.filter(order_number=order_number, user=request.user)
+             .prefetch_related("items__variant__images", "items__status_events").first())
+    if not order:
+        messages.error(request, "Order not found.")
+        return redirect("orders")
+
+    status_value, status_label = order.derived_status
+    context = {
+        "order": order,
+        "items": order.items.all(),
+        "status_value": status_value,
+        "status_label": status_label,
+    }
+    return render(request, "order_detail.html", context)
+
+
+@login_required
+def order_invoice_view(request, order_number):
+    from io import BytesIO
+    from django.template.loader import render_to_string
+    from xhtml2pdf import pisa
+
+    order = (Order.objects.filter(order_number=order_number, user=request.user)
+             .prefetch_related("items").first())
+    if not order:
+        messages.error(request, "Order not found.")
+        return redirect("orders")
+
+    if not order.can_download_invoice:
+        messages.error(request, "Invoice is available only after an item has been delivered.")
+        return redirect("order_detail", order_number=order.order_number)
+
+    # Totals are kept current on the order itself (recalculate_totals runs on
+    # every cancel/return), so the invoice, the user order page and the admin
+    # order page all read the same persisted figures. Bill only what the
+    # customer keeps; list cancelled/returned items separately, not in totals.
+    billed = [i for i in order.items.all() if i.is_billable]
+    status_value, status_label = order.derived_status
+
+    html = render_to_string("invoice.html", {
+        "order": order,
+        "items": billed,
+        "status_label": status_label,
+    })
+
+    result = BytesIO()
+    pdf_status = pisa.CreatePDF(html, dest=result, encoding="utf-8")
+    if pdf_status.err:
+        messages.error(request, "Could not generate the invoice. Please try again.")
+        return redirect("order_detail", order_number=order.order_number)
+
+    response = HttpResponse(result.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="Luxelle-Invoice-{order.order_number}.pdf"'
+    return response
+
+
+@login_required
+@require_POST
+def cancel_order_item_view(request, item_id):
+    item = (OrderItem.objects.select_related("order", "variant")
+            .filter(pk=item_id, order__user=request.user).first())
+    if item is None:
+        messages.error(request, "Item not found.")
+        return redirect("orders")
+
+    if not item.can_cancel:
+        messages.error(request, "This item can no longer be cancelled.")
+        return redirect("order_detail", order_number=item.order.order_number)
+
+    reason = request.POST.get("reason", "").strip()
+
+    from wallet import services as wallet_services
+
+    with transaction.atomic():
+        if item.variant:
+            item.variant.stock += item.quantity
+            item.variant.save(update_fields=["stock"])
+
+        item.status              = OrderItem.STATUS_CANCELLED
+        item.cancellation_reason = reason
+        item.save(update_fields=["status", "cancellation_reason"])
+
+        OrderStatusEvent.objects.create(
+            order_item=item, status=OrderItem.STATUS_CANCELLED,
+            note="Cancelled by customer." + (f" Reason: {reason}" if reason else ""),
+        )
+
+        total_before = item.order.total
+        item.order.recalculate_totals()
+        refund = total_before - item.order.total
+
+        # Direct refund to wallet — but only if the order was actually paid up
+        # front. COD isn't paid until delivery (and you can't cancel post-delivery),
+        # so there's nothing to refund there.
+        prepaid = (item.order.payment_method == Order.PAYMENT_WALLET
+                   or item.order.payments.filter(status="paid").exists())
+        if prepaid and refund > 0:
+            wallet_services.refund_item(
+                item, refund, f"Refund for cancelled item: {item.product_name}"
+            )
+
+    refund_note = f" Rs. {refund} refunded to your wallet." if (prepaid and refund > 0) else ""
+    messages.success(request, f"{item.product_name} has been cancelled successfully.{refund_note}")
+    return redirect("order_detail", order_number=item.order.order_number)
+
+
+@login_required
+@require_POST
+def return_order_item_view(request, item_id):
+    item = (OrderItem.objects.select_related("order")
+            .filter(pk=item_id, order__user=request.user).first())
+    if item is None:
+        messages.error(request, "Item not found.")
+        return redirect("orders")
+
+    if not item.can_return:
+        messages.error(request, "This item is not eligible for return.")
+        return redirect("order_detail", order_number=item.order.order_number)
+
+    reason = request.POST.get("reason", "").strip()
+    detail_url = item.order.order_number
+
+    if not reason:
+        messages.error(request, "Please provide a reason for the return.")
+        return redirect("order_detail", order_number=detail_url)
+    if len(reason) < 10:
+        messages.error(request, "Please describe the reason in a little more detail (at least 10 characters).")
+        return redirect("order_detail", order_number=detail_url)
+    if not any(ch.isalpha() for ch in reason):
+        messages.error(request, "Please enter a valid return reason in words.")
+        return redirect("order_detail", order_number=detail_url)
+    reason = reason[:500]
+
+    item.status              = OrderItem.STATUS_RETURN_REQUESTED
+    item.return_reason       = reason
+    item.return_requested_at = timezone.now()
+    item.save(update_fields=["status", "return_reason", "return_requested_at"])
+
+    OrderStatusEvent.objects.create(
+        order_item=item, status=OrderItem.STATUS_RETURN_REQUESTED,
+        note=f"Return requested by customer. Reason: {reason}",
+    )
+
+    messages.success(request, f"Return requested for {item.product_name}.")
+    return redirect("order_detail", order_number=item.order.order_number)
 
 
 @login_required
 @never_cache
 def wishlist_view(request):
-    # Keep every wishlisted item visible — including products the admin has
-    # blocked/disabled — and flag each item's availability for the template.
     items = list(
         Wishlist.objects.filter(user=request.user)
         .select_related("product", "product__brand", "product__category")
@@ -976,7 +1149,6 @@ def wishlist_view(request):
             product.is_deleted or not product.is_listed
             or product.category.is_deleted or not product.category.is_listed
         )
-        # Evaluate the EXACT variant the user saved — never silently swap it.
         variant = item.variant
         variant_active = (
             variant is not None and not variant.is_deleted and variant.is_listed
@@ -987,8 +1159,6 @@ def wishlist_view(request):
         item.is_out_of_stock = variant_active and variant.stock == 0
         item.is_available = variant_active and variant.stock > 0
 
-        # If the saved variant is unavailable but the product itself is fine,
-        # offer the other active, in-stock variants so the user can switch.
         if item.is_unavailable and not product_blocked:
             item.alt_variants = [
                 v for v in product.variants.all()
@@ -1013,8 +1183,6 @@ def toggle_wishlist_view(request, product_id):
     variant_id = int(variant_id) if variant_id.isdigit() else None
 
     if variant_id is not None:
-        # Variant-level toggle (product detail page): add/remove ONLY this
-        # specific (user, variant) combination — never other variants.
         entry = Wishlist.objects.filter(
             user=request.user, product_id=product_id, variant_id=variant_id
         )
@@ -1034,8 +1202,6 @@ def toggle_wishlist_view(request, product_id):
             Wishlist.objects.create(user=request.user, product=product, variant=variant)
             wishlisted = True
     else:
-        # Product-level toggle (listing cards, no variant chosen): a product is
-        # "wishlisted" if any of its variants is, so remove all / add default.
         entry = Wishlist.objects.filter(user=request.user, product_id=product_id)
         if entry.exists():
             entry.delete()
@@ -1108,11 +1274,9 @@ def add_all_wishlist_to_cart_view(request):
             product.is_deleted or not product.is_listed
             or product.category.is_deleted or not product.category.is_listed
         )
-        # Add the EXACT saved variant only — never substitute another one.
         variant = item.variant
         variant_active = variant is not None and not variant.is_deleted and variant.is_listed
 
-        # Unavailable items are skipped and kept in the wishlist.
         if product_blocked or not variant_active or variant.stock == 0:
             unavailable += 1
             continue
@@ -1152,7 +1316,7 @@ def cart_view(request):
     ))
 
     can_checkout = bool(items)
-    cart_total = 0
+    available_items = []
     for item in items:
         product = item.variant.product
         item.is_blocked = (
@@ -1163,8 +1327,6 @@ def cart_view(request):
         stock = item.variant.stock
         item.is_out_of_stock = stock == 0
 
-        # Re-validate the stored quantity against current stock. For available
-        # items whose quantity now exceeds stock, clamp DOWN and persist it.
         if not item.is_blocked and not item.is_out_of_stock and item.quantity > stock:
             item.quantity = stock
             item.save(update_fields=["quantity"])
@@ -1178,13 +1340,14 @@ def cart_view(request):
         if item.is_blocked or item.is_out_of_stock:
             can_checkout = False
         else:
-            # Only available items count toward the payable total.
-            cart_total += item.total_price
+            available_items.append(item)
+
+    summary = pricing.summarize_items(available_items)
 
     context = {
         "cart": cart,
         "items": items,
-        "cart_total": cart_total,
+        "summary": summary,
         "can_checkout": can_checkout,
     }
     return render(request, "cart.html", context)
@@ -1224,7 +1387,7 @@ def add_to_cart_view(request, variant_id):
 
     item.save()
 
-    Wishlist.objects.filter(user=request.user, product=product).delete()
+    Wishlist.objects.filter(user=request.user, variant=variant).delete()
 
     messages.success(request, "Added to your cart.")
     return redirect("cart")
@@ -1233,10 +1396,18 @@ def add_to_cart_view(request, variant_id):
 @login_required
 @require_POST
 def update_cart_item_view(request, item_id):
-    item = CartItem.objects.filter(pk=item_id, cart__user=request.user).first()
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+    item = (CartItem.objects.filter(pk=item_id, cart__user=request.user)
+            .select_related("variant__product__category").first())
     if item is None:
+        if is_ajax:
+            return JsonResponse({"success": False, "error": "Item not found."}, status=404)
         return redirect("cart")
-    action = request.POST.get("action")
+
+    action  = request.POST.get("action")
+    removed = False
+    warning = ""
 
     if action == "increment":
         max_allowed = min(item.variant.stock, CartItem.MAX_QUANTITY)
@@ -1244,15 +1415,55 @@ def update_cart_item_view(request, item_id):
             item.quantity += 1
             item.save()
         else:
-            messages.warning(request, "You've reached the maximum quantity for this item.")
+            warning = "You've reached the maximum quantity for this item."
+            if not is_ajax:
+                messages.warning(request, warning)
     elif action == "decrement":
         if item.quantity > 1:
             item.quantity -= 1
             item.save()
         else:
             item.delete()
+            removed = True
 
-    return redirect("cart")
+    if not is_ajax:
+        return redirect("cart")
+
+    cart = Cart.objects.get(user=request.user)
+    available = []
+    for ci in cart.items.select_related("variant__product__category"):
+        p = ci.variant.product
+        blocked = (
+            p.is_deleted or not p.is_listed
+            or p.category.is_deleted or not p.category.is_listed
+            or ci.variant.is_deleted or not ci.variant.is_listed
+        )
+        if not blocked and ci.variant.stock > 0:
+            available.append(ci)
+
+    summary = pricing.summarize_items(available)
+
+    data = {
+        "success":     True,
+        "removed":     removed,
+        "warning":     warning,
+        "subtotal":    str(summary["subtotal"]),
+        "cgst":        str(summary["cgst"]),
+        "sgst":        str(summary["sgst"]),
+        "gst":         str(summary["gst"]),
+        "grand_total": str(summary["grand_total"]),
+        "cart_count":  cart.total_items,
+    }
+    if not removed:
+        max_qty = min(item.variant.stock, CartItem.MAX_QUANTITY)
+        data.update({
+            "quantity":      item.quantity,
+            "line_calc":     f"₹{item.variant.original_price} × {item.quantity} = ₹{item.subtotal}",
+            "line_discount": f"Discount: −₹{item.discount_amount}",
+            "line_total":    str(item.total_price),
+            "at_max":        item.quantity >= max_qty,
+        })
+    return JsonResponse(data)
 
 
 @login_required
@@ -1264,4 +1475,152 @@ def remove_from_cart_view(request, item_id):
     item.delete()
     messages.success(request, "Item removed from your cart.")
     return redirect("cart")
+
+def payment_handler(request,order):
+    method = order.payment_method
+
+    if method == Order.PAYMENT_COD:
+        return redirect("order_success", order_number=order.order_number)
+
+    if method == Order.PAYMENT_RAZORPAY:
+        # Razorpay logic lives in the payments app; core only knows the URL name.
+        return redirect("payment_start", order_number=order.order_number)
+
+    if method == Order.PAYMENT_WALLET:
+        from wallet import services as wallet_services
+        try:
+            wallet_services.debit(
+                request.user, order.total,
+                f"Payment for order {order.order_number}", order=order,
+            )
+        except wallet_services.InsufficientBalance:
+            messages.error(request, "Wallet balance was insufficient to pay for this order.")
+            return redirect("order_detail", order_number=order.order_number)
+        return redirect("order_success", order_number=order.order_number)
+
+    raise ValueError(f"Unsupported payment method: {method}")
+
+@login_required
+@never_cache
+def checkout_view(request):
+    cart, _ = Cart.objects.get_or_create(user=request.user)
+    items   = list(cart.items.select_related("variant__product", "variant__product__category"))
+
+    for item in items:
+        product = item.variant.product
+        blocked = (
+            product.is_deleted or not product.is_listed
+            or product.category.is_deleted or not product.category.is_listed or item.variant.is_deleted or not item.variant.is_listed
+        )
+        if blocked or item.variant.stock == 0 or item.quantity > item.variant.stock:
+            messages.error(request, "Some items in your cart are unavailable. Please reveiew your cart")
+            return redirect("cart")
+    
+    if not items:
+        messages.info(request, "Your cart is empty.")
+        return redirect("cart")
+    
+    addresses = request.user.addresses.all()
+    address_form = AddressForm()
+    open_address_modal = False
+
+    if request.method == "POST" and request.POST.get("form_type") == "add_address":
+        address_form = AddressForm(request.POST)
+        if address_form.is_valid():
+            new_address = address_form.save(commit=False)
+            new_address.user = request.user
+            new_address.is_default = True
+            new_address.save()
+            messages.success(request, "Address added and selected for delivery.")
+            return redirect("checkout")
+        open_address_modal = True
+
+    elif request.method == "POST":
+        address = Address.objects.filter(pk=request.POST.get("address_id"), user=request.user).first()
+        if address is None:
+            messages.error(request,"Please select a valid delivery address.")
+            return redirect("checkout")
+
+        payment_method = request.POST.get("payment_method", Order.PAYMENT_COD)
+        if payment_method not in dict(Order.PAYMENT_CHOICES):
+            messages.error(request, "Please select a valid payment method.")
+            return redirect("checkout")
+
+        # Pay-with-wallet: reject up front if the balance can't cover the order,
+        # so we don't create an order (and decrement stock) we can't settle.
+        if payment_method == Order.PAYMENT_WALLET:
+            from wallet import services as wallet_services
+            est_total = pricing.summarize_items(items)["grand_total"]
+            if wallet_services.get_wallet(request.user).balance < est_total:
+                messages.error(request, "Your wallet balance is insufficient for this order.")
+                return redirect("checkout")
+
+        try:
+            with transaction.atomic():
+                order = Order.objects.create(
+                    user=request.user,
+                    ship_full_name=address.full_name,
+                    ship_phone=address.phone,
+                    ship_address_line1=address.address_line1,
+                    ship_address_line2=address.address_line2,
+                    ship_city=address.city,
+                    ship_state=address.state,
+                    ship_postal_code=address.postal_code,
+                    ship_country=address.country,
+                    payment_method=payment_method,
+                )
+
+                for item in items:
+                    variant = ProductVariant.objects.select_for_update().get(pk=item.variant_id)
+                    if variant.stock < item.quantity:
+                        raise ValueError(f"{variant.variant_name} just went out of stock.")
+                    line_total = variant.sale_price * item.quantity
+                    order_item = OrderItem.objects.create(
+                        order=order,
+                        variant=variant,
+                        product_name=variant.product.name,
+                        variant_name=variant.variant_name,
+                        sku=variant.sku,
+                        unit_price=variant.sale_price,
+                        original_price=variant.original_price,
+                        quantity=item.quantity,
+                        line_total=line_total,
+                    )
+
+                    OrderStatusEvent.objects.create(
+                        order_item=order_item, status=OrderItem.STATUS_PENDING,
+                        note="Order placed successfully.",
+                    )
+
+                    variant.stock -= item.quantity
+                    variant.save(update_fields=["stock"])
+
+                order.recalculate_totals()
+
+                cart.items.all().delete()
+
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("cart")
+        
+        return payment_handler(request,order)
+    
+    from wallet import services as wallet_services
+    summary = pricing.summarize_items(items)
+    context = {
+        "items": items,
+        "addresses": addresses,
+        "summary": summary,
+        "address_form": address_form,
+        "open_address_modal": open_address_modal,
+        "wallet_balance": wallet_services.get_wallet(request.user).balance,
+    }
+    return render(request, "checkout.html", context)
+
+@login_required
+@never_cache
+def order_success_view(request, order_number):
+    order = get_object_or_404(Order, order_number=order_number, user = request.user)
+    return render(request, "order_success.html", {"order":order})
+    
 

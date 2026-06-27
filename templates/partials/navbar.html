@@ -21,7 +21,7 @@
                     <a class="nav-link {% if active == 'deals' %}active text-lux-black{% else %}text-lux-gray hover-lux-gold{% endif %}" href="{% url 'deals' %}">Deals</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link text-lux-gray hover-lux-gold" href="#">About Us</a>
+                    <a class="nav-link {% if active == 'about' %}active text-lux-black{% else %}text-lux-gray hover-lux-gold{% endif %}" href="{% url 'about' %}">About Us</a>
                 </li>
             </ul>
         </div>
@@ -43,6 +43,7 @@
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-3 mt-2" aria-labelledby="accountDropdown">
                     <li><a class="dropdown-item rounded-2 py-2" href="{% url 'profile' %}"><i class="fa-solid fa-user me-2 text-muted"></i>Profile</a></li>
+                    <li><a class="dropdown-item rounded-2 py-2" href="{% url 'wallet' %}"><i class="fa-solid fa-wallet me-2 text-muted"></i>Wallet</a></li>
                     <li>
                         <form action="{% url 'logout' %}" method="post" class="d-inline">
                             {% csrf_token %}

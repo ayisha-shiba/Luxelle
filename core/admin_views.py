@@ -33,7 +33,7 @@ def _validate_name_field(name, label):
         return f"{label} name can only contain letters and spaces."
     return None
 from .forms import SetNewPasswordForm, CategoryForm, ProductForm, ProductVariantForm
-from .models import CustomUser, Category, Product, Brand, Material, ProductVariant, VariantImage
+from .models import CustomUser, Category, Product, Brand, Material, ProductVariant, VariantImage, Order, OrderItem, OrderStatusEvent
 from .utils import (
     OTP_EXPIRY_MINUTES,
     check_resend_cooldown,
@@ -98,12 +98,18 @@ def admin_dashboard_view(request):
     non_superusers = CustomUser.objects.filter(is_staff=False)
     first_of_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
+    orders        = Order.objects.all()
+    total_revenue = (orders.exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
+                     .aggregate(s=Sum("total"))["s"] or 0)
+
     context = {
         "total_users":       non_superusers.count(),
         "active_count":      non_superusers.filter(is_active=True).count(),
         "blocked_count":     non_superusers.filter(is_active=False).count(),
         "this_month_count":  non_superusers.filter(date_joined__gte=first_of_month).count(),
         "recent_users":      non_superusers.order_by("-date_joined")[:5],
+        "total_orders":      orders.count(),
+        "total_revenue":     total_revenue,
     }
     return render(request, "admin_panel/dashboard.html", context)
 
@@ -1057,3 +1063,333 @@ def admin_variant_restore_view(request, variant_id):
     variant.save()
     messages.success(request, f"Variant '{variant.variant_name}' restored.")
     return redirect(f"{reverse('admin_product_detail', args=[variant.product_id])}?show=trash")
+
+
+# ORDER MANAGEMENT
+
+ORDER_SORT_OPTIONS = {
+    "latest":      "-created_at",
+    "oldest":      "created_at",
+    "amount_high": "-total",
+    "amount_low":  "total",
+}
+
+
+@admin_required
+def admin_order_list_view(request):
+    search_query = request.GET.get("search", "").strip()
+    status       = request.GET.get("status", "all")
+    sort         = request.GET.get("sort", "latest")
+
+    orders = Order.objects.select_related("user").prefetch_related("items")
+
+    # Filter by item status: orders that contain at least one item in the chosen status.
+    valid_statuses = dict(OrderItem.STATUS_CHOICES)
+    if status in valid_statuses:
+        orders = orders.filter(items__status=status).distinct()
+    else:
+        status = "all"
+
+    if search_query:
+        orders = orders.filter(
+            Q(order_number__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(user__full_name__icontains=search_query)
+        ).distinct()
+
+    orders = orders.order_by(ORDER_SORT_OPTIONS.get(sort, "-created_at"))
+
+    paginator   = Paginator(orders, 10)
+    page_number = request.GET.get("page")
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    def orders_with_item_status(s):
+        return Order.objects.filter(items__status=s).distinct().count()
+
+    context = {
+        "orders":          page_obj.object_list,
+        "page_obj":        page_obj,
+        "is_paginated":    page_obj.has_other_pages(),
+        "search_query":    search_query,
+        "status":          status,
+        "sort":            sort,
+        "status_choices":  OrderItem.STATUS_CHOICES,
+        "total_count":     Order.objects.count(),
+        "pending_count":   orders_with_item_status(OrderItem.STATUS_PENDING),
+        "delivered_count": orders_with_item_status(OrderItem.STATUS_DELIVERED),
+        "cancelled_count": orders_with_item_status(OrderItem.STATUS_CANCELLED),
+    }
+    return render(request, "admin_panel/order_list.html", context)
+
+
+@admin_required
+def admin_order_detail_view(request, order_id):
+    order = (Order.objects.select_related("user")
+             .prefetch_related("items__variant__product", "items__status_events")
+             .filter(id=order_id).first())
+    if not order:
+        messages.error(request, "Order not found.")
+        return redirect("admin_orders")
+
+    context = {
+        "order": order,
+        "items": order.items.all(),
+    }
+    return render(request, "admin_panel/order_detail.html", context)
+
+
+@admin_required
+@require_POST
+def admin_order_update_status_view(request, order_id):
+    order = Order.objects.filter(id=order_id).first()
+    if not order:
+        messages.error(request, "Order not found.")
+        return redirect("admin_orders")
+
+    new_status = request.POST.get("status")
+    valid_statuses = dict(Order.STATUS_CHOICES)
+
+    allowed = dict(order.allowed_next_statuses())
+    if new_status not in allowed:
+        messages.error(
+            request,
+            f"Cannot change a {order.get_status_display()} order to "
+            f"{valid_statuses.get(new_status, new_status)}.",
+        )
+        return redirect("admin_order_detail", order_id=order.id)
+
+    if new_status == Order.STATUS_CANCELLED and order.status != Order.STATUS_CANCELLED:
+        with transaction.atomic():
+            for item in order.items.select_related("variant"):
+                if item.variant and item.status != OrderItem.STATUS_CANCELLED:
+                    item.variant.stock += item.quantity
+                    item.variant.save(update_fields=["stock"])
+                    item.status = OrderItem.STATUS_CANCELLED
+                    item.save(update_fields=["status"])
+            order.status = new_status
+            order.save(update_fields=["status"])
+            order.recalculate_totals()
+    else:
+        order.status = new_status
+        order.save(update_fields=["status"])
+
+    OrderStatusEvent.objects.create(
+        order=order, status=new_status,
+        note=f"Status updated to {valid_statuses[new_status]} by admin.",
+    )
+
+    messages.success(request, f"Order {order.order_number} marked as {valid_statuses[new_status]}.")
+    return redirect("admin_order_detail", order_id=order.id)
+
+
+@admin_required
+@require_POST
+def admin_order_item_update_status_view(request, item_id):
+    item = (OrderItem.objects.select_related("order", "variant").filter(pk=item_id).first())
+    if item is None:
+        messages.error(request, "Order item not found.")
+        return redirect("admin_orders")
+
+    order      = item.order
+    new_status = request.POST.get("status")
+    note       = request.POST.get("note", "").strip()
+
+    allowed = dict(item.admin_next_statuses())
+    if new_status not in allowed:
+        messages.error(request, "That status change isn't allowed for this item.")
+        return redirect("admin_order_detail", order_id=order.id)
+
+    with transaction.atomic():
+        terminal_restock = (OrderItem.STATUS_CANCELLED, OrderItem.STATUS_RETURNED)
+        if new_status in terminal_restock and item.status not in terminal_restock and item.variant:
+            item.variant.stock += item.quantity
+            item.variant.save(update_fields=["stock"])
+
+        item.status = new_status
+        item.save(update_fields=["status"])
+
+        OrderStatusEvent.objects.create(
+            order_item=item, status=new_status,
+            note=note or f"Status updated to {allowed[new_status]} by admin.",
+        )
+
+        # Cancelling/restoring an item changes what's payable — keep totals fresh.
+        order.recalculate_totals()
+
+    messages.success(request, f"{item.product_name} marked as {allowed[new_status]}.")
+    url = reverse("admin_order_detail", args=[order.id])
+    return redirect(f"{url}#item-{item.id}")
+
+
+# RETURN MANAGEMENT
+
+RETURN_FILTERS = [
+    (OrderItem.STATUS_RETURN_REQUESTED, "Return Requested"),
+    (OrderItem.STATUS_RETURN_APPROVED,  "Return Approved"),
+    (OrderItem.STATUS_RETURN_REJECTED,  "Return Rejected"),
+    (OrderItem.STATUS_RETURNED,         "Returned"),
+]
+
+
+@admin_required
+def admin_return_requests_view(request):
+    status = request.GET.get("status", "all")
+
+    items = (OrderItem.objects
+             .filter(status__in=OrderItem.RETURN_STATUSES)
+             .select_related("order", "order__user", "variant")
+             .order_by("-return_requested_at", "-id"))
+
+    valid = dict(RETURN_FILTERS)
+    if status in valid:
+        items = items.filter(status=status)
+    else:
+        status = "all"
+
+    paginator   = Paginator(items, 12)
+    page_number = request.GET.get("page")
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    def count(s):
+        return OrderItem.objects.filter(status=s).count()
+
+    context = {
+        "items":           page_obj.object_list,
+        "page_obj":        page_obj,
+        "is_paginated":    page_obj.has_other_pages(),
+        "status":          status,
+        "filters":         RETURN_FILTERS,
+        "count_requested": count(OrderItem.STATUS_RETURN_REQUESTED),
+        "count_approved":  count(OrderItem.STATUS_RETURN_APPROVED),
+        "count_rejected":  count(OrderItem.STATUS_RETURN_REJECTED),
+        "count_returned":  count(OrderItem.STATUS_RETURNED),
+    }
+    return render(request, "admin_panel/return_requests.html", context)
+
+
+@admin_required
+@require_POST
+def admin_return_approve_view(request, item_id):
+    item = OrderItem.objects.filter(pk=item_id).first()
+    if not item or not item.can_approve_return:
+        messages.error(request, "This return cannot be approved.")
+        return redirect("admin_returns")
+
+    from wallet import services as wallet_services
+
+    with transaction.atomic():
+        item.status = OrderItem.STATUS_RETURN_APPROVED
+        item.save(update_fields=["status"])
+        OrderStatusEvent.objects.create(
+            order_item=item, status=OrderItem.STATUS_RETURN_APPROVED,
+            note="Return approved by admin.",
+        )
+        # Approved return → item is being refunded → drop it from the payable total.
+        total_before = item.order.total
+        item.order.recalculate_totals()
+        refund = total_before - item.order.total
+
+        # Returns are only possible on delivered items, which were always paid
+        # for (cash or online), so an approved return always refunds to wallet.
+        if refund > 0:
+            wallet_services.refund_item(
+                item, refund, f"Refund for returned item: {item.product_name}"
+            )
+
+    note = f" Rs. {refund} refunded to the customer's wallet." if refund > 0 else ""
+    messages.success(request, f"Return approved for {item.product_name}.{note}")
+    return redirect(request.POST.get("next") or "admin_returns")
+
+
+@admin_required
+@require_POST
+def admin_return_decline_view(request, item_id):
+    item = OrderItem.objects.filter(pk=item_id).first()
+    if not item or not item.can_decline_return:
+        messages.error(request, "This return cannot be declined.")
+        return redirect("admin_returns")
+
+    reason = request.POST.get("reason", "").strip()
+    if not reason:
+        messages.error(request, "A rejection reason is required to decline a return.")
+        return redirect("admin_returns")
+
+    item.status                  = OrderItem.STATUS_RETURN_REJECTED
+    item.return_rejection_reason = reason
+    item.save(update_fields=["status", "return_rejection_reason"])
+    OrderStatusEvent.objects.create(
+        order_item=item, status=OrderItem.STATUS_RETURN_REJECTED,
+        note=f"Return rejected by admin. Reason: {reason}",
+    )
+    # Rejected return → customer keeps & pays for the item → restore it to the total.
+    item.order.recalculate_totals()
+    messages.success(request, f"Return rejected for {item.product_name}.")
+    return redirect(request.POST.get("next") or "admin_returns")
+
+
+@admin_required
+@require_POST
+def admin_return_update_status_view(request, item_id):
+    item = OrderItem.objects.select_related("variant").filter(pk=item_id).first()
+    if not item:
+        messages.error(request, "Item not found.")
+        return redirect("admin_returns")
+
+    new_status = request.POST.get("status")
+    allowed = dict(item.return_next_statuses())
+    if new_status not in allowed:
+        messages.error(request, "That return step isn't allowed.")
+        return redirect(request.POST.get("next") or "admin_returns")
+
+    with transaction.atomic():
+        if new_status == OrderItem.STATUS_RETURNED and item.variant:
+            item.variant.stock += item.quantity
+            item.variant.save(update_fields=["stock"])
+
+        item.status = new_status
+        item.save(update_fields=["status"])
+
+        if new_status == OrderItem.STATUS_RETURNED:
+            note = "Item inspected — returned to stock. Refund to be processed."
+        elif new_status == OrderItem.STATUS_RETURN_REPAIR:
+            note = "Item inspected — sent for repair (not restocked)."
+        else:
+            note = f"Return step updated to {allowed[new_status]} by admin."
+        OrderStatusEvent.objects.create(order_item=item, status=new_status, note=note)
+
+        item.order.recalculate_totals()
+
+    messages.success(request, f"{item.product_name}: {allowed[new_status]}.")
+    return redirect(request.POST.get("next") or "admin_returns")
+
+
+@admin_required
+@require_POST
+def admin_return_reallow_view(request, item_id):
+    item = OrderItem.objects.filter(pk=item_id, status=OrderItem.STATUS_RETURN_REJECTED).first()
+    if not item:
+        messages.error(request, "Cannot re-allow this return.")
+        return redirect("admin_returns")
+
+    item.status                  = OrderItem.STATUS_DELIVERED
+    item.return_rejection_reason = ""
+    item.return_reason           = ""
+    item.return_requested_at     = None
+    item.save(update_fields=["status", "return_rejection_reason", "return_reason", "return_requested_at"])
+    OrderStatusEvent.objects.create(
+        order_item=item, status=OrderItem.STATUS_DELIVERED,
+        note="Return re-allowed by admin; customer may request again.",
+    )
+    item.order.recalculate_totals()
+    messages.success(request, f"{item.product_name}: the customer may request a return again.")
+    return redirect("admin_returns")
