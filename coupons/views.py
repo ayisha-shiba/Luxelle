@@ -12,6 +12,8 @@ from core.models import Cart
 from . import services
 from .models import Coupon, CouponUsage
 
+from django.db.models import Q
+
 SESSION_KEY = "coupon_id"
 
 
@@ -50,10 +52,42 @@ def remove_coupon(request):
 @login_required
 @never_cache
 def my_coupons(request):
-    """Coupons currently available to this user (live and not yet used)."""
+    """Coupons available to the user, with custom filters and status computes."""
     now = timezone.now()
-    used_ids = CouponUsage.objects.filter(user=request.user).values_list("coupon_id", flat=True)
-    coupons = (Coupon.objects.filter(is_active=True, valid_from__lte=now, valid_to__gte=now)
-               .exclude(id__in=used_ids)
-               .order_by("-created_at"))
-    return render(request, "coupons/my_coupons.html", {"coupons": coupons})
+    used_ids = list(CouponUsage.objects.filter(user=request.user).values_list("coupon_id", flat=True))
+
+    coupons = Coupon.objects.all()
+
+    # Search
+    search = request.GET.get("search", "").strip()
+    if search:
+        coupons = coupons.filter(Q(code__icontains=search) | Q(title__icontains=search))
+
+    # Status filter
+    status = request.GET.get("status", "all")
+    if status == "available":
+        coupons = coupons.filter(is_active=True, valid_from__lte=now, valid_to__gte=now).exclude(id__in=used_ids)
+    elif status == "used":
+        coupons = coupons.filter(id__in=used_ids)
+    elif status == "expired":
+        coupons = coupons.filter(Q(valid_to__lt=now) | Q(is_active=False)).exclude(id__in=used_ids)
+
+    coupons = coupons.order_by("-created_at")
+
+    # Annotate computed user status
+    for coupon in coupons:
+        if coupon.id in used_ids:
+            coupon.user_status = "used"
+            coupon.user_status_label = "USED"
+        elif not coupon.is_active or coupon.valid_to < now:
+            coupon.user_status = "expired"
+            coupon.user_status_label = "EXPIRED"
+        else:
+            coupon.user_status = "available"
+            coupon.user_status_label = "AVAILABLE"
+
+    return render(request, "coupons/my_coupons.html", {
+        "coupons": coupons,
+        "search_query": search,
+        "status_filter": status,
+    })
