@@ -125,8 +125,8 @@
                         <img id="mainImg" src="{% static 'image/default_product.svg' %}" alt="{{ product.name }}">
                     {% endif %}
 
-                    {% if variant and variant.discount_percent %}
-                        <span class="badge bg-lux-gold text-white text-uppercase tracking-wider position-absolute top-0 start-0 m-3 py-2 px-3 rounded-2 fw-semibold">{{ variant.discount_percent }}% Off</span>
+                    {% if variant and variant.total_discount_percent %}
+                        <span class="badge bg-lux-gold text-white text-uppercase tracking-wider position-absolute top-0 start-0 m-3 py-2 px-3 rounded-2 fw-semibold">{{ variant.total_discount_percent }}% Off</span>
                     {% endif %}
                     {% if not variant or variant.stock == 0 %}
                         <span class="badge bg-lux-black text-white text-uppercase tracking-wider position-absolute top-0 end-0 m-3 py-2 px-3 rounded-2 fw-semibold">Sold Out</span>
@@ -170,11 +170,12 @@
                 <!-- Price -->
                 <div class="mb-3">
                     {% if variant %}
-                        <span class="font-inter fw-bold text-lux-black fs-3">₹{{ variant.sale_price }}</span>
-                        {% if variant.discount_percent %}
+                        <span class="font-inter fw-bold text-lux-black fs-3">₹{{ variant.effective_price }}</span>
+                        {% if variant.total_discount_percent %}
                             <span class="text-lux-gray text-decoration-line-through fs-5 ms-2">₹{{ variant.original_price }}</span>
-                            <span class="badge bg-lux-gold text-white ms-2">{{ variant.discount_percent }}% Off</span>
+                            <span class="badge bg-lux-gold text-white ms-2">{{ variant.total_discount_percent }}% Off</span>
                         {% endif %}
+                        {% if variant.offer_percent %}<div class="text-success small mt-1"><i class="fa-solid fa-tag me-1"></i>Offer applied: {{ variant.offer_percent }}% off</div>{% endif %}
                     {% else %}
                         <span class="text-lux-gray fs-5">Currently unavailable</span>
                     {% endif %}
@@ -424,8 +425,8 @@
                                 <h4 class="font-playfair text-lux-black fs-6 fw-bold mb-2">{{ rp.name }}</h4>
                                 <div class="mt-auto">
                                     {% if rv %}
-                                        <span class="font-inter fw-bold text-lux-black fs-5">₹{{ rv.sale_price }}</span>
-                                        {% if rv.discount_percent %}<span class="text-lux-gray text-decoration-line-through small ms-2">₹{{ rv.original_price }}</span>{% endif %}
+                                        <span class="font-inter fw-bold text-lux-black fs-5">₹{{ rv.effective_price }}</span>
+                                        {% if rv.total_discount_percent %}<span class="text-lux-gray text-decoration-line-through small ms-2">₹{{ rv.original_price }}</span>{% endif %}
                                     {% else %}
                                         <span class="text-lux-gray">Unavailable</span>
                                     {% endif %}

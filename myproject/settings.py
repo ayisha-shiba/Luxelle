@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "core",
     "payments",
     "wallet",
+    "offers",
 ]
 
 MIDDLEWARE = [
@@ -203,6 +204,9 @@ DEFAULT_FROM_EMAIL  = EMAIL_HOST_USER
 # Razorpay (test keys live in .env, never commit real keys)
 RAZORPAY_KEY_ID     = os.environ.get("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
+
+# Wallet credit granted to both users on a successful referral
+REFERRAL_REWARD_AMOUNT = os.environ.get("REFERRAL_REWARD_AMOUNT", "100.00")
 
 # Logging
 

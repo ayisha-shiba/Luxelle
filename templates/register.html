@@ -122,6 +122,13 @@
         <div class="validation-error{% if form.password2.errors %} show{% endif %}">{{ form.password2.errors.0|default:'' }}</div>
     </div>
 
+                            <!-- Referral Code (optional) -->
+    <div class="form-floating mb-4 custom-input-group position-relative">
+            <input type="text" class="form-control custom-input" name="referral_code" id="regReferral"
+                placeholder="Referral Code (optional)" value="{{ referral_code|default:'' }}" />
+        <label>Referral Code (optional)</label>
+    </div>
+
                             <!-- Terms -->
                             <div class="form-check mb-4">
                                 <input class="form-check-input" type="checkbox" />

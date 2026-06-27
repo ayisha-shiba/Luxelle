@@ -11,6 +11,7 @@ urlpatterns = [
     path("favicon.ico", RedirectView.as_view(url=static_url("image/favicon.ico"), permanent=True)),
     path("payments/", include("payments.urls")),
     path("wallet/", include("wallet.urls")),
+    path("", include("offers.urls")),
     path("", include("core.urls")),
 
 ]

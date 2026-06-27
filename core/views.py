@@ -172,6 +172,11 @@ def register_view(request):
     initial_data = request.session.get("pending_registration", {})
     form = RegistrationForm(request.POST or None, initial=initial_data)
 
+    # Referral code: from the ?ref= token URL on GET, or the form field on POST.
+    referral_code = request.GET.get("ref") or request.POST.get("referral_code") or ""
+    if referral_code:
+        request.session["pending_referral_code"] = referral_code.strip().upper()
+
     if request.method == "POST":
         if form.is_valid():
             registration_data = {
@@ -202,7 +207,10 @@ def register_view(request):
         else:
             request.session["pending_registration"] = request.POST.dict()
 
-    return render(request, "register.html", {"form": form})
+    return render(request, "register.html", {
+        "form": form,
+        "referral_code": request.session.get("pending_referral_code", ""),
+    })
 
 
 # OTP VERIFICATION
@@ -267,6 +275,12 @@ def verify_otp_view(request):
                 logger.error(f"[VERIFY_OTP] Failed to create user: {exc}")
                 messages.error(request, "Account creation failed. Please try again.")
                 return redirect("register")
+
+            # Record who referred this user (reward comes on their first order).
+            referral_code = request.session.get("pending_referral_code")
+            if referral_code:
+                from offers.services import apply_referral_code
+                apply_referral_code(user, referral_code)
 
             _clear_registration_session(request)
 
@@ -1503,6 +1517,7 @@ def payment_handler(request,order):
 @login_required
 @never_cache
 def checkout_view(request):
+    from offers import services as offers_services
     cart, _ = Cart.objects.get_or_create(user=request.user)
     items   = list(cart.items.select_related("variant__product", "variant__product__category"))
 
@@ -1574,14 +1589,17 @@ def checkout_view(request):
                     variant = ProductVariant.objects.select_for_update().get(pk=item.variant_id)
                     if variant.stock < item.quantity:
                         raise ValueError(f"{variant.variant_name} just went out of stock.")
-                    line_total = variant.sale_price * item.quantity
+                    # Snapshot the offer-discounted price so the order, totals and
+                    # any future refund all reflect what the customer actually paid.
+                    unit_price = offers_services.best_offer_for(variant)["effective_price"]
+                    line_total = unit_price * item.quantity
                     order_item = OrderItem.objects.create(
                         order=order,
                         variant=variant,
                         product_name=variant.product.name,
                         variant_name=variant.variant_name,
                         sku=variant.sku,
-                        unit_price=variant.sale_price,
+                        unit_price=unit_price,
                         original_price=variant.original_price,
                         quantity=item.quantity,
                         line_total=line_total,
@@ -1621,6 +1639,11 @@ def checkout_view(request):
 @never_cache
 def order_success_view(request, order_number):
     order = get_object_or_404(Order, order_number=order_number, user = request.user)
+
+    # Reaching this page means an order completed — grant referral reward if due.
+    from offers.services import grant_referral_reward_if_due
+    grant_referral_reward_if_due(order)
+
     return render(request, "order_success.html", {"order":order})
     
 

@@ -348,6 +348,30 @@ class ProductVariant(models.Model):
             return round((self.original_price - self.sale_price) / self.original_price * 100)
         return 0
 
+    @property
+    def offer(self):
+        """Best live offer pricing for this variant (cached per instance)."""
+        if not hasattr(self, "_offer"):
+            from offers.services import best_offer_for
+            self._offer = best_offer_for(self)
+        return self._offer
+
+    @property
+    def effective_price(self):
+        """sale_price after the best offer — the actual selling price."""
+        return self.offer["effective_price"]
+
+    @property
+    def offer_percent(self):
+        return self.offer["percent"]
+
+    @property
+    def total_discount_percent(self):
+        """Combined MRP → effective-price discount, for the storefront badge."""
+        if self.original_price and self.effective_price < self.original_price:
+            return round((self.original_price - self.effective_price) / self.original_price * 100)
+        return 0
+
 
 class VariantImage(models.Model):
     variant    = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, related_name="images")
@@ -447,8 +471,25 @@ class CartItem(models.Model):
         return f"{self.quantity} x {self.variant}"
 
     @property
+    def offer(self):
+        """Best live offer pricing for this variant (cached per instance)."""
+        if not hasattr(self, "_offer"):
+            from offers.services import best_offer_for
+            self._offer = best_offer_for(self.variant)
+        return self._offer
+
+    @property
+    def unit_price(self):
+        """Effective per-unit price the customer pays (sale_price minus offer)."""
+        return self.offer["effective_price"]
+
+    @property
+    def offer_percent(self):
+        return self.offer["percent"]
+
+    @property
     def total_price(self):
-        return self.variant.sale_price * self.quantity
+        return self.unit_price * self.quantity
 
     @property
     def subtotal(self):
