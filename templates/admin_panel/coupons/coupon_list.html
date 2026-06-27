@@ -4,271 +4,757 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luxelle Admin - Coupon Management</title>
+    <title>Luxelle Admin – Coupon Management</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="{% static 'css/admin_common.css' %}" rel="stylesheet">
     <style>
-        .alert { margin-bottom: 1.5rem; border-radius: 8px; padding: 1rem 1.25rem; }
-        .alert-success { background-color: rgba(39,174,96,0.1); border:1px solid rgba(39,174,96,0.3); color:#27ae60; }
-        .alert-error { background-color: rgba(231,76,60,0.1); border:1px solid rgba(231,76,60,0.3); color:#e74c3c; }
+        /* ── Page-level alerts ── */
+        .alert { margin-bottom: 1.25rem; border-radius: 10px; padding: .9rem 1.2rem; font-size: .82rem; display:flex; align-items:center; gap:.75rem; }
+        .alert-success { background:rgba(39,174,96,.1); border:1px solid rgba(39,174,96,.25); color:#27ae60; }
+        .alert-error   { background:rgba(231,76,60,.1); border:1px solid rgba(231,76,60,.25); color:#e74c3c; }
+        .alert-dismissible .btn-close { filter:invert(1); opacity:.5; }
 
-        .action-btns { display:flex; gap:0.6rem; align-items:center; }
-        .act-btn { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:6px; border:none; cursor:pointer; font-size:0.9rem; transition:all .3s; text-decoration:none; color:white; }
-        .act-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.2); }
-        .act-btn-edit { background-color:#3498db; }
-        .act-btn-del { background-color:#e74c3c; }
+        /* ── Stat cards strip ── */
+        .stats-strip { display:grid; grid-template-columns:repeat(6,1fr); gap:1rem; margin-bottom:2rem; }
+        .stat-chip { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem 1.25rem; }
+        .stat-chip .sc-label { font-size:.58rem; letter-spacing:.14em; text-transform:uppercase; color:var(--gray); font-weight:600; margin-bottom:.3rem; }
+        .stat-chip .sc-value { font-family:'Playfair Display',serif; font-size:1.55rem; font-weight:700; }
+        .sc-total    .sc-value { color:var(--white); }
+        .sc-active   .sc-value { color:#27ae60; }
+        .sc-sched    .sc-value { color:#3498db; }
+        .sc-expired  .sc-value { color:#e74c3c; }
+        .sc-disabled .sc-value { color:var(--gray); }
+        .sc-usage    .sc-value { color:var(--gold); }
 
-        .badge-live { background:rgba(39,174,96,0.12); color:#27ae60; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.75rem; font-weight:600; }
-        .badge-off  { background:rgba(149,165,166,0.15); color:#95a5a6; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.75rem; font-weight:600; }
-        .code-pill { background:rgba(197,160,89,0.15); color:#c5a059; padding:0.3rem 0.7rem; border-radius:6px; font-weight:700; letter-spacing:0.05em; }
+        /* ── Filter bar ── */
+        .filter-row { display:flex; gap:.75rem; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; }
+        .filter-row .search-wrap { flex:1; min-width:240px; position:relative; }
+        .filter-row .search-wrap i { position:absolute; left:.9rem; top:50%; transform:translateY(-50%); color:var(--gray); font-size:.82rem; pointer-events:none; }
+        .filter-row .search-wrap input { width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:.7rem 1rem .7rem 2.5rem; color:var(--white); font-size:.83rem; transition:border-color .2s; }
+        .filter-row .search-wrap input:focus { outline:none; border-color:var(--gold); }
+        .filter-row .fsel { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:.7rem 1rem; color:var(--white); font-size:.8rem; cursor:pointer; min-width:120px; }
+        .filter-row .fsel:focus { outline:none; border-color:var(--gold); }
+        .filter-row .apply-btn { background:var(--gold); color:#0b0b0b; border:none; border-radius:10px; padding:.7rem 1.4rem; font-size:.8rem; font-weight:700; cursor:pointer; transition:background .2s; white-space:nowrap; }
+        .filter-row .apply-btn:hover { background:var(--gold-b); }
 
-        .form-modal-box { background:#0b0b0b; border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:2rem; max-width:540px; width:92%; box-shadow:0 20px 60px rgba(0,0,0,0.8); text-align:left; max-height:90vh; overflow-y:auto; }
-        .form-modal-box h3 { font-family:'Playfair Display',serif; font-size:1.4rem; color:#fff; margin:0 0 1.5rem; }
-        .form-group { margin-bottom:1.2rem; }
-        .form-group > label { display:block; font-size:0.8rem; letter-spacing:0.05em; text-transform:uppercase; color:#aaa; margin-bottom:0.5rem; }
-        .form-group input, .form-group select { width:100%; background:#161616; border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:0.75rem 1rem; color:#fff; font-size:0.9rem; font-family:'Inter',sans-serif; }
-        .form-group input:focus, .form-group select:focus { outline:none; border-color:#c5a059; }
-        .form-check-row { display:flex; align-items:center; gap:0.5rem; }
-        .form-check-row input { width:18px; height:18px; }
-        .form-check-row label { margin:0; text-transform:none; letter-spacing:0; color:#ddd; font-size:0.85rem; }
-        .field-err { color:#e74c3c; font-size:0.75rem; margin-top:0.4rem; }
-        .row-2 { display:flex; gap:1rem; }
-        .row-2 .form-group { flex:1; }
+        /* ── Table ── */
+        .coupon-table { width:100%; border-collapse:separate; border-spacing:0; min-width:820px; }
+        .coupon-table th { font-size:.58rem; letter-spacing:.14em; text-transform:uppercase; color:var(--gray); font-weight:600; padding:.8rem 1rem; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
+        .coupon-table td { padding:.9rem 1rem; font-size:.82rem; color:var(--white); border-bottom:1px solid var(--border); vertical-align:middle; }
+        .coupon-table tr:last-child td { border-bottom:none; }
+        .coupon-table tr:hover td { background:rgba(255,255,255,.012); }
+
+        /* ── Code pill ── */
+        .code-pill { display:inline-block; background:rgba(197,160,89,.13); color:var(--gold); padding:.3rem .75rem; border-radius:6px; font-weight:700; font-size:.78rem; letter-spacing:.07em; border:1px solid rgba(197,160,89,.2); }
+
+        /* ── Discount highlight ── */
+        .disc-main { color:var(--gold); font-weight:700; font-size:.85rem; }
+        .disc-sub  { color:var(--gray); font-size:.7rem; margin-top:2px; }
+
+        /* ── Status badges ── */
+        .badge-status { display:inline-flex; align-items:center; gap:.35rem; padding:.28rem .75rem; border-radius:20px; font-size:.68rem; font-weight:700; letter-spacing:.04em; text-transform:capitalize; }
+        .badge-active   { background:rgba(39,174,96,.12);  color:#27ae60;  border:1px solid rgba(39,174,96,.25); }
+        .badge-expired  { background:rgba(231,76,60,.12);  color:#e74c3c;  border:1px solid rgba(231,76,60,.25); }
+        .badge-sched    { background:rgba(52,152,219,.12); color:#3498db;  border:1px solid rgba(52,152,219,.25); }
+        .badge-disabled { background:rgba(136,136,136,.12); color:#888;   border:1px solid rgba(136,136,136,.2); }
+
+        /* ── Toggle switch ── */
+        .tog-wrap { display:inline-flex; align-items:center; }
+        .tog-input { display:none; }
+        .tog-label { width:40px; height:22px; background:var(--gray2); border-radius:11px; cursor:pointer; position:relative; transition:background .25s; }
+        .tog-label::after { content:''; position:absolute; width:16px; height:16px; background:#fff; border-radius:50%; top:3px; left:3px; transition:transform .25s; }
+        .tog-input:checked + .tog-label { background:#27ae60; }
+        .tog-input:checked + .tog-label::after { transform:translateX(18px); }
+
+        /* ── Action buttons ── */
+        .act-wrap { display:flex; gap:.45rem; align-items:center; }
+        .act-btn  { display:inline-flex; align-items:center; gap:.35rem; padding:.38rem .75rem; border-radius:7px; font-size:.72rem; font-weight:600; border:1px solid var(--border); background:transparent; color:var(--gray); cursor:pointer; transition:all .2s; text-decoration:none; white-space:nowrap; }
+        .act-btn:hover { color:var(--white); border-color:rgba(255,255,255,.2); }
+        .act-btn-edit:hover { border-color:var(--gold); color:var(--gold); background:rgba(197,160,89,.06); }
+        .act-btn-del:hover  { border-color:var(--red);  color:var(--red);  background:rgba(231,76,60,.06); }
+
+        /* ── Empty state ── */
+        .empty-state { text-align:center; padding:3.5rem 1rem; }
+        .empty-state i { font-size:2.5rem; color:var(--gray2); margin-bottom:1rem; display:block; }
+        .empty-state p { color:var(--gray); font-size:.85rem; }
+
+        /* ── Pagination ── */
+        .pag-bar { display:flex; justify-content:space-between; align-items:center; padding:1rem 0 0; margin-top:.5rem; }
+        .pag-info { font-size:.74rem; color:var(--gray); }
+        .pag-btns { display:flex; gap:.35rem; }
+        .pg-btn { width:32px; height:32px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--gray); display:flex; align-items:center; justify-content:center; font-size:.75rem; cursor:pointer; transition:all .22s; text-decoration:none; }
+        .pg-btn:hover, .pg-btn.active { background:var(--gold); color:#0b0b0b; border-color:var(--gold); }
+
+        /* ── MODAL ── */
+        .cm-overlay { position:fixed; inset:0; background:rgba(0,0,0,.72); backdrop-filter:blur(6px); z-index:999; display:none; align-items:flex-start; justify-content:center; padding:2rem 1rem; overflow-y:auto; }
+        .cm-overlay.show { display:flex; }
+        .cm-box { background:var(--card); border:1px solid rgba(255,255,255,.08); border-radius:16px; width:100%; max-width:660px; box-shadow:0 30px 80px rgba(0,0,0,.7); animation:cmIn .28s ease; position:relative; margin:auto; }
+        @keyframes cmIn { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+
+        .cm-head { display:flex; align-items:center; justify-content:space-between; padding:1.4rem 1.75rem; border-bottom:1px solid var(--border); }
+        .cm-head h2 { font-family:'Playfair Display',serif; font-size:1.18rem; font-weight:600; color:var(--white); margin:0; display:flex; align-items:center; gap:.55rem; }
+        .cm-head h2 i { color:var(--gold); font-size:1rem; }
+        .cm-close { width:30px; height:30px; border-radius:8px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:var(--gray); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:.85rem; transition:all .2s; }
+        .cm-close:hover { background:rgba(231,76,60,.12); border-color:rgba(231,76,60,.3); color:var(--red); }
+
+        .cm-body { padding:1.75rem; }
+        .cm-section { margin-bottom:1.75rem; }
+        .cm-section-title { display:flex; align-items:center; gap:.5rem; font-size:.65rem; letter-spacing:.16em; text-transform:uppercase; font-weight:700; color:var(--gold); margin-bottom:1.1rem; padding-bottom:.55rem; border-bottom:1px solid rgba(197,160,89,.15); }
+        .cm-section-title i { font-size:.75rem; }
+
+        .cm-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem; }
+        .cm-row.single { grid-template-columns:1fr; }
+        .cm-row.triple { grid-template-columns:1fr 1fr 1fr; }
+        .cm-group { display:flex; flex-direction:column; gap:.4rem; }
+        .cm-label { font-size:.62rem; letter-spacing:.1em; text-transform:uppercase; font-weight:600; color:var(--gray); }
+        .cm-label span.req { color:var(--red); margin-left:2px; }
+        .cm-input, .cm-select, .cm-textarea {
+            background:var(--card2);
+            border:1px solid var(--border);
+            border-radius:8px;
+            padding:.65rem .9rem;
+            color:var(--white);
+            font-size:.84rem;
+            font-family:'Inter',sans-serif;
+            transition:border-color .22s;
+            width:100%;
+        }
+        .cm-input:focus, .cm-select:focus, .cm-textarea:focus { outline:none; border-color:var(--gold); box-shadow:0 0 0 3px rgba(197,160,89,.08); }
+        .cm-textarea { resize:vertical; min-height:72px; }
+        .cm-input-wrap { position:relative; }
+        .cm-input-wrap .gen-btn { position:absolute; right:.5rem; top:50%; transform:translateY(-50%); background:rgba(197,160,89,.12); border:1px solid rgba(197,160,89,.25); color:var(--gold); border-radius:6px; padding:.28rem .7rem; font-size:.7rem; font-weight:600; cursor:pointer; transition:background .2s; white-space:nowrap; }
+        .cm-input-wrap .gen-btn:hover { background:rgba(197,160,89,.22); }
+        .cm-input-wrap input { padding-right:6.5rem; }
+
+        .field-err { color:var(--red); font-size:.7rem; margin-top:.3rem; }
+
+        /* Toggle row inside modal */
+        .cm-toggle-row { display:flex; align-items:center; gap:.75rem; }
+        .cm-toggle-label { font-size:.84rem; color:var(--white); }
+
+        /* Payment method checkboxes */
+        .pm-group { display:flex; gap:.75rem; flex-wrap:wrap; }
+        .pm-chip { display:inline-flex; align-items:center; gap:.4rem; padding:.42rem .9rem; border-radius:8px; border:1px solid var(--border); background:var(--card2); color:var(--gray); font-size:.76rem; font-weight:600; cursor:pointer; transition:all .2s; user-select:none; }
+        .pm-chip input { display:none; }
+        .pm-chip.selected { border-color:var(--gold); background:rgba(197,160,89,.1); color:var(--gold); }
+
+        .cm-foot { display:flex; align-items:center; justify-content:flex-end; gap:.75rem; padding:1.2rem 1.75rem; border-top:1px solid var(--border); }
+        .cm-cancel { background:rgba(255,255,255,.06); border:1px solid var(--border); color:var(--white); border-radius:9px; padding:.7rem 1.5rem; font-size:.78rem; font-weight:600; cursor:pointer; transition:all .2s; }
+        .cm-cancel:hover { border-color:rgba(255,255,255,.18); background:rgba(255,255,255,.09); }
+        .cm-save { background:var(--gold); color:#0b0b0b; border:none; border-radius:9px; padding:.7rem 1.75rem; font-size:.78rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:.45rem; transition:background .2s; }
+        .cm-save:hover { background:var(--gold-b); }
+
+        /* ── Delete modal ── */
+        .del-box { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:2.5rem; width:400px; max-width:92vw; text-align:center; box-shadow:0 25px 65px rgba(0,0,0,.65); animation:cmIn .28s ease; }
+        .del-icon { width:64px; height:64px; border-radius:50%; background:rgba(231,76,60,.1); border:1px solid rgba(231,76,60,.25); color:var(--red); font-size:1.5rem; display:flex; align-items:center; justify-content:center; margin:0 auto 1.25rem; }
+        .del-title { font-family:'Playfair Display',serif; font-size:1.3rem; color:var(--white); margin-bottom:.6rem; }
+        .del-desc  { color:var(--gray); font-size:.82rem; line-height:1.6; margin-bottom:2rem; }
+        .del-acts  { display:flex; gap:.85rem; justify-content:center; }
+
+        @media(max-width:1200px){ .stats-strip{grid-template-columns:repeat(3,1fr);} }
+        @media(max-width:768px){ .stats-strip{grid-template-columns:repeat(2,1fr);} .cm-row{grid-template-columns:1fr;} .cm-row.triple{grid-template-columns:1fr;} }
     </style>
 </head>
 <body>
     {% include 'admin_panel/partials/sidebar.html' with active='coupons' %}
 
     <main class="main">
+        <!-- Top bar -->
         <div class="top-bar">
-            <div><h1 class="page-title">Coupon Management</h1><p class="page-sub">Create and manage discount coupons.</p></div>
-            <div class="top-actions" style="display:flex; gap:0.75rem;">
-                <div class="top-btn top-btn-gold" onclick="openAddModal()" style="cursor:pointer;"><i class="fa-solid fa-plus"></i> Add Coupon</div>
+            <div>
+                <h1 class="page-title">Coupon Management</h1>
+                <p class="page-sub">Create and distribute promotional coupons to drive sales.</p>
+            </div>
+            <div class="top-actions">
+                <button class="top-btn top-btn-gold" id="btnOpenAdd" onclick="openModal('add')">
+                    <i class="fa-solid fa-plus"></i> Create Coupon
+                </button>
             </div>
         </div>
 
+        <!-- Django messages -->
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                <i class="fa-solid {% if message.tags == 'success' %}fa-circle-check{% else %}fa-triangle-exclamation{% endif %}"></i>
+                {{ message }}
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+            </div>
             {% endfor %}
         {% endif %}
 
-        <form method="GET" action="{% url 'admin_coupons' %}" class="filter-bar">
-            <div class="search-box">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" name="search" value="{{ search_query|default:'' }}" placeholder="Search by code..." onkeydown="if(event.key==='Enter'){this.form.submit();}">
+        <!-- ── Stats strip ── -->
+        <div class="stats-strip">
+            <div class="stat-chip sc-total">
+                <div class="sc-label">Total Coupons</div>
+                <div class="sc-value">{{ stat_total }}</div>
             </div>
-            <select class="filter-select" name="status" onchange="this.form.submit()">
-                <option value="all"     {% if status == 'all' %}selected{% endif %}>All</option>
-                <option value="active"  {% if status == 'active' %}selected{% endif %}>Active</option>
-                <option value="expired" {% if status == 'expired' %}selected{% endif %}>Expired / Off</option>
-            </select>
-            <button type="submit" class="top-btn top-btn-gold"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+            <div class="stat-chip sc-active">
+                <div class="sc-label">Active</div>
+                <div class="sc-value">{{ stat_active }}</div>
+            </div>
+            <div class="stat-chip sc-sched">
+                <div class="sc-label">Scheduled</div>
+                <div class="sc-value">{{ stat_scheduled }}</div>
+            </div>
+            <div class="stat-chip sc-expired">
+                <div class="sc-label">Expired</div>
+                <div class="sc-value">{{ stat_expired }}</div>
+            </div>
+            <div class="stat-chip sc-disabled">
+                <div class="sc-label">Disabled</div>
+                <div class="sc-value">{{ stat_disabled }}</div>
+            </div>
+            <div class="stat-chip sc-usage">
+                <div class="sc-label">Total Usage</div>
+                <div class="sc-value">{{ stat_usage }}</div>
+            </div>
+        </div>
+
+        <!-- ── Filter bar ── -->
+        <form method="GET" action="{% url 'admin_coupons' %}" id="filterForm">
+            <div class="filter-row">
+                <div class="search-wrap">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="search" id="searchInput" value="{{ search_query|default:'' }}" placeholder="Search coupon code or title…">
+                </div>
+                <select class="fsel" name="status" id="statusSel">
+                    <option value="all"      {% if status == 'all' %}selected{% endif %}>All Status</option>
+                    <option value="active"   {% if status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="scheduled"{% if status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                    <option value="expired"  {% if status == 'expired' %}selected{% endif %}>Expired</option>
+                    <option value="disabled" {% if status == 'disabled' %}selected{% endif %}>Disabled</option>
+                </select>
+                <select class="fsel" name="dtype" id="dtypeSel">
+                    <option value="all"        {% if dtype == 'all' %}selected{% endif %}>All Types</option>
+                    <option value="percentage" {% if dtype == 'percentage' %}selected{% endif %}>Percentage</option>
+                    <option value="flat"       {% if dtype == 'flat' %}selected{% endif %}>Fixed Amount</option>
+                </select>
+                <select class="fsel" name="sort" id="sortSel">
+                    <option value="latest"          {% if sort == 'latest' %}selected{% endif %}>Latest</option>
+                    <option value="oldest"          {% if sort == 'oldest' %}selected{% endif %}>Oldest</option>
+                    <option value="highest_discount"{% if sort == 'highest_discount' %}selected{% endif %}>Highest Discount</option>
+                    <option value="most_used"       {% if sort == 'most_used' %}selected{% endif %}>Most Used</option>
+                    <option value="expiring_soon"   {% if sort == 'expiring_soon' %}selected{% endif %}>Expiring Soon</option>
+                </select>
+                <button type="submit" class="apply-btn"><i class="fa-solid fa-sliders" style="margin-right:.4rem;"></i>Apply</button>
+            </div>
         </form>
 
-        <div class="panel">
-            <table class="users-table">
-                <thead>
-                    <tr>
-                        <th>Code</th>
-                        <th>Discount</th>
-                        <th>Min Order</th>
-                        <th>Window</th>
-                        <th>Used</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if coupons %}
-                        {% for coupon in coupons %}
+        <!-- ── Table panel ── -->
+        <div class="panel" style="padding:0; overflow:hidden;">
+            <div style="overflow-x:auto; padding:0 0 .5rem;">
+                <table class="coupon-table">
+                    <thead>
+                        <tr>
+                            <th>Coupon Code</th>
+                            <th>Title</th>
+                            <th>Discount</th>
+                            <th>Target</th>
+                            <th>Usage</th>
+                            <th>Validity</th>
+                            <th>Status</th>
+                            <th>Active</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if coupons %}
+                            {% for c in coupons %}
                             <tr>
-                                <td><span class="code-pill">{{ coupon.code }}</span></td>
-                                <td style="color:#ddd;">
-                                    {% if coupon.discount_type == 'percentage' %}{{ coupon.discount_value }}%{% if coupon.max_discount_amount %} <span style="color:#888;">(max ₹{{ coupon.max_discount_amount }})</span>{% endif %}
-                                    {% else %}₹{{ coupon.discount_value }}{% endif %}
-                                </td>
-                                <td style="color:#aaa;">₹{{ coupon.min_order_amount }}</td>
-                                <td style="color:#888; font-size:0.8rem;">{{ coupon.valid_from|date:"d M Y" }}<br>→ {{ coupon.valid_to|date:"d M Y" }}</td>
-                                <td style="color:#aaa;">{{ coupon.times_used }}{% if coupon.usage_limit %}/{{ coupon.usage_limit }}{% endif %}</td>
-                                <td>{% if coupon.is_live %}<span class="badge-live">Live</span>{% else %}<span class="badge-off">Off/Expired</span>{% endif %}</td>
+                                <td><span class="code-pill">{{ c.code }}</span></td>
                                 <td>
-                                    <div class="action-btns">
-                                        <button class="act-btn act-btn-edit" title="Edit"
-                                            onclick="openEditModal('{{ coupon.id }}', '{{ coupon.code|escapejs }}', '{{ coupon.description|escapejs }}', '{{ coupon.discount_type }}', '{{ coupon.discount_value }}', '{{ coupon.max_discount_amount|default:'' }}', '{{ coupon.min_order_amount }}', '{{ coupon.valid_from|date:'Y-m-d\TH:i' }}', '{{ coupon.valid_to|date:'Y-m-d\TH:i' }}', '{{ coupon.usage_limit }}', {{ coupon.is_active|yesno:'true,false' }})">
-                                            <i class="fa-solid fa-pen"></i>
+                                    <div style="font-weight:500; color:var(--white);">{{ c.title|default:c.code }}</div>
+                                    {% if c.description %}<div style="font-size:.7rem; color:var(--gray); margin-top:2px;">{{ c.description|truncatechars:35 }}</div>{% endif %}
+                                </td>
+                                <td>
+                                    <div class="disc-main">
+                                        {% if c.discount_type == 'percentage' %}{{ c.discount_value }}% OFF{% else %}₹{{ c.discount_value }} OFF{% endif %}
+                                    </div>
+                                    <div class="disc-sub">
+                                        {% if c.min_order_amount %}Min ₹{{ c.min_order_amount }}{% endif %}
+                                        {% if c.max_discount_amount %} · Max ₹{{ c.max_discount_amount }}{% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span style="font-size:.75rem; color:var(--gray);">
+                                        {% if c.applies_to == 'global' %}Global{% else %}Specific{% endif %}
+                                    </span>
+                                </td>
+                                <td style="color:var(--gray); font-size:.82rem;">
+                                    {{ c.times_used }}{% if c.usage_limit %}/{{ c.usage_limit }}{% endif %}
+                                </td>
+                                <td style="font-size:.75rem; color:var(--gray); white-space:nowrap;">
+                                    {{ c.valid_from|date:"Y-m-d" }}<br>
+                                    <span style="color:var(--gray2);">→</span> {{ c.valid_to|date:"Y-m-d" }}
+                                </td>
+                                <td>
+                                    {% if c.status == 'active' %}
+                                        <span class="badge-status badge-active"><i class="fa-solid fa-circle" style="font-size:.45rem;"></i> Active</span>
+                                    {% elif c.status == 'scheduled' %}
+                                        <span class="badge-status badge-sched"><i class="fa-regular fa-clock" style="font-size:.65rem;"></i> Scheduled</span>
+                                    {% elif c.status == 'expired' %}
+                                        <span class="badge-status badge-expired"><i class="fa-solid fa-circle" style="font-size:.45rem;"></i> Expired</span>
+                                    {% else %}
+                                        <span class="badge-status badge-disabled"><i class="fa-solid fa-circle" style="font-size:.45rem;"></i> Disabled</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="tog-wrap">
+                                        <input type="checkbox" class="tog-input" id="tog_{{ c.id }}"
+                                            {% if c.is_active %}checked{% endif %}
+                                            onchange="toggleCoupon({{ c.id }}, this)">
+                                        <label class="tog-label" for="tog_{{ c.id }}"></label>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="act-wrap">
+                                        <button class="act-btn act-btn-edit" title="Edit coupon"
+                                            onclick="openEditModal(
+                                                '{{ c.id }}',
+                                                '{{ c.code|escapejs }}',
+                                                '{{ c.title|default:''|escapejs }}',
+                                                '{{ c.description|default:''|escapejs }}',
+                                                '{{ c.discount_type }}',
+                                                '{{ c.discount_value }}',
+                                                '{{ c.max_discount_amount|default:'' }}',
+                                                '{{ c.min_order_amount }}',
+                                                '{{ c.applies_to }}',
+                                                '{{ c.usage_limit }}',
+                                                '{{ c.per_user_limit }}',
+                                                {{ c.first_time_only|yesno:'true,false' }},
+                                                '{{ c.payment_methods|default:'all' }}',
+                                                '{{ c.valid_from|date:'Y-m-d' }}',
+                                                '{{ c.valid_to|date:'Y-m-d' }}',
+                                                {{ c.is_active|yesno:'true,false' }}
+                                            )">
+                                            <i class="fa-solid fa-pen-to-square"></i> Edit
                                         </button>
-                                        <button class="act-btn act-btn-del" title="Delete"
-                                            onclick="openDeleteModal('{{ coupon.id }}', '{{ coupon.code|escapejs }}')">
-                                            <i class="fa-solid fa-trash"></i>
+                                        <button class="act-btn act-btn-del" title="Delete coupon"
+                                            onclick="openDeleteModal('{{ c.id }}', '{{ c.code|escapejs }}')">
+                                            <i class="fa-solid fa-trash"></i> Delete
                                         </button>
                                     </div>
                                 </td>
                             </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="7" style="text-align:center; padding:2rem; color:#888;">
-                                <i class="fa-solid fa-ticket" style="font-size:2rem; margin-bottom:1rem; display:block;"></i>
-                                No coupons found.
-                            </td>
-                        </tr>
-                    {% endif %}
-                </tbody>
-            </table>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9">
+                                    <div class="empty-state">
+                                        <i class="fa-solid fa-ticket-simple"></i>
+                                        <p>No coupons found. Create your first coupon to get started.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
 
-            <div class="pagination-bar" style="display:flex; justify-content:space-between; align-items:center; padding:1rem 1.5rem; border-top:1px solid #f1f2f6;">
-                <div class="page-info text-muted small">
-                    Showing {{ page_obj.start_index|default:0 }} to {{ page_obj.end_index|default:0 }} of {{ page_obj.paginator.count|default:0 }} coupons
+            <!-- Pagination -->
+            <div class="pag-bar" style="padding:1rem 1.5rem;">
+                <div class="pag-info">
+                    {% if page_obj.paginator.count %}
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} &nbsp;·&nbsp; {{ page_obj.paginator.count }} coupon{{ page_obj.paginator.count|pluralize }}
+                    {% else %}
+                        No results
+                    {% endif %}
                 </div>
                 {% if is_paginated %}
-                <ul class="pagination pagination-sm mb-0">
-                    {% if page_obj.has_previous %}<li class="page-item"><a class="page-link text-lux-black" href="?page={{ page_obj.previous_page_number }}&status={{ status }}">Prev</a></li>{% endif %}
+                <div class="pag-btns">
+                    {% if page_obj.has_previous %}
+                        <a class="pg-btn" href="?page={{ page_obj.previous_page_number }}&status={{ status }}&dtype={{ dtype }}&sort={{ sort }}&search={{ search_query }}">
+                            <i class="fa-solid fa-chevron-left" style="font-size:.65rem;"></i>
+                        </a>
+                    {% endif %}
                     {% for num in page_obj.paginator.page_range %}
-                        {% if page_obj.number == num %}<li class="page-item active"><span class="page-link bg-lux-black text-white border-lux-black">{{ num }}</span></li>
-                        {% else %}<li class="page-item"><a class="page-link text-lux-black" href="?page={{ num }}&status={{ status }}">{{ num }}</a></li>{% endif %}
+                        <a class="pg-btn {% if page_obj.number == num %}active{% endif %}"
+                           href="?page={{ num }}&status={{ status }}&dtype={{ dtype }}&sort={{ sort }}&search={{ search_query }}">{{ num }}</a>
                     {% endfor %}
-                    {% if page_obj.has_next %}<li class="page-item"><a class="page-link text-lux-black" href="?page={{ page_obj.next_page_number }}&status={{ status }}">Next</a></li>{% endif %}
-                </ul>
+                    {% if page_obj.has_next %}
+                        <a class="pg-btn" href="?page={{ page_obj.next_page_number }}&status={{ status }}&dtype={{ dtype }}&sort={{ sort }}&search={{ search_query }}">
+                            <i class="fa-solid fa-chevron-right" style="font-size:.65rem;"></i>
+                        </a>
+                    {% endif %}
+                </div>
                 {% endif %}
             </div>
         </div>
     </main>
 
-    <!-- Add / Edit Modal -->
-    <div class="modal-overlay" id="couponModal">
-        <div class="form-modal-box">
-            <h3 id="couponModalTitle">Add Coupon</h3>
-            {% with f=add_form|default:edit_form %}
-            {% if f.non_field_errors %}<div class="alert alert-error">{% for e in f.non_field_errors %}<div>{{ e }}</div>{% endfor %}</div>{% endif %}
-            {% endwith %}
+    <!-- ════════════════════════════════════════════
+         CREATE / EDIT COUPON MODAL
+    ════════════════════════════════════════════ -->
+    <div class="cm-overlay" id="couponModal">
+        <div class="cm-box">
+            <div class="cm-head">
+                <h2><i class="fa-solid fa-ticket" id="modalIcon"></i><span id="modalTitle">Create Coupon</span></h2>
+                <button class="cm-close" onclick="closeModal()" title="Close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
             <form method="POST" id="couponForm" action="{% url 'admin_coupon_add' %}">
                 {% csrf_token %}
-                <div class="form-group">
-                    <label>Coupon Code</label>
-                    <input type="text" name="code" id="cp_code" required maxlength="30" placeholder="e.g. WELCOME10" style="text-transform:uppercase;">
-                </div>
-                <div class="form-group">
-                    <label>Description</label>
-                    <input type="text" name="description" id="cp_desc" maxlength="200" placeholder="Optional">
-                </div>
-                <div class="row-2">
-                    <div class="form-group">
-                        <label>Type</label>
-                        <select name="discount_type" id="cp_type">
-                            <option value="percentage">Percentage</option>
-                            <option value="flat">Flat Amount</option>
-                        </select>
+                <div class="cm-body">
+
+                    <!-- A) BASIC INFORMATION -->
+                    <div class="cm-section">
+                        <div class="cm-section-title"><i class="fa-solid fa-circle-info"></i> A) Basic Information</div>
+                        <div class="cm-row">
+                            <div class="cm-group">
+                                <label class="cm-label">Coupon Code <span class="req">*</span></label>
+                                <div class="cm-input-wrap">
+                                    <input type="text" name="code" id="cp_code" class="cm-input" required maxlength="30"
+                                        placeholder="e.g. SUMMER50" style="text-transform:uppercase;">
+                                    <button type="button" class="gen-btn" onclick="generateCode()">Generate</button>
+                                </div>
+                                <div class="field-err" id="err_code"></div>
+                            </div>
+                            <div class="cm-group">
+                                <label class="cm-label">Coupon Title <span class="req">*</span></label>
+                                <input type="text" name="title" id="cp_title" class="cm-input" maxlength="100" placeholder="e.g. Summer Sale">
+                                <div class="field-err" id="err_title"></div>
+                            </div>
+                        </div>
+                        <div class="cm-row single">
+                            <div class="cm-group">
+                                <label class="cm-label">Description</label>
+                                <textarea name="description" id="cp_desc" class="cm-textarea" placeholder="Optional internal note…"></textarea>
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Value</label>
-                        <input type="number" step="0.01" name="discount_value" id="cp_value" required>
+
+                    <!-- B) DISCOUNT CONFIGURATION -->
+                    <div class="cm-section">
+                        <div class="cm-section-title"><i class="fa-solid fa-percent"></i> B) Discount Configuration</div>
+                        <div class="cm-row">
+                            <div class="cm-group">
+                                <label class="cm-label">Discount Type <span class="req">*</span></label>
+                                <select name="discount_type" id="cp_type" class="cm-select" onchange="onTypeChange()">
+                                    <option value="percentage">Percentage (%)</option>
+                                    <option value="flat">Fixed Amount (₹)</option>
+                                </select>
+                            </div>
+                            <div class="cm-group">
+                                <label class="cm-label">Discount Value <span class="req">*</span></label>
+                                <input type="number" step="0.01" min="0.01" name="discount_value" id="cp_value" class="cm-input" required placeholder="e.g. 10">
+                                <div class="field-err" id="err_discount_value"></div>
+                            </div>
+                        </div>
+                        <div class="cm-row" id="maxRow">
+                            <div class="cm-group">
+                                <label class="cm-label">Minimum Order Value (₹)</label>
+                                <input type="number" step="0.01" min="0" name="min_order_amount" id="cp_min" class="cm-input" value="0" placeholder="0">
+                            </div>
+                            <div class="cm-group" id="maxDiscGroup">
+                                <label class="cm-label">Max Discount Cap (₹)</label>
+                                <input type="number" step="0.01" min="0" name="max_discount_amount" id="cp_max" class="cm-input" placeholder="Leave blank for no cap">
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="row-2">
-                    <div class="form-group">
-                        <label>Max Discount (₹, percentage only)</label>
-                        <input type="number" step="0.01" name="max_discount_amount" id="cp_max">
+
+                    <!-- C) APPLICABILITY -->
+                    <div class="cm-section">
+                        <div class="cm-section-title"><i class="fa-solid fa-heart"></i> C) Applicability</div>
+                        <div class="cm-row single">
+                            <div class="cm-group">
+                                <label class="cm-label">Applies To <span class="req">*</span></label>
+                                <select name="applies_to" id="cp_applies" class="cm-select">
+                                    <option value="global">All Products (Global)</option>
+                                    <option value="specific">Specific Products / Categories</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Min Order (₹)</label>
-                        <input type="number" step="0.01" name="min_order_amount" id="cp_min" value="0">
+
+                    <!-- D) USER RESTRICTIONS -->
+                    <div class="cm-section">
+                        <div class="cm-section-title"><i class="fa-solid fa-users"></i> D) User Restrictions</div>
+                        <div class="cm-row">
+                            <div class="cm-group">
+                                <label class="cm-label">Global Usage Limit <span style="color:var(--gray); font-size:.6rem; text-transform:none;">(0 = unlimited)</span></label>
+                                <input type="number" min="0" name="usage_limit" id="cp_limit" class="cm-input" value="0">
+                            </div>
+                            <div class="cm-group">
+                                <label class="cm-label">Per User Limit <span style="color:var(--gray); font-size:.6rem; text-transform:none;">(0 = unlimited)</span></label>
+                                <input type="number" min="0" name="per_user_limit" id="cp_perlimit" class="cm-input" value="0">
+                            </div>
+                        </div>
+                        <div class="cm-row single">
+                            <div class="cm-group">
+                                <div class="cm-toggle-row">
+                                    <input type="checkbox" class="tog-input" name="first_time_only" id="cp_fto" value="true">
+                                    <label class="tog-label" for="cp_fto"></label>
+                                    <span class="cm-toggle-label" style="font-size:.84rem; color:var(--white);">First-time users only</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="row-2">
-                    <div class="form-group">
-                        <label>Valid From</label>
-                        <input type="datetime-local" name="valid_from" id="cp_from" required>
+
+                    <!-- E) PAYMENT METHOD RESTRICTIONS -->
+                    <div class="cm-section">
+                        <div class="cm-section-title"><i class="fa-regular fa-credit-card"></i> E) Payment Method Restrictions</div>
+                        <div class="cm-group">
+                            <label class="cm-label">Allowed Payment Methods</label>
+                            <div class="pm-group" id="pmGroup">
+                                <label class="pm-chip" id="pm_all_chip">
+                                    <input type="checkbox" name="pm_all" id="pm_all" onchange="pmToggle('all')"> All Methods
+                                </label>
+                                <label class="pm-chip" id="pm_cod_chip">
+                                    <input type="checkbox" name="pm_cod" id="pm_cod" onchange="pmToggle('cod')"> COD
+                                </label>
+                                <label class="pm-chip" id="pm_wallet_chip">
+                                    <input type="checkbox" name="pm_wallet" id="pm_wallet" onchange="pmToggle('wallet')"> Wallet
+                                </label>
+                                <label class="pm-chip" id="pm_online_chip">
+                                    <input type="checkbox" name="pm_online" id="pm_online" onchange="pmToggle('online')"> Online
+                                </label>
+                            </div>
+                            <input type="hidden" name="payment_methods" id="cp_pm" value="all">
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Valid To</label>
-                        <input type="datetime-local" name="valid_to" id="cp_to" required>
+
+                    <!-- F) VALIDITY / DATES -->
+                    <div class="cm-section">
+                        <div class="cm-section-title"><i class="fa-regular fa-calendar"></i> F) Validity / Dates</div>
+                        <div class="cm-row">
+                            <div class="cm-group">
+                                <label class="cm-label">Start Date <span class="req">*</span></label>
+                                <input type="date" name="valid_from" id="cp_from" class="cm-input" required>
+                                <div class="field-err" id="err_valid_from"></div>
+                            </div>
+                            <div class="cm-group">
+                                <label class="cm-label">Expiry Date <span class="req">*</span></label>
+                                <input type="date" name="valid_to" id="cp_to" class="cm-input" required>
+                                <div class="field-err" id="err_valid_to"></div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label>Usage Limit (0 = unlimited)</label>
-                    <input type="number" name="usage_limit" id="cp_limit" value="0">
-                </div>
-                <div class="form-group form-check-row">
-                    <input type="checkbox" name="is_active" id="cp_active" checked>
-                    <label for="cp_active">Active</label>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="mbtn mbtn-cancel" onclick="closeCouponModal()">Cancel</button>
-                    <button type="submit" class="mbtn mbtn-gold" id="couponSubmitBtn">Add Coupon</button>
+
+                    <!-- G) ADVANCED OPTIONS -->
+                    <div class="cm-section" style="margin-bottom:0;">
+                        <div class="cm-section-title"><i class="fa-solid fa-gear"></i> G) Advanced Options</div>
+                        <div class="cm-toggle-row">
+                            <input type="checkbox" class="tog-input" name="is_active" id="cp_active" value="true">
+                            <label class="tog-label" for="cp_active"></label>
+                            <span class="cm-toggle-label">Active (enable coupon)</span>
+                        </div>
+                    </div>
+
+                </div><!-- /cm-body -->
+
+                <div class="cm-foot">
+                    <button type="button" class="cm-cancel" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="cm-save" id="couponSubmitBtn">
+                        <i class="fa-solid fa-floppy-disk"></i> <span id="submitLabel">Save Coupon</span>
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Delete Modal -->
-    <div class="modal-overlay" id="deleteModal">
-        <div class="modal-box">
-            <div class="modal-icon"><i class="fa-solid fa-trash"></i></div>
-            <h3 class="modal-title">Delete Coupon?</h3>
-            <p class="modal-desc">Delete "<span id="delName"></span>"? This cannot be undone.</p>
-            <div class="modal-actions">
-                <button class="mbtn mbtn-cancel" onclick="closeDeleteModal()">Cancel</button>
-                <a href="#" id="delLink" class="mbtn mbtn-gold">Delete</a>
+    <!-- ════════════════════════════════════════════
+         DELETE CONFIRMATION MODAL
+    ════════════════════════════════════════════ -->
+    <div class="cm-overlay" id="deleteModal">
+        <div class="del-box">
+            <div class="del-icon"><i class="fa-solid fa-trash-can"></i></div>
+            <div class="del-title">Delete Coupon?</div>
+            <p class="del-desc">Delete "<strong id="delName"></strong>"? All associated usage records will be removed. This cannot be undone.</p>
+            <div class="del-acts">
+                <button class="cm-cancel" onclick="closeDeleteModal()">Cancel</button>
+                <a href="#" id="delLink" class="cm-save" style="text-decoration:none;">
+                    <i class="fa-solid fa-trash-can"></i> Delete
+                </a>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        const ADD_URL = "{% url 'admin_coupon_add' %}";
+        const ADD_URL      = "{% url 'admin_coupon_add' %}";
         const EDIT_URL_TPL = "/admin-panel/coupons/__ID__/edit/";
         const DEL_URL_TPL  = "/admin-panel/coupons/__ID__/delete/";
+        const GEN_URL      = "{% url 'admin_coupon_generate_code' %}";
+        const TOG_URL_TPL  = "/admin-panel/coupons/__ID__/toggle/";
+        const CSRF         = "{{ csrf_token }}";
 
-        function openAddModal() {
-            document.getElementById('couponModalTitle').textContent = 'Add Coupon';
-            document.getElementById('couponSubmitBtn').textContent = 'Add Coupon';
+        /* ── Payment method chip logic ── */
+        function pmToggle(method) {
+            const all    = document.getElementById('pm_all');
+            const cod    = document.getElementById('pm_cod');
+            const wallet = document.getElementById('pm_wallet');
+            const online = document.getElementById('pm_online');
+            const hidden = document.getElementById('cp_pm');
+
+            if (method === 'all') {
+                if (all.checked) {
+                    cod.checked = false; wallet.checked = false; online.checked = false;
+                }
+            } else {
+                if (cod.checked || wallet.checked || online.checked) all.checked = false;
+            }
+
+            // build value
+            let parts = [];
+            if (all.checked) { parts = ['all']; }
+            else {
+                if (cod.checked)    parts.push('cod');
+                if (wallet.checked) parts.push('wallet');
+                if (online.checked) parts.push('online');
+                if (!parts.length) { all.checked = true; parts = ['all']; }
+            }
+            hidden.value = parts.join(',');
+
+            // update chip styles
+            ['all','cod','wallet','online'].forEach(m => {
+                const chip = document.getElementById('pm_' + m + '_chip');
+                const inp  = document.getElementById('pm_' + m);
+                chip.classList.toggle('selected', inp.checked);
+            });
+        }
+
+        function setPmValue(val) {
+            const parts = val ? val.split(',') : ['all'];
+            const all    = document.getElementById('pm_all');
+            const cod    = document.getElementById('pm_cod');
+            const wallet = document.getElementById('pm_wallet');
+            const online = document.getElementById('pm_online');
+            all.checked    = parts.includes('all');
+            cod.checked    = parts.includes('cod');
+            wallet.checked = parts.includes('wallet');
+            online.checked = parts.includes('online');
+            document.getElementById('cp_pm').value = val || 'all';
+            ['all','cod','wallet','online'].forEach(m => {
+                const chip = document.getElementById('pm_' + m + '_chip');
+                const inp  = document.getElementById('pm_' + m);
+                chip.classList.toggle('selected', inp.checked);
+            });
+        }
+
+        /* ── Show / hide max cap based on type ── */
+        function onTypeChange() {
+            const t = document.getElementById('cp_type').value;
+            document.getElementById('maxDiscGroup').style.opacity = (t === 'percentage') ? '1' : '0.4';
+        }
+
+        /* ── Generate code via AJAX ── */
+        function generateCode() {
+            fetch(GEN_URL)
+                .then(r => r.json())
+                .then(d => {
+                    document.getElementById('cp_code').value = d.code;
+                });
+        }
+
+        /* ── Open modal (add) ── */
+        function openModal(mode) {
             const f = document.getElementById('couponForm');
-            f.action = ADD_URL; f.reset();
+            f.reset();
+            document.getElementById('err_code').textContent = '';
+            document.getElementById('err_discount_value').textContent = '';
+            document.getElementById('err_valid_from').textContent = '';
+            document.getElementById('err_valid_to').textContent = '';
+
+            document.getElementById('modalIcon').className = 'fa-solid fa-ticket-simple';
+            document.getElementById('modalTitle').textContent = 'Create Coupon';
+            document.getElementById('submitLabel').textContent = 'Save Coupon';
             document.getElementById('cp_active').checked = true;
+            f.action = ADD_URL;
+            setPmValue('all');
+            onTypeChange();
             document.getElementById('couponModal').classList.add('show');
         }
 
-        function openEditModal(id, code, desc, type, value, max, min, from, to, limit, isActive) {
-            document.getElementById('couponModalTitle').textContent = 'Edit Coupon';
-            document.getElementById('couponSubmitBtn').textContent = 'Save Changes';
+        /* ── Open modal (edit) ── */
+        function openEditModal(id, code, title, desc, type, value, max, min, applies, limit, perLimit, fto, pm, from, to, isActive) {
             const f = document.getElementById('couponForm');
+            f.reset();
+            document.getElementById('modalIcon').className = 'fa-solid fa-pen-to-square';
+            document.getElementById('modalTitle').textContent = 'Edit Coupon';
+            document.getElementById('submitLabel').textContent = 'Save Coupon';
             f.action = EDIT_URL_TPL.replace('__ID__', id);
-            document.getElementById('cp_code').value = code;
-            document.getElementById('cp_desc').value = desc;
-            document.getElementById('cp_type').value = type;
-            document.getElementById('cp_value').value = value;
-            document.getElementById('cp_max').value = max;
-            document.getElementById('cp_min').value = min;
-            document.getElementById('cp_from').value = from;
-            document.getElementById('cp_to').value = to;
-            document.getElementById('cp_limit').value = limit;
-            document.getElementById('cp_active').checked = isActive;
+
+            document.getElementById('cp_code').value    = code;
+            document.getElementById('cp_title').value   = title;
+            document.getElementById('cp_desc').value    = desc;
+            document.getElementById('cp_type').value    = type;
+            document.getElementById('cp_value').value   = value;
+            document.getElementById('cp_max').value     = max;
+            document.getElementById('cp_min').value     = min;
+            document.getElementById('cp_applies').value = applies;
+            document.getElementById('cp_limit').value   = limit;
+            document.getElementById('cp_perlimit').value= perLimit;
+            document.getElementById('cp_fto').checked   = fto;
+            document.getElementById('cp_from').value    = from;
+            document.getElementById('cp_to').value      = to;
+            document.getElementById('cp_active').checked= isActive;
+            setPmValue(pm);
+            onTypeChange();
             document.getElementById('couponModal').classList.add('show');
         }
 
-        function closeCouponModal() { document.getElementById('couponModal').classList.remove('show'); }
+        function closeModal() {
+            document.getElementById('couponModal').classList.remove('show');
+        }
 
+        /* ── Delete modal ── */
         function openDeleteModal(id, name) {
             document.getElementById('delName').textContent = name;
             document.getElementById('delLink').href = DEL_URL_TPL.replace('__ID__', id);
             document.getElementById('deleteModal').classList.add('show');
         }
-        function closeDeleteModal() { document.getElementById('deleteModal').classList.remove('show'); }
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('show');
+        }
 
-        [document.getElementById('couponModal'), document.getElementById('deleteModal')].forEach(function (m) {
-            m.addEventListener('click', function (e) { if (e.target === this) this.classList.remove('show'); });
+        /* ── Toggle active ── */
+        function toggleCoupon(id, el) {
+            fetch(TOG_URL_TPL.replace('__ID__', id), {
+                method: 'POST',
+                headers: { 'X-CSRFToken': CSRF }
+            }).then(r => r.json()).then(d => {
+                el.checked = d.is_active;
+            }).catch(() => {
+                el.checked = !el.checked; // revert on error
+            });
+        }
+
+        /* ── Close on backdrop click ── */
+        document.getElementById('couponModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+        document.getElementById('deleteModal').addEventListener('click', function(e) {
+            if (e.target === this) closeDeleteModal();
         });
 
-        {% if open_modal == 'add' %}openAddModal();{% endif %}
+        /* ── Re-open modal on form error ── */
+        {% if open_modal == 'add' %}openModal('add');{% endif %}
         {% if open_modal == 'edit' and edit_coupon %}
-        openEditModal('{{ edit_coupon.id }}', '{{ edit_coupon.code|escapejs }}', '{{ edit_coupon.description|escapejs }}', '{{ edit_coupon.discount_type }}', '{{ edit_coupon.discount_value }}', '{{ edit_coupon.max_discount_amount|default:'' }}', '{{ edit_coupon.min_order_amount }}', '{{ edit_coupon.valid_from|date:'Y-m-d\TH:i' }}', '{{ edit_coupon.valid_to|date:'Y-m-d\TH:i' }}', '{{ edit_coupon.usage_limit }}', {{ edit_coupon.is_active|yesno:'true,false' }});
+        openEditModal(
+            '{{ edit_coupon.id }}',
+            '{{ edit_coupon.code|escapejs }}',
+            '{{ edit_coupon.title|default:''|escapejs }}',
+            '{{ edit_coupon.description|default:''|escapejs }}',
+            '{{ edit_coupon.discount_type }}',
+            '{{ edit_coupon.discount_value }}',
+            '{{ edit_coupon.max_discount_amount|default:'' }}',
+            '{{ edit_coupon.min_order_amount }}',
+            '{{ edit_coupon.applies_to }}',
+            '{{ edit_coupon.usage_limit }}',
+            '{{ edit_coupon.per_user_limit }}',
+            {{ edit_coupon.first_time_only|yesno:'true,false' }},
+            '{{ edit_coupon.payment_methods|default:'all' }}',
+            '{{ edit_coupon.valid_from|date:'Y-m-d' }}',
+            '{{ edit_coupon.valid_to|date:'Y-m-d' }}',
+            {{ edit_coupon.is_active|yesno:'true,false' }}
+        );
         {% endif %}
+
+        /* init type-change state */
+        onTypeChange();
     </script>
 </body>
 </html>
