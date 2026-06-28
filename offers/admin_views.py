@@ -45,6 +45,7 @@ def _list_context(request):
         "search_query": search,
         "products": Product.objects.filter(is_deleted=False).order_by("name"),
         "categories": Category.objects.filter(is_deleted=False).order_by("name"),
+        "offer_type_global": Offer.GLOBAL,
         "offer_type_product": Offer.PRODUCT,
         "offer_type_category": Offer.CATEGORY,
         "stat_total": total,

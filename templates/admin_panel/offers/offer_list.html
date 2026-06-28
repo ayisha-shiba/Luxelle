@@ -381,7 +381,9 @@
                             </td>
                             <td>
                                 <div class="off-details">
-                                    {% if offer.offer_type == offer_type_product %}
+                                    {% if offer.offer_type == offer_type_global %}
+                                        All Products
+                                    {% elif offer.offer_type == offer_type_product %}
                                         Product: {{ offer.product.name }}
                                     {% else %}
                                         Category: {{ offer.category.name }}
@@ -393,7 +395,7 @@
                             </td>
                             <td>
                                 <span class="off-target">
-                                    {% if offer.offer_type == 'product' %}Product{% else %}Category{% endif %}
+                                    {% if offer.offer_type == 'global' %}Global{% elif offer.offer_type == 'product' %}Product{% else %}Category{% endif %}
                                 </span>
                             </td>
                             <td>
@@ -509,11 +511,12 @@
                             <div class="cm-group">
                                 <label class="cm-label">Applies To <span class="req">*</span></label>
                                 <select class="cm-select" name="offer_type" id="of_type" onchange="toggleTarget()">
-                                    <option value="product">Specific Products</option>
-                                    <option value="category">Specific Categories</option>
+                                    <option value="global">All Products (Global)</option>
+                                    <option value="product">Specific Product</option>
+                                    <option value="category">Specific Category</option>
                                 </select>
                             </div>
-                            <div class="cm-group" id="panel_product">
+                            <div class="cm-group" id="panel_product" style="display:none;">
                                 <label class="cm-label">Select Product <span class="req">*</span></label>
                                 <select class="cm-select" name="product" id="of_product">
                                     <option value="">-- select product --</option>
@@ -643,7 +646,7 @@
                 title.innerHTML = '<i class="fa-solid fa-plus"></i> Create Offer';
                 form.action = ADD_URL;
                 form.reset();
-                document.getElementById('of_type').value = 'product';
+                document.getElementById('of_type').value = 'global';
             } else {
                 title.innerHTML = '<i class="fa-solid fa-pen"></i> Edit Offer';
                 form.action = EDIT_URL_TPL.replace('__ID__', id);
