@@ -116,7 +116,7 @@ def _save_m2m(coupon, request):
         )
         coupon.specific_products.clear()
 
-    else:  # global
+    else:
         coupon.specific_products.clear()
         coupon.specific_categories.clear()
 
