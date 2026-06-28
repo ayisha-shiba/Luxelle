@@ -417,7 +417,7 @@
                             <td>
                                 <div class="coupon-actions">
                                     <button type="button" class="coupon-act-btn coupon-act-btn-edit"
-                                        onclick="openOfferModal('edit', '{{ offer.id }}', '{{ offer.name|escapejs }}', '{{ offer.discount_percent }}', '{{ offer.valid_from|date:'Y-m-d' }}', '{{ offer.valid_to|date:'Y-m-d' }}')">
+                                        onclick="openOfferModal('edit', '{{ offer.id }}', '{{ offer.name|escapejs }}', '{{ offer.discount_percent }}', '{{ offer.valid_from|date:'Y-m-d' }}', '{{ offer.valid_to|date:'Y-m-d' }}', '{{ offer.offer_type }}', '{{ offer.product_id|default:'' }}', '{{ offer.category_id|default:'' }}')">
                                         <i class="fa-solid fa-pen-to-square"></i> Edit
                                     </button>
                                     <button type="button" class="coupon-act-btn coupon-act-btn-del" onclick="openDeleteModal('{{ offer.id }}', '{{ offer.name|escapejs }}')">
@@ -508,17 +508,23 @@
                         <div class="cm-row">
                             <div class="cm-group">
                                 <label class="cm-label">Applies To <span class="req">*</span></label>
-                                <select class="cm-select" name="offer_type">
-                                    <option value="product">All Products (Global)</option>
+                                <select class="cm-select" name="offer_type" id="of_type" onchange="toggleTarget()">
                                     <option value="product">Specific Products</option>
                                     <option value="category">Specific Categories</option>
-                                    <option value="category">Specific Brands</option>
                                 </select>
                             </div>
-                            <div class="cm-group">
-                                <label class="cm-label">Select Categories <span class="req">*</span></label>
-                                <select class="cm-select">
-                                    <option>Search and select...</option>
+                            <div class="cm-group" id="panel_product">
+                                <label class="cm-label">Select Product <span class="req">*</span></label>
+                                <select class="cm-select" name="product" id="of_product">
+                                    <option value="">-- select product --</option>
+                                    {% for p in products %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div class="cm-group" id="panel_category" style="display:none;">
+                                <label class="cm-label">Select Category <span class="req">*</span></label>
+                                <select class="cm-select" name="category" id="of_category">
+                                    <option value="">-- select category --</option>
+                                    {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
                                 </select>
                             </div>
                         </div>
@@ -624,13 +630,20 @@
         const EDIT_URL_TPL = "/admin-panel/offers/__ID__/edit/";
         const DEL_URL_TPL  = "/admin-panel/offers/__ID__/delete/";
 
-        function openOfferModal(mode, id, name, discount, start, end) {
+        function toggleTarget() {
+            const t = document.getElementById('of_type').value;
+            document.getElementById('panel_product').style.display  = (t === 'product')  ? 'block' : 'none';
+            document.getElementById('panel_category').style.display = (t === 'category') ? 'block' : 'none';
+        }
+
+        function openOfferModal(mode, id, name, discount, start, end, type, productId, categoryId) {
             const form = document.getElementById('offerForm');
             const title = document.getElementById('modalTitle');
             if (mode === 'add') {
                 title.innerHTML = '<i class="fa-solid fa-plus"></i> Create Offer';
                 form.action = ADD_URL;
                 form.reset();
+                document.getElementById('of_type').value = 'product';
             } else {
                 title.innerHTML = '<i class="fa-solid fa-pen"></i> Edit Offer';
                 form.action = EDIT_URL_TPL.replace('__ID__', id);
@@ -638,7 +651,11 @@
                 document.getElementById('off_discount').value = discount || '';
                 document.getElementById('off_start').value = start || '';
                 document.getElementById('off_end').value = end || '';
+                document.getElementById('of_type').value = type || 'product';
+                document.getElementById('of_product').value = productId || '';
+                document.getElementById('of_category').value = categoryId || '';
             }
+            toggleTarget();
             document.getElementById('offerModal').classList.add('show');
         }
 
