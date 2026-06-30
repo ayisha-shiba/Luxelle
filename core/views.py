@@ -44,7 +44,7 @@ from .forms import (
     SetNewPasswordForm,
     UserProfileForm,
 )
-from .models import Address, CustomUser, UserProfile, OTPVerification, Product, Category, Brand, Review, Wishlist, Cart, CartItem, ProductVariant, Order, OrderItem, OrderStatusEvent, ReferralCode, Referral
+from .models import Address, CustomUser, UserProfile, OTPVerification, Product, Category, Brand, Review, Wishlist, Cart, CartItem, ProductVariant, Order, OrderItem, OrderStatusEvent
 from . import pricing
 from wallet import services as wallet_services
 from django.conf import settings
@@ -98,71 +98,6 @@ def _get_pending_otp_resend_seconds_remaining(request):
     except (ValueError, TypeError):
         return 0
 
-
-# REFERRAL REWARDS
-
-@transaction.atomic
-def apply_referral_reward(new_user, code):
-    """Credit both the referrer and the new user's wallets after successful sign-up.
-
-    Uses select_for_update on the Referral row to prevent a race condition
-    where two concurrent requests could both issue the reward.  The function is
-    safe to call multiple times — it is a no-op if the referral is already marked
-    as rewarded.
-    """
-    reward_amount = getattr(settings, "REFERRAL_REWARD_AMOUNT", 100)
-
-    try:
-        ref_code_obj = ReferralCode.objects.select_related("user").get(code=code)
-    except ReferralCode.DoesNotExist:
-        logger.warning(f"[REFERRAL] Code '{code}' not found when trying to reward {new_user.email}")
-        return
-
-    referrer = ref_code_obj.user
-
-    # Guard: should never happen since form validates this, but be defensive
-    if referrer == new_user:
-        logger.warning(f"[REFERRAL] Self-referral attempt by {new_user.email} — skipping reward.")
-        return
-
-    # Guard: check if referrer is active
-    if not referrer.is_active:
-        logger.warning(f"[REFERRAL] Referrer {referrer.email} is inactive — skipping reward for {new_user.email}.")
-        return
-
-    # get_or_create ensures idempotency; select_for_update prevents double-credit races
-    referral, created = Referral.objects.get_or_create(
-        referrer=referrer,
-        referee=new_user,
-    )
-
-    # Lock the row before reading the rewarded flag
-    referral = Referral.objects.select_for_update().get(pk=referral.pk)
-
-    if referral.rewarded:
-        logger.info(f"[REFERRAL] Already rewarded for {referrer.email} → {new_user.email}, skipping.")
-        return
-
-    # Credit the referrer's wallet
-    wallet_services.credit(
-        user=referrer,
-        amount=reward_amount,
-        reason=f"Referral reward — {new_user.get_full_name() or new_user.email} joined using your code",
-    )
-
-    # Credit the new user's (referee) wallet
-    wallet_services.credit(
-        user=new_user,
-        amount=reward_amount,
-        reason=f"Welcome referral bonus — referred by {referrer.get_full_name() or referrer.email}",
-    )
-
-    referral.rewarded = True
-    referral.save(update_fields=["rewarded"])
-
-    logger.info(
-        f"[REFERRAL] Rewarded ₹{reward_amount} to both {referrer.email} and {new_user.email}"
-    )
 
 
 # HOME
@@ -343,10 +278,6 @@ def verify_otp_view(request):
                 user.is_verified = True
                 user.save(update_fields=["is_active", "is_verified"])
 
-                # Apply referral reward if a valid code was submitted
-                referral_code = registration_data.get("referral_code", "")
-                if referral_code:
-                    apply_referral_reward(user, referral_code)
 
             except Exception as exc:
                 logger.error(f"[VERIFY_OTP] Failed to create user: {exc}")

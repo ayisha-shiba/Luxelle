@@ -6,7 +6,7 @@ from django.utils import timezone
 from decimal import Decimal
 import re
 
-from .models import CustomUser, UserProfile, Address, Category, Product, ProductVariant, Brand, Material, ReferralCode
+from .models import CustomUser, UserProfile, Address, Category, Product, ProductVariant, Brand, Material
 
 PRODUCT_NAME_RE = re.compile(r"^[A-Za-z0-9 '\-]+$")
 HEX_COLOR_RE    = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -174,25 +174,26 @@ class RegistrationForm(forms.ModelForm):
         """Validate the optional referral code.
         - Empty → pass through (no referral).
         - Normalise to uppercase.
-        - Must match an existing ReferralCode.
+        - Must match an existing ReferralProfile.
         - Cannot be the referrer's own code (check against submitted email).
         """
         code = self.cleaned_data.get("referral_code", "").strip().upper()
         if not code:
             return ""
 
+        from offers.models import ReferralProfile
         try:
-            ref_code_obj = ReferralCode.objects.select_related("user").get(code=code)
-        except ReferralCode.DoesNotExist:
+            ref_profile = ReferralProfile.objects.select_related("user").get(code=code)
+        except ReferralProfile.DoesNotExist:
             raise forms.ValidationError("Invalid referral code. Please check and try again.")
 
         # Ensure the code belongs to an active user
-        if not ref_code_obj.user.is_active:
+        if not ref_profile.user.is_active:
             raise forms.ValidationError("This referral code is no longer valid or belongs to an inactive user.")
 
         # Prevent self-referral: compare against the email being registered.
         submitted_email = self.cleaned_data.get("email", "").lower()
-        if ref_code_obj.user.email.lower() == submitted_email:
+        if ref_profile.user.email.lower() == submitted_email:
             raise forms.ValidationError("You cannot use your own referral code.")
 
         return code
