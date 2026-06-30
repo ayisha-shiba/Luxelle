@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Luxelle Analytics Report — {{ period_label }}</title>
+    <style>
+        @page { margin: 1.5cm 2cm; }
+        body { font-family: Helvetica, Arial, sans-serif; color: #1a1a1a; font-size: 10pt; margin: 0; }
+        h1 { font-size: 18pt; color: #c5a059; margin: 0 0 4pt; }
+        .subtitle { font-size: 8pt; color: #777; margin-bottom: 16pt; }
+        .header-bar { border-bottom: 2px solid #c5a059; padding-bottom: 10pt; margin-bottom: 16pt; }
+        .brand { font-size: 10pt; color: #555; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
+        h2 { font-size: 11pt; color: #c5a059; margin: 18pt 0 8pt; border-bottom: 1px solid #eee; padding-bottom: 4pt; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 12pt; }
+        th { background: #c5a059; color: #fff; padding: 6pt 8pt; font-size: 8pt; text-align: left; font-weight: bold; }
+        td { padding: 5pt 8pt; font-size: 9pt; border-bottom: 1px solid #f0f0f0; }
+        tr:nth-child(even) td { background: #fafafa; }
+        .kv-table td:first-child { font-weight: bold; color: #444; width: 50%; }
+        .kv-table td:last-child { color: #c5a059; font-weight: bold; text-align: right; }
+        .footer { margin-top: 20pt; border-top: 1px solid #ddd; padding-top: 8pt; font-size: 7pt; color: #aaa; text-align: center; }
+        .col:last-child { padding-right: 0; padding-left: 10pt; }
+        .footer { margin-top: 20pt; border-top: 1px solid #ddd; padding-top: 8pt; font-size: 7pt; color: #aaa; text-align: center; }
+        .badge { display: inline-block; padding: 2pt 6pt; border-radius: 4pt; font-size: 7pt; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <div class="brand">Luxelle Admin Panel</div>
+        <h1>Analytics &amp; Reports</h1>
+        <div class="subtitle">
+            Period: <strong>{{ period_label }}</strong> &nbsp;|&nbsp;
+            From: <strong>{{ start|date:"d M Y" }}</strong> &nbsp;–&nbsp;
+            To: <strong>{{ end|date:"d M Y" }}</strong> &nbsp;|&nbsp;
+            Generated: <strong>{% now "d M Y, H:i" %}</strong>
+        </div>
+    </div>
+
+    <!-- Sales Summary -->
+    <h2>Sales Summary</h2>
+    <table class="kv-table">
+        <tr><td>Gross Sales</td><td>₹{{ gross_sales|floatformat:2 }}</td></tr>
+        <tr><td>Net Revenue</td><td>₹{{ net_revenue|floatformat:2 }}</td></tr>
+        <tr><td>Product Discounts</td><td>₹{{ discounts|floatformat:2 }}</td></tr>
+        <tr><td>Coupon Discounts</td><td>₹{{ coupon_disc|floatformat:2 }}</td></tr>
+        <tr><td>Taxes (GST)</td><td>₹{{ taxes|floatformat:2 }}</td></tr>
+        <tr><td>Delivery Charges</td><td>₹{{ delivery|floatformat:2 }}</td></tr>
+        <tr><td>Total Orders</td><td>{{ order_count }}</td></tr>
+    </table>
+
+    <!-- Best Selling Products -->
+    <h2>Best Selling Products</h2>
+    {% if top_products %}
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Product Name</th>
+                <th>SKU</th>
+                <th>Units Sold</th>
+                <th>Revenue (₹)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in top_products %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ p.variant__product__name }}</td>
+                <td>{{ p.sku }}</td>
+                <td>{{ p.units_sold }}</td>
+                <td>{{ p.revenue|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}<p style="color:#999;font-size:9pt;">No product data for this period.</p>{% endif %}
+
+    <!-- Top Categories -->
+    <h2>Revenue by Category</h2>
+    {% if top_categories %}
+    <table>
+        <thead><tr><th>#</th><th>Category</th><th>Revenue (₹)</th></tr></thead>
+        <tbody>
+            {% for c in top_categories %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ c.variant__product__category__name }}</td>
+                <td>{{ c.revenue|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}<p style="color:#999;font-size:9pt;">No category data.</p>{% endif %}
+
+    <!-- Payment Method Summary -->
+    <h2>Payment Method Summary</h2>
+    <table>
+        <thead><tr><th>Payment Method</th><th>Order Count</th></tr></thead>
+        <tbody>
+            {% for p in pay_summary %}
+            <tr><td>{{ p.label }}</td><td>{{ p.count }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Order Status Summary -->
+    <h2>Order Status Summary</h2>
+    <table>
+        <thead><tr><th>Status</th><th>Item Count</th></tr></thead>
+        <tbody>
+            {% for s in order_status_summary %}
+            <tr><td>{{ s.label }}</td><td>{{ s.count }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        Luxelle Admin &mdash; Confidential Report &mdash; Generated {{ now|date:"d M Y, H:i" }}
+    </div>
+</body>
+</html>
