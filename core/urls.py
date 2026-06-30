@@ -107,4 +107,9 @@ urlpatterns = [
     path("admin-panel/forgot-password/otp/", admin_views.admin_forgot_password_otp_view, name="admin_forgot_password_otp"),
     path("admin-panel/forgot-password/resend/", admin_views.admin_resend_forgot_password_otp_view, name="admin_resend_forgot_password_otp"),
     path("admin-panel/forgot-password/reset/", admin_views.admin_reset_password_view, name="admin_reset_password"),
+
+    # Analytics & Reports
+    path("admin-panel/analytics/", admin_views.admin_analytics_view, name="admin_analytics"),
+    path("admin-panel/analytics/export/pdf/", admin_views.admin_analytics_pdf_view, name="admin_analytics_pdf"),
+    path("admin-panel/analytics/export/excel/", admin_views.admin_analytics_excel_view, name="admin_analytics_excel"),
 ]

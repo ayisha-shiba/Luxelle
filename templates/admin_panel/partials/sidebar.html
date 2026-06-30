@@ -1,5 +1,23 @@
-<aside class="sidebar">
-    <div class="sidebar-brand"><h2>LUXELLE</h2><span>Admin Control Panel</span></div>
+<!-- Mobile Navigation Header -->
+<header class="admin-mobile-header">
+    <button class="mobile-nav-toggle" id="mobileNavToggleBtn" aria-label="Toggle Sidebar Menu">
+        <i class="fa-solid fa-bars"></i>
+    </button>
+    <div class="mobile-brand">LUXELLE</div>
+    <div class="mobile-avatar" onclick="openLogoutModal()">AS</div>
+</header>
+
+<!-- Sidebar Backdrop Overlay -->
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+<aside class="sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+        <h2>LUXELLE</h2>
+        <span>Admin Control Panel</span>
+        <button class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="Close Sidebar Menu">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
     <nav class="sidebar-nav">
         <div class="nav-section">
             <a href="{% url 'admin_dashboard' %}" class="nav-item {% if active == 'dashboard' %}active{% endif %}"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
@@ -11,7 +29,7 @@
             <a href="{% url 'admin_offers' %}" class="nav-item {% if active == 'offers' %}active{% endif %}"><i class="fa-solid fa-tag"></i> Offers</a>
             <a href="{% url 'admin_coupons' %}" class="nav-item {% if active == 'coupons' %}active{% endif %}"><i class="fa-solid fa-ticket"></i> Coupons</a>
             <a href="{% url 'admin_users' %}" class="nav-item {% if active == 'users' %}active{% endif %}"><i class="fa-solid fa-users"></i> Users</a>
-            <a class="nav-item {% if active == 'analytics' %}active{% endif %}"><i class="fa-solid fa-chart-line"></i> Analytics</a>
+            <a href="{% url 'admin_analytics' %}" class="nav-item {% if active == 'analytics' %}active{% endif %}"><i class="fa-solid fa-chart-line"></i> Analytics</a>
             <a href="javascript:void(0);" onclick="openLogoutModal()" class="nav-item {% if active == 'logout' %}active{% endif %}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
         </div>
     </nav>
@@ -37,6 +55,90 @@
 </div>
 
 <style>
+    /* Mobile Header Style */
+    .admin-mobile-header {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 60px;
+        background: #0f0f0f;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        z-index: 140;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 1.25rem;
+        backdrop-filter: blur(12px);
+    }
+
+    .mobile-nav-toggle {
+        background: transparent;
+        border: none;
+        color: #c5a059;
+        font-size: 1.25rem;
+        cursor: pointer;
+        padding: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .mobile-brand {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: 0.15em;
+        color: #c5a059;
+    }
+
+    .mobile-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #c5a059, #8b6914);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.75rem;
+        color: #0b0b0b;
+        cursor: pointer;
+    }
+
+    .sidebar-close-btn {
+        display: none;
+        background: transparent;
+        border: none;
+        color: #888;
+        font-size: 1.2rem;
+        cursor: pointer;
+        padding: 0.5rem;
+    }
+
+    .sidebar-close-btn:hover {
+        color: #e74c3c;
+    }
+
+    .sidebar-backdrop {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 145;
+        backdrop-filter: blur(4px);
+        transition: opacity 0.3s ease;
+        opacity: 0;
+    }
+    
+    .sidebar-backdrop.show {
+        display: block;
+        opacity: 1;
+    }
+
     .modal-overlay {
         display: none;
         position: fixed;
@@ -140,6 +242,137 @@
         transform: translateY(-2px);
         box-shadow: 0 8px 20px rgba(197, 160, 89, 0.3);
     }
+
+    /* Media query to override styles layout on mobile screens */
+    @media (max-width: 768px) {
+        .admin-mobile-header {
+            display: flex;
+        }
+
+        body {
+            padding-top: 60px !important;
+            display: block !important;
+        }
+
+        .sidebar {
+            position: fixed !important;
+            top: 0 !important;
+            left: -260px !important;
+            width: 260px !important;
+            height: 100vh !important;
+            z-index: 150 !important;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            transform: translateX(0) !important;
+            display: flex !important; /* Ensure it is visible when toggled */
+        }
+
+        .sidebar.show {
+            transform: translateX(260px) !important;
+            box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .sidebar-close-btn {
+            display: block;
+            position: absolute;
+            right: 1.25rem;
+            top: 1.5rem;
+        }
+
+        .main {
+            margin-left: 0 !important;
+            padding: 1.5rem 1.25rem !important;
+            width: 100% !important;
+        }
+
+        /* Top actions / button controls wrap nicely */
+        .top-bar {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 1.25rem !important;
+            margin-bottom: 1.5rem !important;
+        }
+        
+        .top-actions {
+            width: 100% !important;
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 0.75rem !important;
+        }
+
+        .top-actions > * {
+            flex: 1 !important;
+            justify-content: center !important;
+            min-width: 120px !important;
+            text-align: center !important;
+        }
+
+        /* Stats Row Cards */
+        .stats-row {
+            grid-template-columns: 1fr !important;
+            gap: 1.25rem !important;
+            margin-bottom: 1.5rem !important;
+        }
+
+        /* Responsive Form layouts */
+        .fm-row {
+            grid-template-columns: 1fr !important;
+            gap: 0.75rem !important;
+        }
+
+        /* Filter layouts */
+        .filter-bar {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 0.75rem !important;
+            width: 100% !important;
+        }
+
+        .filter-bar > * {
+            width: 100% !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+
+        .search-box {
+            min-width: 100% !important;
+        }
+
+        /* Modal resizing on mobile */
+        .modal-box, .form-modal-box {
+            width: 95% !important;
+            padding: 1.5rem !important;
+            max-height: 90vh !important;
+            overflow-y: auto !important;
+        }
+        
+        .modal-actions {
+            flex-direction: column !important;
+            gap: 0.75rem !important;
+        }
+        
+        .modal-actions .mbtn {
+            width: 100% !important;
+            text-align: center !important;
+        }
+
+        /* Pagination alignments */
+        .pagination-bar {
+            flex-direction: column !important;
+            gap: 1rem !important;
+            text-align: center !important;
+        }
+        
+        /* Table panels container scrolls horizontally cleanly */
+        .panel {
+            padding: 1rem !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .users-table, .orders-table {
+            min-width: 600px !important;
+        }
+    }
 </style>
 
 <script>
@@ -155,6 +388,37 @@
     document.getElementById('logoutModal').addEventListener('click', function(e) {
         if (e.target === this) {
             closeLogoutModal();
+        }
+    });
+
+    // Mobile Sidebar Drawer Actions
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleBtn = document.getElementById('mobileNavToggleBtn');
+        const closeBtn = document.getElementById('sidebarCloseBtn');
+        const backdrop = document.getElementById('sidebarBackdrop');
+        const sidebar = document.getElementById('adminSidebar');
+
+        if (toggleBtn && sidebar && backdrop) {
+            toggleBtn.addEventListener('click', function() {
+                sidebar.classList.add('show');
+                backdrop.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            });
+        }
+
+        function closeMobileSidebar() {
+            if (sidebar && backdrop) {
+                sidebar.classList.remove('show');
+                backdrop.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+        }
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', closeMobileSidebar);
+        }
+        if (backdrop) {
+            backdrop.addEventListener('click', closeMobileSidebar);
         }
     });
 </script>

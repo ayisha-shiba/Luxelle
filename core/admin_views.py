@@ -1393,3 +1393,679 @@ def admin_return_reallow_view(request, item_id):
     item.order.recalculate_totals()
     messages.success(request, f"{item.product_name}: the customer may request a return again.")
     return redirect("admin_returns")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ANALYTICS & REPORTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _get_analytics_period(request):
+    """Parse GET params and return (period, period_label, start, end, prev_start, prev_end,
+    start_date_str, end_date_str)."""
+    import datetime as dt
+    from django.utils import timezone
+
+    today  = timezone.now().date()
+    now    = timezone.now()
+    period = request.GET.get("period", "month")
+    start_date_str = request.GET.get("start_date", "")
+    end_date_str   = request.GET.get("end_date", "")
+
+    def make_aware(d):
+        return timezone.make_aware(dt.datetime.combine(d, dt.time.min))
+
+    if period == "today":
+        start      = make_aware(today)
+        end        = now
+        prev_start = make_aware(today - dt.timedelta(days=1))
+        prev_end   = start
+        label      = "Today"
+
+    elif period == "week":
+        week_start = today - dt.timedelta(days=today.weekday())
+        start      = make_aware(week_start)
+        end        = now
+        prev_start = make_aware(week_start - dt.timedelta(weeks=1))
+        prev_end   = start
+        label      = "This Week"
+
+    elif period == "year":
+        start      = make_aware(dt.date(today.year, 1, 1))
+        end        = now
+        prev_start = make_aware(dt.date(today.year - 1, 1, 1))
+        prev_end   = start
+        label      = "This Year"
+
+    elif period == "custom" and start_date_str and end_date_str:
+        try:
+            _s = dt.datetime.strptime(start_date_str, "%Y-%m-%d").date()
+            _e = dt.datetime.strptime(end_date_str, "%Y-%m-%d").date()
+            start      = make_aware(_s)
+            end        = make_aware(_e + dt.timedelta(days=1))
+            delta      = end - start
+            prev_start = start - delta
+            prev_end   = start
+            label      = f"{start_date_str} – {end_date_str}"
+        except ValueError:
+            period = "month"
+
+    if period == "month":
+        start = make_aware(dt.date(today.year, today.month, 1))
+        end   = now
+        prev_m = today.month - 1 or 12
+        prev_y = today.year if today.month > 1 else today.year - 1
+        prev_start = make_aware(dt.date(prev_y, prev_m, 1))
+        prev_end   = start
+        label      = "This Month"
+
+    return period, label, start, end, prev_start, prev_end, start_date_str, end_date_str
+
+
+@admin_required
+def admin_analytics_view(request):
+    import json
+    import datetime as dt
+    from decimal import Decimal
+    from django.db.models import Sum, Count, Avg, Q
+    from django.db.models.functions import TruncDate, TruncMonth
+    from .models import ProductVariant
+
+    period, period_label, start, end, prev_start, prev_end, start_date_str, end_date_str = (
+        _get_analytics_period(request)
+    )
+
+    # ── Base querysets ────────────────────────────────────────────────────────
+    all_orders    = Order.objects.all()
+    period_orders = all_orders.filter(created_at__gte=start, created_at__lte=end)
+    prev_orders   = all_orders.filter(created_at__gte=prev_start, created_at__lte=prev_end)
+    all_items     = OrderItem.objects.select_related("order", "variant__product__category", "variant__product__brand")
+    period_items  = all_items.filter(order__created_at__gte=start, order__created_at__lte=end)
+
+    _D0 = Decimal("0")
+
+    # ── Overview KPIs ─────────────────────────────────────────────────────────
+    total_revenue = (
+        all_orders
+        .exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
+        .aggregate(s=Sum("total"))["s"] or _D0
+    )
+    total_orders    = all_orders.count()
+    total_customers = CustomUser.objects.filter(is_staff=False).count()
+    total_products  = Product.objects.filter(is_deleted=False).count()
+
+    delivered_count = OrderItem.objects.filter(status=OrderItem.STATUS_DELIVERED).values("order").distinct().count()
+    pending_count   = OrderItem.objects.filter(status=OrderItem.STATUS_PENDING).values("order").distinct().count()
+    cancelled_count = OrderItem.objects.filter(status=OrderItem.STATUS_CANCELLED).values("order").distinct().count()
+    returned_count  = OrderItem.objects.filter(status=OrderItem.STATUS_RETURNED).values("order").distinct().count()
+
+    try:
+        from wallet.models import Wallet
+        total_wallet_balance = Wallet.objects.aggregate(s=Sum("balance"))["s"] or _D0
+    except Exception:
+        total_wallet_balance = _D0
+
+    aov = (
+        all_orders
+        .exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
+        .aggregate(a=Avg("total"))["a"] or _D0
+    )
+
+    # ── Sales Analytics (period) ──────────────────────────────────────────────
+    agg = period_orders.aggregate(
+        gross_sales  = Sum("subtotal"),
+        net_revenue  = Sum("total"),
+        discounts    = Sum("discount"),
+        coupon_disc  = Sum("coupon_discount"),
+        taxes        = Sum("tax"),
+        delivery     = Sum("shipping"),
+        order_count  = Count("id"),
+    )
+    gross_sales  = agg["gross_sales"]  or _D0
+    net_revenue  = agg["net_revenue"]  or _D0
+    discounts    = agg["discounts"]    or _D0
+    coupon_disc  = agg["coupon_disc"]  or _D0
+    taxes        = agg["taxes"]        or _D0
+    delivery     = agg["delivery"]     or _D0
+    order_count  = agg["order_count"]  or 0
+
+    prev_net = prev_orders.aggregate(s=Sum("total"))["s"] or _D0
+    if prev_net > 0:
+        growth_pct = round(float((net_revenue - prev_net) / prev_net * 100), 1)
+    else:
+        growth_pct = 100.0 if net_revenue > 0 else 0.0
+
+    # ── Chart Data ────────────────────────────────────────────────────────────
+    daily_qs = (
+        period_orders
+        .annotate(day=TruncDate("created_at"))
+        .values("day")
+        .annotate(revenue=Sum("total"), orders=Count("id"))
+        .order_by("day")
+    )
+    chart_labels  = [str(d["day"]) for d in daily_qs]
+    chart_revenue = [float(d["revenue"] or 0) for d in daily_qs]
+    chart_orders  = [int(d["orders"] or 0) for d in daily_qs]
+
+    today_dt = dt.date.today()
+    twelve_ago = dt.date(
+        today_dt.year - 1 if today_dt.month > 1 else today_dt.year - 2,
+        today_dt.month - 1 if today_dt.month > 1 else 12,
+        1,
+    )
+    from django.utils import timezone as tz
+    monthly_qs = (
+        all_orders
+        .filter(created_at__gte=tz.make_aware(dt.datetime(twelve_ago.year, twelve_ago.month, 1)))
+        .annotate(month=TruncMonth("created_at"))
+        .values("month")
+        .annotate(revenue=Sum("total"))
+        .order_by("month")
+    )
+    monthly_labels  = [d["month"].strftime("%b %Y") for d in monthly_qs]
+    monthly_revenue = [float(d["revenue"] or 0) for d in monthly_qs]
+
+    cat_qs = (
+        period_items
+        .filter(variant__product__category__isnull=False)
+        .values("variant__product__category__name")
+        .annotate(revenue=Sum("line_total"))
+        .order_by("-revenue")[:8]
+    )
+    cat_labels  = [d["variant__product__category__name"] for d in cat_qs]
+    cat_revenue = [float(d["revenue"] or 0) for d in cat_qs]
+
+    brand_qs = (
+        period_items
+        .filter(variant__product__brand__isnull=False)
+        .values("variant__product__brand__name")
+        .annotate(revenue=Sum("line_total"))
+        .order_by("-revenue")[:8]
+    )
+    brand_labels  = [d["variant__product__brand__name"] for d in brand_qs]
+    brand_revenue = [float(d["revenue"] or 0) for d in brand_qs]
+
+    pay_qs = (
+        period_orders
+        .values("payment_method")
+        .annotate(count=Count("id"))
+        .order_by("-count")
+    )
+    pm_map          = dict(Order.PAYMENT_CHOICES)
+    payment_labels  = [pm_map.get(d["payment_method"], d["payment_method"]) for d in pay_qs]
+    payment_counts  = [d["count"] for d in pay_qs]
+
+    stat_qs = (
+        period_items
+        .values("status")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:8]
+    )
+    st_map        = dict(OrderItem.STATUS_CHOICES)
+    status_labels = [st_map.get(d["status"], d["status"]) for d in stat_qs]
+    status_counts = [d["count"] for d in stat_qs]
+
+    # ── Product Analytics ─────────────────────────────────────────────────────
+    raw_top = (
+        period_items
+        .filter(variant__isnull=False)
+        .values("variant__id", "variant__product__name", "sku")
+        .annotate(units_sold=Sum("quantity"), revenue=Sum("line_total"))
+        .order_by("-units_sold")[:10]
+    )
+    top_products_list = []
+    for p in raw_top:
+        try:
+            v     = ProductVariant.objects.prefetch_related("images").get(id=p["variant__id"])
+            img   = v.images.filter(is_primary=True).first() or v.images.first()
+            stock = v.stock
+            img_url = img.image.url if img else None
+        except ProductVariant.DoesNotExist:
+            stock = 0; img_url = None
+        top_products_list.append({
+            "name":       p["variant__product__name"],
+            "sku":        p["sku"],
+            "units_sold": p["units_sold"],
+            "revenue":    p["revenue"] or _D0,
+            "stock":      stock,
+            "image":      img_url,
+        })
+
+    # ── Category & Brand tables ───────────────────────────────────────────────
+    top_categories = list(
+        period_items
+        .filter(variant__product__category__isnull=False)
+        .values("variant__product__category__name")
+        .annotate(units=Sum("quantity"), revenue=Sum("line_total"))
+        .order_by("-revenue")[:10]
+    )
+    top_brands = list(
+        period_items
+        .filter(variant__product__brand__isnull=False)
+        .values("variant__product__brand__name")
+        .annotate(units=Sum("quantity"), revenue=Sum("line_total"))
+        .order_by("-revenue")[:10]
+    )
+
+    # ── Customer Analytics ────────────────────────────────────────────────────
+    total_cust  = CustomUser.objects.filter(is_staff=False).count()
+    new_cust    = CustomUser.objects.filter(is_staff=False, date_joined__gte=start, date_joined__lte=end).count()
+    active_cust = period_orders.values("user").distinct().count()
+    repeat_cust = (
+        Order.objects
+        .values("user")
+        .annotate(c=Count("id"))
+        .filter(c__gt=1)
+        .count()
+    )
+    top_spenders = list(
+        period_orders
+        .values("user__email", "user__full_name")
+        .annotate(total_spent=Sum("total"), order_count=Count("id"))
+        .order_by("-total_spent")[:10]
+    )
+
+    # ── Order Analytics ───────────────────────────────────────────────────────
+    order_statuses = [
+        ("pending",          "Pending"),
+        ("confirmed",        "Confirmed"),
+        ("packed",           "Packed"),
+        ("shipped",          "Shipped"),
+        ("out_for_delivery", "Out for Delivery"),
+        ("delivered",        "Delivered"),
+        ("cancelled",        "Cancelled"),
+        ("return_requested", "Return Requested"),
+        ("returned",         "Returned"),
+    ]
+    order_status_counts = []
+    for st_val, st_label in order_statuses:
+        cnt = OrderItem.objects.filter(
+            order__created_at__gte=start,
+            order__created_at__lte=end,
+            status=st_val,
+        ).count()
+        order_status_counts.append({"label": st_label, "count": cnt})
+
+    try:
+        from payments.models import Payment
+        failed_payments     = Payment.objects.filter(status=Payment.STATUS_FAILED).count()
+        successful_payments = Payment.objects.filter(status=Payment.STATUS_PAID).count()
+    except Exception:
+        failed_payments = successful_payments = 0
+
+    # ── Inventory Analytics ───────────────────────────────────────────────────
+    active_products_count   = Product.objects.filter(is_deleted=False, is_listed=True).count()
+    inactive_products_count = Product.objects.filter(is_deleted=False, is_listed=False).count()
+    low_stock_count         = ProductVariant.objects.filter(is_deleted=False, stock__gt=0, stock__lte=10).count()
+    out_of_stock_count      = ProductVariant.objects.filter(is_deleted=False, stock=0).count()
+    recent_products         = (
+        Product.objects
+        .filter(is_deleted=False)
+        .select_related("category", "brand")
+        .prefetch_related("variants__images")
+        .order_by("-created_at")[:8]
+    )
+
+    # ── Coupon Analytics ──────────────────────────────────────────────────────
+    try:
+        from coupons.models import Coupon, CouponUsage
+        coupons_created       = Coupon.objects.count()
+        coupons_used          = CouponUsage.objects.filter(used_at__gte=start, used_at__lte=end).values("coupon").distinct().count()
+        total_coupon_discount = period_orders.aggregate(s=Sum("coupon_discount"))["s"] or _D0
+        most_used             = (
+            CouponUsage.objects
+            .filter(used_at__gte=start, used_at__lte=end)
+            .values("coupon__code")
+            .annotate(uses=Count("id"))
+            .order_by("-uses")
+            .first()
+        )
+        most_used_coupon = most_used["coupon__code"] if most_used else "—"
+    except Exception:
+        coupons_created = coupons_used = 0
+        total_coupon_discount = _D0
+        most_used_coupon = "—"
+
+    # ── Payment Analytics ─────────────────────────────────────────────────────
+    razorpay_orders = period_orders.filter(payment_method=Order.PAYMENT_RAZORPAY).count()
+    cod_orders      = period_orders.filter(payment_method=Order.PAYMENT_COD).count()
+    wallet_orders   = period_orders.filter(payment_method=Order.PAYMENT_WALLET).count()
+
+    context = {
+        "active":        "analytics",
+        "period":        period,
+        "period_label":  period_label,
+        "start_date":    start_date_str,
+        "end_date":      end_date_str,
+        # Overview
+        "total_revenue":       total_revenue,
+        "total_orders":        total_orders,
+        "total_customers":     total_customers,
+        "total_products":      total_products,
+        "delivered_count":     delivered_count,
+        "pending_count":       pending_count,
+        "cancelled_count":     cancelled_count,
+        "returned_count":      returned_count,
+        "total_wallet_balance":total_wallet_balance,
+        "aov":                 aov,
+        # Sales
+        "gross_sales":    gross_sales,
+        "net_revenue":    net_revenue,
+        "discounts":      discounts,
+        "coupon_disc":    coupon_disc,
+        "taxes":          taxes,
+        "delivery":       delivery,
+        "order_count":    order_count,
+        "growth_pct":     growth_pct,
+        # Charts (JSON-safe)
+        "chart_labels":    json.dumps(chart_labels),
+        "chart_revenue":   json.dumps(chart_revenue),
+        "chart_orders":    json.dumps(chart_orders),
+        "monthly_labels":  json.dumps(monthly_labels),
+        "monthly_revenue": json.dumps(monthly_revenue),
+        "cat_labels":      json.dumps(cat_labels),
+        "cat_revenue":     json.dumps(cat_revenue),
+        "brand_labels":    json.dumps(brand_labels),
+        "brand_revenue":   json.dumps(brand_revenue),
+        "payment_labels":  json.dumps(payment_labels),
+        "payment_counts":  json.dumps(payment_counts),
+        "status_labels":   json.dumps(status_labels),
+        "status_counts":   json.dumps(status_counts),
+        # Products
+        "top_products_list": top_products_list,
+        "top_products_labels": json.dumps([p["name"] for p in top_products_list[:8]]),
+        "top_products_units":  json.dumps([float(p["units_sold"]) for p in top_products_list[:8]]),
+        "top_products_rev":    json.dumps([float(p["revenue"]) for p in top_products_list[:8]]),
+        # Category & Brand
+        "top_categories": top_categories,
+        "top_brands":     top_brands,
+        # Customers
+        "total_cust":    total_cust,
+        "new_cust":      new_cust,
+        "active_cust":   active_cust,
+        "repeat_cust":   repeat_cust,
+        "top_spenders":  top_spenders,
+        # Orders
+        "order_status_counts":  order_status_counts,
+        "failed_payments":      failed_payments,
+        "successful_payments":  successful_payments,
+        # Inventory
+        "active_products_count":   active_products_count,
+        "inactive_products_count": inactive_products_count,
+        "low_stock_count":         low_stock_count,
+        "out_of_stock_count":      out_of_stock_count,
+        "recent_products":         recent_products,
+        # Coupons
+        "coupons_created":       coupons_created,
+        "coupons_used":          coupons_used,
+        "total_coupon_discount": total_coupon_discount,
+        "most_used_coupon":      most_used_coupon,
+        # Payments
+        "razorpay_orders": razorpay_orders,
+        "cod_orders":      cod_orders,
+        "wallet_orders":   wallet_orders,
+    }
+    return render(request, "admin_panel/analytics.html", context)
+
+
+@admin_required
+def admin_analytics_pdf_view(request):
+    """Generate and stream a PDF analytics report using xhtml2pdf."""
+    import json
+    from decimal import Decimal
+    from django.db.models import Sum, Count, Avg, Q
+    from django.db.models.functions import TruncDate
+    from django.template.loader import render_to_string
+    from django.http import HttpResponse
+    from io import BytesIO
+    from xhtml2pdf import pisa
+
+    period, period_label, start, end, prev_start, prev_end, start_date_str, end_date_str = (
+        _get_analytics_period(request)
+    )
+
+    _D0 = Decimal("0")
+    all_orders    = Order.objects.all()
+    period_orders = all_orders.filter(created_at__gte=start, created_at__lte=end)
+    period_items  = OrderItem.objects.select_related(
+        "order", "variant__product__category", "variant__product__brand"
+    ).filter(order__created_at__gte=start, order__created_at__lte=end)
+
+    agg = period_orders.aggregate(
+        gross_sales  = Sum("subtotal"),
+        net_revenue  = Sum("total"),
+        discounts    = Sum("discount"),
+        coupon_disc  = Sum("coupon_discount"),
+        taxes        = Sum("tax"),
+        delivery     = Sum("shipping"),
+        order_count  = Count("id"),
+    )
+    top_products = list(
+        period_items
+        .filter(variant__isnull=False)
+        .values("variant__product__name", "sku")
+        .annotate(units_sold=Sum("quantity"), revenue=Sum("line_total"))
+        .order_by("-units_sold")[:15]
+    )
+    top_categories = list(
+        period_items
+        .filter(variant__product__category__isnull=False)
+        .values("variant__product__category__name")
+        .annotate(revenue=Sum("line_total"))
+        .order_by("-revenue")[:10]
+    )
+    pay_qs = list(
+        period_orders.values("payment_method").annotate(count=Count("id")).order_by("-count")
+    )
+    pm_map = dict(Order.PAYMENT_CHOICES)
+
+    order_status_summary = []
+    for st_val, st_label in [
+        ("pending","Pending"),("confirmed","Confirmed"),("shipped","Shipped"),
+        ("delivered","Delivered"),("cancelled","Cancelled"),("returned","Returned"),
+    ]:
+        cnt = OrderItem.objects.filter(order__created_at__gte=start, order__created_at__lte=end, status=st_val).count()
+        order_status_summary.append({"label": st_label, "count": cnt})
+
+    ctx = {
+        "period_label":   period_label,
+        "start":          start,
+        "end":            end,
+        "gross_sales":    agg["gross_sales"]  or _D0,
+        "net_revenue":    agg["net_revenue"]  or _D0,
+        "discounts":      agg["discounts"]    or _D0,
+        "coupon_disc":    agg["coupon_disc"]  or _D0,
+        "taxes":          agg["taxes"]        or _D0,
+        "delivery":       agg["delivery"]     or _D0,
+        "order_count":    agg["order_count"]  or 0,
+        "top_products":   top_products,
+        "top_categories": top_categories,
+        "pay_summary":    [{"label": pm_map.get(d["payment_method"], d["payment_method"]), "count": d["count"]} for d in pay_qs],
+        "order_status_summary": order_status_summary,
+    }
+
+    html_str  = render_to_string("admin_panel/analytics_pdf.html", ctx)
+    buffer    = BytesIO()
+    pisa_status = pisa.CreatePDF(html_str, dest=buffer)
+    if pisa_status.err:
+        return HttpResponse("PDF generation failed.", status=500)
+    buffer.seek(0)
+    filename = f"luxelle_analytics_{period_label.replace(' ', '_').lower()}.pdf"
+    response = HttpResponse(buffer, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@admin_required
+def admin_analytics_excel_view(request):
+    """Generate and stream a multi-sheet Excel analytics report using openpyxl."""
+    from decimal import Decimal
+    from django.db.models import Sum, Count
+    from django.http import HttpResponse
+    from io import BytesIO
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    period, period_label, start, end, prev_start, prev_end, start_date_str, end_date_str = (
+        _get_analytics_period(request)
+    )
+
+    _D0 = Decimal("0")
+    all_orders    = Order.objects.all()
+    period_orders = all_orders.filter(created_at__gte=start, created_at__lte=end)
+    period_items  = OrderItem.objects.select_related(
+        "order", "variant__product__category", "variant__product__brand"
+    ).filter(order__created_at__gte=start, order__created_at__lte=end)
+
+    wb = openpyxl.Workbook()
+
+    # ── Styling helpers ───────────────────────────────────────────────────────
+    GOLD_FILL   = PatternFill("solid", fgColor="C5A059")
+    DARK_FILL   = PatternFill("solid", fgColor="1A1A1A")
+    HEADER_FONT = Font(bold=True, color="0B0B0B", size=11)
+    TITLE_FONT  = Font(bold=True, color="C5A059", size=13)
+    NORMAL_FONT = Font(color="000000", size=10)
+    thin        = Side(style="thin", color="DDDDDD")
+    thin_border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    def style_header_row(ws, row, cols):
+        for c in range(1, cols + 1):
+            cell = ws.cell(row=row, column=c)
+            cell.fill = GOLD_FILL
+            cell.font = HEADER_FONT
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = thin_border
+
+    def auto_width(ws):
+        for col in ws.columns:
+            max_len = 0
+            col_letter = get_column_letter(col[0].column)
+            for cell in col:
+                try:
+                    if cell.value:
+                        max_len = max(max_len, len(str(cell.value)))
+                except Exception:
+                    pass
+            ws.column_dimensions[col_letter].width = min(max_len + 4, 40)
+
+    # ── Sheet 1: Sales Summary ────────────────────────────────────────────────
+    ws1 = wb.active
+    ws1.title = "Sales Summary"
+    agg = period_orders.aggregate(
+        gross=Sum("subtotal"), net=Sum("total"), disc=Sum("discount"),
+        coupon=Sum("coupon_discount"), tax=Sum("tax"), ship=Sum("shipping"), cnt=Count("id"),
+    )
+    ws1["A1"] = f"Luxelle Analytics Report — {period_label}"
+    ws1["A1"].font = TITLE_FONT
+    ws1.merge_cells("A1:B1")
+
+    headers = ["Metric", "Value"]
+    for ci, h in enumerate(headers, 1):
+        ws1.cell(row=2, column=ci, value=h)
+    style_header_row(ws1, 2, 2)
+
+    rows = [
+        ("Gross Sales (₹)",       float(agg["gross"]  or 0)),
+        ("Net Revenue (₹)",       float(agg["net"]    or 0)),
+        ("Product Discounts (₹)", float(agg["disc"]   or 0)),
+        ("Coupon Discounts (₹)",  float(agg["coupon"] or 0)),
+        ("Taxes / GST (₹)",       float(agg["tax"]    or 0)),
+        ("Delivery Charges (₹)",  float(agg["ship"]   or 0)),
+        ("Total Orders",          agg["cnt"] or 0),
+    ]
+    for ri, (label, val) in enumerate(rows, 3):
+        ws1.cell(row=ri, column=1, value=label)
+        ws1.cell(row=ri, column=2, value=val)
+        ws1.cell(row=ri, column=2).number_format = "#,##0.00"
+    auto_width(ws1)
+
+    # ── Sheet 2: Orders ───────────────────────────────────────────────────────
+    ws2 = wb.create_sheet("Orders")
+    ws2.append(["Order Number", "Date", "Customer", "Payment", "Status", "Total (₹)"])
+    style_header_row(ws2, 1, 6)
+    pm_map = dict(Order.PAYMENT_CHOICES)
+    for o in period_orders.select_related("user").order_by("-created_at")[:500]:
+        ws2.append([
+            o.order_number,
+            o.created_at.strftime("%d %b %Y"),
+            o.user.get_full_name() or o.user.email,
+            pm_map.get(o.payment_method, o.payment_method),
+            o.get_status_display(),
+            float(o.total),
+        ])
+    auto_width(ws2)
+
+    # ── Sheet 3: Top Products ─────────────────────────────────────────────────
+    ws3 = wb.create_sheet("Top Products")
+    ws3.append(["Product Name", "SKU", "Units Sold", "Revenue (₹)"])
+    style_header_row(ws3, 1, 4)
+    top_prods = (
+        period_items
+        .filter(variant__isnull=False)
+        .values("variant__product__name", "sku")
+        .annotate(units=Sum("quantity"), rev=Sum("line_total"))
+        .order_by("-units")[:50]
+    )
+    for p in top_prods:
+        ws3.append([p["variant__product__name"], p["sku"], p["units"], float(p["rev"] or 0)])
+    auto_width(ws3)
+
+    # ── Sheet 4: Category Revenue ─────────────────────────────────────────────
+    ws4 = wb.create_sheet("Category Revenue")
+    ws4.append(["Category", "Units Sold", "Revenue (₹)"])
+    style_header_row(ws4, 1, 3)
+    for c in (
+        period_items
+        .filter(variant__product__category__isnull=False)
+        .values("variant__product__category__name")
+        .annotate(units=Sum("quantity"), rev=Sum("line_total"))
+        .order_by("-rev")
+    ):
+        ws4.append([c["variant__product__category__name"], c["units"], float(c["rev"] or 0)])
+    auto_width(ws4)
+
+    # ── Sheet 5: Brand Revenue ────────────────────────────────────────────────
+    ws5 = wb.create_sheet("Brand Revenue")
+    ws5.append(["Brand", "Units Sold", "Revenue (₹)"])
+    style_header_row(ws5, 1, 3)
+    for b in (
+        period_items
+        .filter(variant__product__brand__isnull=False)
+        .values("variant__product__brand__name")
+        .annotate(units=Sum("quantity"), rev=Sum("line_total"))
+        .order_by("-rev")
+    ):
+        ws5.append([b["variant__product__brand__name"], b["units"], float(b["rev"] or 0)])
+    auto_width(ws5)
+
+    # ── Sheet 6: Payment Methods ──────────────────────────────────────────────
+    ws6 = wb.create_sheet("Payment Methods")
+    ws6.append(["Payment Method", "Order Count"])
+    style_header_row(ws6, 1, 2)
+    for p in period_orders.values("payment_method").annotate(cnt=Count("id")).order_by("-cnt"):
+        ws6.append([pm_map.get(p["payment_method"], p["payment_method"]), p["cnt"]])
+    auto_width(ws6)
+
+    # ── Sheet 7: Order Status ─────────────────────────────────────────────────
+    ws7 = wb.create_sheet("Order Status")
+    ws7.append(["Status", "Item Count"])
+    style_header_row(ws7, 1, 2)
+    st_map = dict(OrderItem.STATUS_CHOICES)
+    for s in (
+        period_items.values("status").annotate(cnt=Count("id")).order_by("-cnt")
+    ):
+        ws7.append([st_map.get(s["status"], s["status"]), s["cnt"]])
+    auto_width(ws7)
+
+    # ── Stream ────────────────────────────────────────────────────────────────
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    filename = f"luxelle_analytics_{period_label.replace(' ', '_').lower()}.xlsx"
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
