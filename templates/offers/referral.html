@@ -1,0 +1,63 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refer a Friend | Luxelle</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'image/favicon.ico' %}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    <style>
+        .ref-card { border: 1px solid #e2dfd9; border-radius: 12px; background: #fff; }
+        .code-box { border: 2px dashed #c5a059; border-radius: 10px; padding: 1rem 1.5rem; font-size: 1.6rem; font-weight: 700; letter-spacing: 0.15em; color: #1a1a1a; }
+        .copy-btn { cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    {% include 'partials/navbar.html' %}
+
+    <div class="container py-5" style="max-width: 680px;">
+
+        <div class="text-center mb-4">
+            <i class="fa-solid fa-gift text-lux-gold" style="font-size: 2.5rem;"></i>
+            <h1 class="font-playfair fw-bold text-lux-black mt-3 mb-2">Refer a Friend</h1>
+            <p class="text-lux-gray font-inter">
+                Share your code. When your friend places their first order, you <b>both</b> get
+                <span class="text-lux-black fw-bold">₹{{ reward_amount }}</span> in your wallets.
+            </p>
+        </div>
+
+        <div class="ref-card p-4 mb-4 text-center">
+            <div class="text-uppercase small text-lux-gray mb-2" style="letter-spacing:0.1em;">Your Referral Code</div>
+            <div class="code-box d-inline-block mb-3" id="refCode">{{ profile.code }}</div>
+
+            <div class="input-group mb-2">
+                <input type="text" class="form-control" id="refLink" value="{{ referral_link }}" readonly>
+                <button class="btn btn-dark copy-btn" onclick="copyLink()"><i class="fa-solid fa-copy me-1"></i> Copy</button>
+            </div>
+            <div class="small text-lux-gray" id="copyMsg"></div>
+        </div>
+
+        <div class="ref-card p-4 text-center">
+            <div class="text-lux-gray small text-uppercase" style="letter-spacing:0.1em;">Friends Referred</div>
+            <div class="fs-2 fw-bold text-lux-black">{{ referred_count }}</div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function copyLink() {
+            const input = document.getElementById('refLink');
+            input.select();
+            navigator.clipboard.writeText(input.value).then(function () {
+                document.getElementById('copyMsg').textContent = 'Link copied to clipboard!';
+            });
+        }
+    </script>
+</body>
+</html>

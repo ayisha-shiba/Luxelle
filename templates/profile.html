@@ -254,13 +254,9 @@
             transition: color 0.3s ease;
         }
 
-        /* Specific Tile Colors based on Image */
-        .icon-orders { color: #3b82f6 !important; } 
-        .icon-addresses { color: #ec4899 !important; } 
-        .icon-wishlist { color: #ffffff !important; } 
-        .icon-wallet { color: #3b82f6 !important; } 
-        .icon-reviews { color: #ffffff !important; } 
-        .icon-coupons { color: #ffffff !important; } 
+        /* Unified gold accent icons */
+        .icon-orders, .icon-addresses, .icon-wishlist,
+        .icon-wallet, .icon-reviews, .icon-coupons { color: #C9A26A !important; }
 
         /* Switch custom color */
         .form-check-input.switch-gold:checked {
@@ -297,6 +293,105 @@
             color: #ffffff;
             margin-bottom: 20px;
         }
+
+        /* Referral code pill + copy */
+        .code-pill-profile {
+            flex: 1;
+            text-align: center;
+            background: rgba(201,162,106,0.10);
+            color: #ffffff;
+            border: 1px dashed rgba(201,162,106,0.5);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            font-size: 1.05rem;
+            font-family: 'Inter', sans-serif;
+        }
+        body.light-theme .code-pill-profile { color: #1A1A1A; }
+        .btn-copy-ref {
+            background: transparent;
+            border: 1px solid #2a2a2a;
+            color: #aaa;
+            border-radius: 6px;
+            padding: 7px 16px;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-copy-ref:hover { border-color: #C9A26A; color: #C9A26A; }
+        body.light-theme .code-pill-profile { background: rgba(201,162,106,0.1); }
+        body.light-theme .btn-copy-ref { border-color: #e2dfd9; color: #666; }
+
+        /* Highlighted referral card */
+        .referral-card {
+            background: linear-gradient(150deg, #131008, #0f0f0f 55%) !important;
+            border: 1px solid rgba(201,162,106,0.35) !important;
+            border-radius: 12px;
+            padding: 30px 24px;
+        }
+        body.light-theme .referral-card {
+            background: linear-gradient(150deg, #fdf8ee, #ffffff 55%) !important;
+            border: 1px solid rgba(201,162,106,0.4) !important;
+        }
+
+        /* Aligned stat row with dividers */
+        .ref-stats {
+            display: flex;
+            border: 1px solid #1d1d1d;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 18px 0;
+        }
+        body.light-theme .ref-stats { border-color: #e2dfd9; }
+        .ref-stat {
+            flex: 1;
+            text-align: center;
+            padding: 14px 8px;
+            border-right: 1px solid #1d1d1d;
+        }
+        body.light-theme .ref-stat { border-right-color: #e2dfd9; }
+        .ref-stat:last-child { border-right: none; }
+        .ref-stat-value {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #ffffff;
+            line-height: 1.1;
+        }
+        body.light-theme .ref-stat-value { color: #1A1A1A; }
+        .ref-stat-label {
+            font-size: 0.66rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #777;
+            margin-top: 4px;
+        }
+        .ref-copy-row { display: flex; gap: 10px; align-items: stretch; margin-top: 6px; }
+
+        /* Tile icon circles */
+        .grid-tile-dark .tile-icon {
+            width: 56px; height: 56px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(201,162,106,0.08);
+            margin: 0 auto 14px;
+            transition: all 0.3s ease;
+        }
+        .grid-tile-dark:hover .tile-icon {
+            background: rgba(201,162,106,0.16);
+            transform: scale(1.05);
+        }
+        body.light-theme .grid-tile-dark .tile-icon { background: rgba(201,162,106,0.1); }
+
+        /* Page heading */
+        .dash-heading {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+        body.light-theme .dash-heading { color: #1A1A1A; }
+        .dash-sub { color: #888; font-size: 0.9rem; }
 
         /* ==========================================================================
            LIGHT THEME SUPPORT
@@ -360,15 +455,6 @@
         body.light-theme .btn-logout-dark:hover {
             background: rgba(229, 75, 75, 0.05);
         }
-        body.light-theme .icon-wishlist {
-            color: #1A1A1A !important;
-        }
-        body.light-theme .icon-reviews {
-            color: #1A1A1A !important;
-        }
-        body.light-theme .icon-coupons {
-            color: #1A1A1A !important;
-        }
     </style>
 </head>
 <body class="light-theme">
@@ -382,8 +468,11 @@
        User Dashboard Body
        ========================================= -->
     <main class="container py-5">
-        
 
+        <div class="mb-4">
+            <h1 class="dash-heading">Welcome back, {{ user.get_full_name|default:user.email }}</h1>
+            <p class="dash-sub mb-0">Manage your orders, wallet, coupons and more.</p>
+        </div>
 
         <div class="row g-4">
             
@@ -432,32 +521,10 @@
                 </div>
             </aside>
 
-            <!-- RIGHT COLUMN: Stats & Action Grid -->
+            <!-- RIGHT COLUMN: Action Grid -->
             <div class="col-12 col-lg-9 d-flex flex-column gap-4">
-                
-                <!-- Row 1: Stat Metrics -->
-                <div class="row g-3">
-                    <div class="col-12 col-md-4">
-                        <div class="stat-card-dark">
-                            <div class="stat-title-dark">BAGS OWNED</div>
-                            <div class="stat-value-dark">12</div>
-                        </div>
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <div class="stat-card-dark">
-                            <div class="stat-title-dark">TOTAL SPENT</div>
-                            <div class="stat-value-dark">₹1,25,999</div>
-                        </div>
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <div class="stat-card-dark">
-                            <div class="stat-title-dark">ACTIVE RETURNS</div>
-                            <div class="stat-value-dark">01</div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Row 2 & 3: Tiles Grid -->
+                <!-- Tiles Grid -->
                 <div class="row g-3 row-cols-1 row-cols-md-3">
                     <!-- My Orders -->
                     <div class="col">
@@ -482,33 +549,38 @@
                     </div>
                     <!-- My Wallet -->
                     <div class="col">
-                        <a href="#" class="grid-tile-dark">
-                            <div class="tile-icon icon-wallet"><i class="fa-solid fa-credit-card"></i></div>
+                        <a href="{% url 'wallet' %}" class="grid-tile-dark">
+                            <div class="tile-icon icon-wallet"><i class="fa-solid fa-wallet"></i></div>
                             <div class="tile-title">MY WALLET</div>
                         </a>
                     </div>
                     <!-- My Reviews -->
                     <div class="col">
-                        <a href="#" class="grid-tile-dark">
+                        <a href="{% url 'my_reviews' %}" class="grid-tile-dark">
                             <div class="tile-icon icon-reviews"><i class="fa-regular fa-comments"></i></div>
                             <div class="tile-title">MY REVIEWS</div>
                         </a>
                     </div>
                     <!-- My Coupons -->
                     <div class="col">
-                        <a href="#" class="grid-tile-dark">
+                        <a href="{% url 'my_coupons' %}" class="grid-tile-dark">
                             <div class="tile-icon icon-coupons"><i class="fa-solid fa-ticket"></i></div>
                             <div class="tile-title">MY COUPONS</div>
                         </a>
                     </div>
                 </div>
 
-                <!-- Row 4: Account Settings & Recent Activity -->
+                <!-- Account Settings & Referral Program -->
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
-                        <div class="profile-card-dark">
+                        <div class="profile-card-dark h-100">
                             <h4 class="panel-title-dark">Account Settings</h4>
-                            
+
+                            <div class="d-flex flex-column gap-2">
+                                <a href="{% url 'profile_edit' %}" class="detail-value-dark text-decoration-none"><i class="fa-solid fa-pen me-2 text-muted"></i>Edit Profile</a>
+                                <a href="{% url 'change_password' %}" class="detail-value-dark text-decoration-none"><i class="fa-solid fa-lock me-2 text-muted"></i>Change Password</a>
+                            </div>
+
                             <div class="mt-4 pt-3 border-top border-dark border-opacity-25">
                                 <a href="{% url 'delete_account' %}" class="btn-delete-account-dark">
                                     <i class="fa-solid fa-trash-can"></i> DELETE ACCOUNT
@@ -517,11 +589,36 @@
                         </div>
                     </div>
                     <div class="col-12 col-md-6">
-                        <div class="profile-card-dark">
-                            <h4 class="panel-title-dark">Recent Activity</h4>
-                            <div class="text-lux-gray small" style="min-height: 80px; display: flex; align-items: center; justify-content: center;">
-                                No recent activity
+                        <div class="referral-card h-100 d-flex flex-column">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <i class="fa-solid fa-gift" style="color:#C9A26A;"></i>
+                                <h4 class="panel-title-dark mb-0" style="font-size:1.25rem;">Referral Program</h4>
                             </div>
+                            <p class="text-lux-gray small mb-3">Share your code — you both earn when a friend orders.</p>
+
+                            <div class="detail-label-dark mb-1">YOUR REFERRAL CODE</div>
+                            <div class="ref-copy-row">
+                                <span class="code-pill-profile" id="refCode">{{ referral.code }}</span>
+                                <button type="button" class="btn-copy-ref" onclick="copyRef()"><i class="fa-regular fa-copy me-1"></i>Copy</button>
+                            </div>
+
+                            <div class="ref-stats">
+                                <div class="ref-stat">
+                                    <div class="ref-stat-value">₹{{ referral_earnings }}</div>
+                                    <div class="ref-stat-label">Earnings</div>
+                                </div>
+                                <div class="ref-stat">
+                                    <div class="ref-stat-value">{{ referred_count }}</div>
+                                    <div class="ref-stat-label">Referrals</div>
+                                </div>
+                                <div class="ref-stat">
+                                    <div class="ref-stat-value">{{ rewards_released }}</div>
+                                    <div class="ref-stat-label">Rewards</div>
+                                </div>
+                            </div>
+
+                            <a href="{% url 'referral' %}" class="btn-edit-profile-dark w-100 text-center mt-auto">View All Referrals →</a>
+                            <input type="hidden" id="refLink" value="{{ referral_link }}">
                         </div>
                     </div>
                 </div>
@@ -587,7 +684,19 @@
 
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    
+
+    <script>
+        // Copy referral link to clipboard
+        function copyRef() {
+            const link = document.getElementById('refLink').value;
+            navigator.clipboard.writeText(link).then(function () {
+                const btn = event.target;
+                const original = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(function () { btn.textContent = original; }, 1500);
+            });
+        }
+    </script>
 
     <!-- Toast Notifications -->
     {% include 'partials/toast.html' %}

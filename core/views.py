@@ -241,6 +241,11 @@ def register_view(request):
     initial_data = request.session.get("pending_registration", {})
     form = RegistrationForm(request.POST or None, initial=initial_data)
 
+    # Referral code: from the ?ref= token URL on GET, or the form field on POST.
+    referral_code = request.GET.get("ref") or request.POST.get("referral_code") or ""
+    if referral_code:
+        request.session["pending_referral_code"] = referral_code.strip().upper()
+
     if request.method == "POST":
         if form.is_valid():
             registration_data = {
@@ -273,7 +278,10 @@ def register_view(request):
         else:
             request.session["pending_registration"] = request.POST.dict()
 
-    return render(request, "register.html", {"form": form})
+    return render(request, "register.html", {
+        "form": form,
+        "referral_code": request.session.get("pending_referral_code", ""),
+    })
 
 
 # OTP VERIFICATION
@@ -344,6 +352,12 @@ def verify_otp_view(request):
                 logger.error(f"[VERIFY_OTP] Failed to create user: {exc}")
                 messages.error(request, "Account creation failed. Please try again.")
                 return redirect("register")
+
+            # Record who referred this user (reward comes on their first order).
+            referral_code = request.session.get("pending_referral_code")
+            if referral_code:
+                from offers.services import apply_referral_code
+                apply_referral_code(user, referral_code)
 
             _clear_registration_session(request)
 
@@ -583,14 +597,42 @@ def set_new_password_view(request):
 @login_required
 
 def profile_view(request):
+    from decimal import Decimal
+    from django.urls import reverse
+    from offers import services as offers_services
+    from offers.models import ReferralProfile
+
     user      = request.user.__class__.objects.select_related("profile").get(pk=request.user.pk)
     profile   = user.profile
     addresses = user.addresses.all()
+
+    referral = offers_services.get_or_create_profile(user)
+    referral_link = request.build_absolute_uri(f"{reverse('register')}?ref={referral.code}")
+    referred_qs = ReferralProfile.objects.filter(referred_by=user)
+    referred_count = referred_qs.count()
+    # Earnings are only released once a referred user completes their first order.
+    rewards_released = referred_qs.filter(reward_granted=True).count()
+    referral_earnings = rewards_released * offers_services.REFERRAL_REWARD
+
     return render(request, "profile.html", {
         "user":      user,
         "profile":   profile,
         "addresses": addresses,
+        "referral":  referral,
+        "referral_link": referral_link,
+        "referred_count": referred_count,
+        "rewards_released": rewards_released,
+        "referral_earnings": referral_earnings,
     })
+
+
+@never_cache
+@login_required
+def my_reviews_view(request):
+    reviews = (request.user.reviews
+               .select_related("product", "product__brand")
+               .all())
+    return render(request, "my_reviews.html", {"reviews": reviews})
 
 
 @never_cache
@@ -1589,6 +1631,7 @@ def payment_handler(request,order):
 @login_required
 @never_cache
 def checkout_view(request):
+    from offers import services as offers_services
     cart, _ = Cart.objects.get_or_create(user=request.user)
     items   = list(cart.items.select_related("variant__product", "variant__product__category"))
 
@@ -1605,7 +1648,28 @@ def checkout_view(request):
     if not items:
         messages.info(request, "Your cart is empty.")
         return redirect("cart")
-    
+
+    # Resolve any coupon held in the session. Re-validate it against the current
+    # cart so a coupon that no longer qualifies (cart changed) is dropped.
+    from decimal import Decimal
+    from coupons import services as coupon_services
+    from coupons.models import Coupon
+    cart_subtotal = sum((Decimal(i.total_price) for i in items), Decimal("0"))
+    active_coupon = None
+    coupon_discount = Decimal("0")
+    coupon_id = request.session.get("coupon_id")
+    if coupon_id:
+        coupon = Coupon.objects.filter(pk=coupon_id).first()
+        try:
+            if coupon:
+                coupon_services.validate_coupon(coupon.code, request.user, cart_subtotal)
+                active_coupon = coupon
+                coupon_discount = coupon_services.compute_discount(coupon, cart_subtotal)
+            else:
+                raise coupon_services.CouponError("Coupon no longer available.")
+        except coupon_services.CouponError:
+            request.session.pop("coupon_id", None)
+
     addresses = request.user.addresses.all()
     address_form = AddressForm()
     open_address_modal = False
@@ -1636,7 +1700,7 @@ def checkout_view(request):
         # so we don't create an order (and decrement stock) we can't settle.
         if payment_method == Order.PAYMENT_WALLET:
             from wallet import services as wallet_services
-            est_total = pricing.summarize_items(items)["grand_total"]
+            est_total = pricing.summarize_items(items, coupon_discount=coupon_discount)["grand_total"]
             if wallet_services.get_wallet(request.user).balance < est_total:
                 messages.error(request, "Your wallet balance is insufficient for this order.")
                 return redirect("checkout")
@@ -1654,20 +1718,24 @@ def checkout_view(request):
                     ship_postal_code=address.postal_code,
                     ship_country=address.country,
                     payment_method=payment_method,
+                    coupon=active_coupon,
                 )
 
                 for item in items:
                     variant = ProductVariant.objects.select_for_update().get(pk=item.variant_id)
                     if variant.stock < item.quantity:
                         raise ValueError(f"{variant.variant_name} just went out of stock.")
-                    line_total = variant.sale_price * item.quantity
+                    # Snapshot the offer-discounted price so the order, totals and
+                    # any future refund all reflect what the customer actually paid.
+                    unit_price = offers_services.best_offer_for(variant)["effective_price"]
+                    line_total = unit_price * item.quantity
                     order_item = OrderItem.objects.create(
                         order=order,
                         variant=variant,
                         product_name=variant.product.name,
                         variant_name=variant.variant_name,
                         sku=variant.sku,
-                        unit_price=variant.sale_price,
+                        unit_price=unit_price,
                         original_price=variant.original_price,
                         quantity=item.quantity,
                         line_total=line_total,
@@ -1683,16 +1751,21 @@ def checkout_view(request):
 
                 order.recalculate_totals()
 
+                # Lock in the coupon redemption (once per user) for this order.
+                if active_coupon:
+                    coupon_services.record_usage(active_coupon, request.user, order, order.coupon_discount)
+
                 cart.items.all().delete()
 
         except ValueError as exc:
             messages.error(request, str(exc))
             return redirect("cart")
-        
+
+        request.session.pop("coupon_id", None)
         return payment_handler(request,order)
     
     from wallet import services as wallet_services
-    summary = pricing.summarize_items(items)
+    summary = pricing.summarize_items(items, coupon_discount=coupon_discount)
     context = {
         "items": items,
         "addresses": addresses,
@@ -1700,6 +1773,7 @@ def checkout_view(request):
         "address_form": address_form,
         "open_address_modal": open_address_modal,
         "wallet_balance": wallet_services.get_wallet(request.user).balance,
+        "active_coupon": active_coupon,
     }
     return render(request, "checkout.html", context)
 
@@ -1707,6 +1781,11 @@ def checkout_view(request):
 @never_cache
 def order_success_view(request, order_number):
     order = get_object_or_404(Order, order_number=order_number, user = request.user)
+
+    # Reaching this page means an order completed — grant referral reward if due.
+    from offers.services import grant_referral_reward_if_due
+    grant_referral_reward_if_due(order)
+
     return render(request, "order_success.html", {"order":order})
     
 

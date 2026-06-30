@@ -129,7 +129,7 @@
                name="referral_code"
                id="referralCodeInput"
                placeholder="Referral Code (optional)"
-               value="{{ form.referral_code.value|default_if_none:'' }}"
+               value="{{ form.referral_code.value|default_if_none:referral_code|default:'' }}"
                maxlength="20"
                style="text-transform:uppercase; padding-right: 2.5rem;" />
         <label>Referral Code <span class="text-muted fw-light" style="font-size:0.85em;">(optional)</span></label>

@@ -1,0 +1,274 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle Admin - Coupon Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/admin_common.css' %}" rel="stylesheet">
+    <style>
+        .alert { margin-bottom: 1.5rem; border-radius: 8px; padding: 1rem 1.25rem; }
+        .alert-success { background-color: rgba(39,174,96,0.1); border:1px solid rgba(39,174,96,0.3); color:#27ae60; }
+        .alert-error { background-color: rgba(231,76,60,0.1); border:1px solid rgba(231,76,60,0.3); color:#e74c3c; }
+
+        .action-btns { display:flex; gap:0.6rem; align-items:center; }
+        .act-btn { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:6px; border:none; cursor:pointer; font-size:0.9rem; transition:all .3s; text-decoration:none; color:white; }
+        .act-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.2); }
+        .act-btn-edit { background-color:#3498db; }
+        .act-btn-del { background-color:#e74c3c; }
+
+        .badge-live { background:rgba(39,174,96,0.12); color:#27ae60; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.75rem; font-weight:600; }
+        .badge-off  { background:rgba(149,165,166,0.15); color:#95a5a6; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.75rem; font-weight:600; }
+        .code-pill { background:rgba(197,160,89,0.15); color:#c5a059; padding:0.3rem 0.7rem; border-radius:6px; font-weight:700; letter-spacing:0.05em; }
+
+        .form-modal-box { background:#0b0b0b; border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:2rem; max-width:540px; width:92%; box-shadow:0 20px 60px rgba(0,0,0,0.8); text-align:left; max-height:90vh; overflow-y:auto; }
+        .form-modal-box h3 { font-family:'Playfair Display',serif; font-size:1.4rem; color:#fff; margin:0 0 1.5rem; }
+        .form-group { margin-bottom:1.2rem; }
+        .form-group > label { display:block; font-size:0.8rem; letter-spacing:0.05em; text-transform:uppercase; color:#aaa; margin-bottom:0.5rem; }
+        .form-group input, .form-group select { width:100%; background:#161616; border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:0.75rem 1rem; color:#fff; font-size:0.9rem; font-family:'Inter',sans-serif; }
+        .form-group input:focus, .form-group select:focus { outline:none; border-color:#c5a059; }
+        .form-check-row { display:flex; align-items:center; gap:0.5rem; }
+        .form-check-row input { width:18px; height:18px; }
+        .form-check-row label { margin:0; text-transform:none; letter-spacing:0; color:#ddd; font-size:0.85rem; }
+        .field-err { color:#e74c3c; font-size:0.75rem; margin-top:0.4rem; }
+        .row-2 { display:flex; gap:1rem; }
+        .row-2 .form-group { flex:1; }
+    </style>
+</head>
+<body>
+    {% include 'admin_panel/partials/sidebar.html' with active='coupons' %}
+
+    <main class="main">
+        <div class="top-bar">
+            <div><h1 class="page-title">Coupon Management</h1><p class="page-sub">Create and manage discount coupons.</p></div>
+            <div class="top-actions" style="display:flex; gap:0.75rem;">
+                <div class="top-btn top-btn-gold" onclick="openAddModal()" style="cursor:pointer;"><i class="fa-solid fa-plus"></i> Add Coupon</div>
+            </div>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="GET" action="{% url 'admin_coupons' %}" class="filter-bar">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" name="search" value="{{ search_query|default:'' }}" placeholder="Search by code..." onkeydown="if(event.key==='Enter'){this.form.submit();}">
+            </div>
+            <select class="filter-select" name="status" onchange="this.form.submit()">
+                <option value="all"     {% if status == 'all' %}selected{% endif %}>All</option>
+                <option value="active"  {% if status == 'active' %}selected{% endif %}>Active</option>
+                <option value="expired" {% if status == 'expired' %}selected{% endif %}>Expired / Off</option>
+            </select>
+            <button type="submit" class="top-btn top-btn-gold"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+        </form>
+
+        <div class="panel">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Discount</th>
+                        <th>Min Order</th>
+                        <th>Window</th>
+                        <th>Used</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if coupons %}
+                        {% for coupon in coupons %}
+                            <tr>
+                                <td><span class="code-pill">{{ coupon.code }}</span></td>
+                                <td style="color:#ddd;">
+                                    {% if coupon.discount_type == 'percentage' %}{{ coupon.discount_value }}%{% if coupon.max_discount_amount %} <span style="color:#888;">(max ₹{{ coupon.max_discount_amount }})</span>{% endif %}
+                                    {% else %}₹{{ coupon.discount_value }}{% endif %}
+                                </td>
+                                <td style="color:#aaa;">₹{{ coupon.min_order_amount }}</td>
+                                <td style="color:#888; font-size:0.8rem;">{{ coupon.valid_from|date:"d M Y" }}<br>→ {{ coupon.valid_to|date:"d M Y" }}</td>
+                                <td style="color:#aaa;">{{ coupon.times_used }}{% if coupon.usage_limit %}/{{ coupon.usage_limit }}{% endif %}</td>
+                                <td>{% if coupon.is_live %}<span class="badge-live">Live</span>{% else %}<span class="badge-off">Off/Expired</span>{% endif %}</td>
+                                <td>
+                                    <div class="action-btns">
+                                        <button class="act-btn act-btn-edit" title="Edit"
+                                            onclick="openEditModal('{{ coupon.id }}', '{{ coupon.code|escapejs }}', '{{ coupon.description|escapejs }}', '{{ coupon.discount_type }}', '{{ coupon.discount_value }}', '{{ coupon.max_discount_amount|default:'' }}', '{{ coupon.min_order_amount }}', '{{ coupon.valid_from|date:'Y-m-d\TH:i' }}', '{{ coupon.valid_to|date:'Y-m-d\TH:i' }}', '{{ coupon.usage_limit }}', {{ coupon.is_active|yesno:'true,false' }})">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+                                        <button class="act-btn act-btn-del" title="Delete"
+                                            onclick="openDeleteModal('{{ coupon.id }}', '{{ coupon.code|escapejs }}')">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" style="text-align:center; padding:2rem; color:#888;">
+                                <i class="fa-solid fa-ticket" style="font-size:2rem; margin-bottom:1rem; display:block;"></i>
+                                No coupons found.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+            <div class="pagination-bar" style="display:flex; justify-content:space-between; align-items:center; padding:1rem 1.5rem; border-top:1px solid #f1f2f6;">
+                <div class="page-info text-muted small">
+                    Showing {{ page_obj.start_index|default:0 }} to {{ page_obj.end_index|default:0 }} of {{ page_obj.paginator.count|default:0 }} coupons
+                </div>
+                {% if is_paginated %}
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}<li class="page-item"><a class="page-link text-lux-black" href="?page={{ page_obj.previous_page_number }}&status={{ status }}">Prev</a></li>{% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}<li class="page-item active"><span class="page-link bg-lux-black text-white border-lux-black">{{ num }}</span></li>
+                        {% else %}<li class="page-item"><a class="page-link text-lux-black" href="?page={{ num }}&status={{ status }}">{{ num }}</a></li>{% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}<li class="page-item"><a class="page-link text-lux-black" href="?page={{ page_obj.next_page_number }}&status={{ status }}">Next</a></li>{% endif %}
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <!-- Add / Edit Modal -->
+    <div class="modal-overlay" id="couponModal">
+        <div class="form-modal-box">
+            <h3 id="couponModalTitle">Add Coupon</h3>
+            {% with f=add_form|default:edit_form %}
+            {% if f.non_field_errors %}<div class="alert alert-error">{% for e in f.non_field_errors %}<div>{{ e }}</div>{% endfor %}</div>{% endif %}
+            {% endwith %}
+            <form method="POST" id="couponForm" action="{% url 'admin_coupon_add' %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label>Coupon Code</label>
+                    <input type="text" name="code" id="cp_code" required maxlength="30" placeholder="e.g. WELCOME10" style="text-transform:uppercase;">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" name="description" id="cp_desc" maxlength="200" placeholder="Optional">
+                </div>
+                <div class="row-2">
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select name="discount_type" id="cp_type">
+                            <option value="percentage">Percentage</option>
+                            <option value="flat">Flat Amount</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Value</label>
+                        <input type="number" step="0.01" name="discount_value" id="cp_value" required>
+                    </div>
+                </div>
+                <div class="row-2">
+                    <div class="form-group">
+                        <label>Max Discount (₹, percentage only)</label>
+                        <input type="number" step="0.01" name="max_discount_amount" id="cp_max">
+                    </div>
+                    <div class="form-group">
+                        <label>Min Order (₹)</label>
+                        <input type="number" step="0.01" name="min_order_amount" id="cp_min" value="0">
+                    </div>
+                </div>
+                <div class="row-2">
+                    <div class="form-group">
+                        <label>Valid From</label>
+                        <input type="datetime-local" name="valid_from" id="cp_from" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Valid To</label>
+                        <input type="datetime-local" name="valid_to" id="cp_to" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Usage Limit (0 = unlimited)</label>
+                    <input type="number" name="usage_limit" id="cp_limit" value="0">
+                </div>
+                <div class="form-group form-check-row">
+                    <input type="checkbox" name="is_active" id="cp_active" checked>
+                    <label for="cp_active">Active</label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="mbtn mbtn-cancel" onclick="closeCouponModal()">Cancel</button>
+                    <button type="submit" class="mbtn mbtn-gold" id="couponSubmitBtn">Add Coupon</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-box">
+            <div class="modal-icon"><i class="fa-solid fa-trash"></i></div>
+            <h3 class="modal-title">Delete Coupon?</h3>
+            <p class="modal-desc">Delete "<span id="delName"></span>"? This cannot be undone.</p>
+            <div class="modal-actions">
+                <button class="mbtn mbtn-cancel" onclick="closeDeleteModal()">Cancel</button>
+                <a href="#" id="delLink" class="mbtn mbtn-gold">Delete</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const ADD_URL = "{% url 'admin_coupon_add' %}";
+        const EDIT_URL_TPL = "/admin-panel/coupons/__ID__/edit/";
+        const DEL_URL_TPL  = "/admin-panel/coupons/__ID__/delete/";
+
+        function openAddModal() {
+            document.getElementById('couponModalTitle').textContent = 'Add Coupon';
+            document.getElementById('couponSubmitBtn').textContent = 'Add Coupon';
+            const f = document.getElementById('couponForm');
+            f.action = ADD_URL; f.reset();
+            document.getElementById('cp_active').checked = true;
+            document.getElementById('couponModal').classList.add('show');
+        }
+
+        function openEditModal(id, code, desc, type, value, max, min, from, to, limit, isActive) {
+            document.getElementById('couponModalTitle').textContent = 'Edit Coupon';
+            document.getElementById('couponSubmitBtn').textContent = 'Save Changes';
+            const f = document.getElementById('couponForm');
+            f.action = EDIT_URL_TPL.replace('__ID__', id);
+            document.getElementById('cp_code').value = code;
+            document.getElementById('cp_desc').value = desc;
+            document.getElementById('cp_type').value = type;
+            document.getElementById('cp_value').value = value;
+            document.getElementById('cp_max').value = max;
+            document.getElementById('cp_min').value = min;
+            document.getElementById('cp_from').value = from;
+            document.getElementById('cp_to').value = to;
+            document.getElementById('cp_limit').value = limit;
+            document.getElementById('cp_active').checked = isActive;
+            document.getElementById('couponModal').classList.add('show');
+        }
+
+        function closeCouponModal() { document.getElementById('couponModal').classList.remove('show'); }
+
+        function openDeleteModal(id, name) {
+            document.getElementById('delName').textContent = name;
+            document.getElementById('delLink').href = DEL_URL_TPL.replace('__ID__', id);
+            document.getElementById('deleteModal').classList.add('show');
+        }
+        function closeDeleteModal() { document.getElementById('deleteModal').classList.remove('show'); }
+
+        [document.getElementById('couponModal'), document.getElementById('deleteModal')].forEach(function (m) {
+            m.addEventListener('click', function (e) { if (e.target === this) this.classList.remove('show'); });
+        });
+
+        {% if open_modal == 'add' %}openAddModal();{% endif %}
+        {% if open_modal == 'edit' and edit_coupon %}
+        openEditModal('{{ edit_coupon.id }}', '{{ edit_coupon.code|escapejs }}', '{{ edit_coupon.description|escapejs }}', '{{ edit_coupon.discount_type }}', '{{ edit_coupon.discount_value }}', '{{ edit_coupon.max_discount_amount|default:'' }}', '{{ edit_coupon.min_order_amount }}', '{{ edit_coupon.valid_from|date:'Y-m-d\TH:i' }}', '{{ edit_coupon.valid_to|date:'Y-m-d\TH:i' }}', '{{ edit_coupon.usage_limit }}', {{ edit_coupon.is_active|yesno:'true,false' }});
+        {% endif %}
+    </script>
+</body>
+</html>

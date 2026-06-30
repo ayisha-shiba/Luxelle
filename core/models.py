@@ -352,6 +352,30 @@ class ProductVariant(models.Model):
             return round((self.original_price - self.sale_price) / self.original_price * 100)
         return 0
 
+    @property
+    def offer(self):
+        """Best live offer pricing for this variant (cached per instance)."""
+        if not hasattr(self, "_offer"):
+            from offers.services import best_offer_for
+            self._offer = best_offer_for(self)
+        return self._offer
+
+    @property
+    def effective_price(self):
+        """sale_price after the best offer — the actual selling price."""
+        return self.offer["effective_price"]
+
+    @property
+    def offer_percent(self):
+        return self.offer["percent"]
+
+    @property
+    def total_discount_percent(self):
+        """Combined MRP → effective-price discount, for the storefront badge."""
+        if self.original_price and self.effective_price < self.original_price:
+            return round((self.original_price - self.effective_price) / self.original_price * 100)
+        return 0
+
 
 class VariantImage(models.Model):
     variant    = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, related_name="images")
@@ -451,8 +475,25 @@ class CartItem(models.Model):
         return f"{self.quantity} x {self.variant}"
 
     @property
+    def offer(self):
+        """Best live offer pricing for this variant (cached per instance)."""
+        if not hasattr(self, "_offer"):
+            from offers.services import best_offer_for
+            self._offer = best_offer_for(self.variant)
+        return self._offer
+
+    @property
+    def unit_price(self):
+        """Effective per-unit price the customer pays (sale_price minus offer)."""
+        return self.offer["effective_price"]
+
+    @property
+    def offer_percent(self):
+        return self.offer["percent"]
+
+    @property
     def total_price(self):
-        return self.variant.sale_price * self.quantity
+        return self.unit_price * self.quantity
 
     @property
     def subtotal(self):
@@ -524,6 +565,10 @@ class Order(models.Model):
     tax      = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total    = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
+    # Coupon applied to this order (re-evaluated in recalculate_totals).
+    coupon          = models.ForeignKey("coupons.Coupon", on_delete=models.SET_NULL, null=True, blank=True, related_name="orders")
+    coupon_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
     cancellation_reason = models.TextField(blank=True)
     return_reason       = models.TextField(blank=True)
 
@@ -591,13 +636,22 @@ class Order(models.Model):
         products_total = sum((Decimal(i.line_total) for i in billable), Decimal("0"))
         mrp_total      = sum((Decimal(i.original_price) * i.quantity for i in billable), Decimal("0"))
 
-        totals = pricing.compute(products_total, mrp_total, self.shipping)
+        # Re-evaluate the coupon against what's left billable. If items were
+        # cancelled below the minimum, the coupon simply yields 0 now.
+        coupon_discount = Decimal("0")
+        if self.coupon_id and products_total > 0:
+            from coupons.services import compute_discount
+            if products_total >= self.coupon.min_order_amount:
+                coupon_discount = compute_discount(self.coupon, products_total)
+
+        totals = pricing.compute(products_total, mrp_total, self.shipping, coupon_discount)
         self.subtotal = totals["subtotal"]
         self.discount = totals["discount"]
+        self.coupon_discount = totals["coupon_discount"]
         self.tax      = totals["gst"]
         self.total    = totals["grand_total"]
         if save:
-            self.save(update_fields=["subtotal", "discount", "tax", "total", "updated_at"])
+            self.save(update_fields=["subtotal", "discount", "coupon_discount", "tax", "total", "updated_at"])
         return totals
 
     @property

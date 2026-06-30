@@ -10,27 +10,33 @@ def money(value):
     return Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-def compute(subtotal, mrp_total=None, shipping=Decimal("0")):
+def compute(subtotal, mrp_total=None, shipping=Decimal("0"), coupon_discount=Decimal("0")):
     subtotal = money(subtotal)
     mrp_total = money(subtotal if mrp_total is None else mrp_total)
     shipping = money(shipping)
 
-    cgst = money(subtotal * CGST_RATE)
-    sgst = money(subtotal * SGST_RATE)
+    # Coupon reduces the taxable amount; GST is charged on the post-coupon value.
+    coupon_discount = money(min(Decimal(coupon_discount), subtotal))
+    taxable = money(subtotal - coupon_discount)
+
+    cgst = money(taxable * CGST_RATE)
+    sgst = money(taxable * SGST_RATE)
     gst  = money(cgst + sgst)
 
     return {
-        "subtotal":    subtotal,
-        "discount":    money(mrp_total - subtotal),
-        "cgst":        cgst,
-        "sgst":        sgst,
-        "gst":         gst,
-        "shipping":    shipping,
-        "grand_total": money(subtotal + gst + shipping),
+        "subtotal":        subtotal,
+        "discount":        money(mrp_total - subtotal),
+        "coupon_discount": coupon_discount,
+        "taxable":         taxable,
+        "cgst":            cgst,
+        "sgst":            sgst,
+        "gst":             gst,
+        "shipping":        shipping,
+        "grand_total":     money(taxable + gst + shipping),
     }
 
 
-def summarize_items(items, shipping=Decimal("0")):
+def summarize_items(items, shipping=Decimal("0"), coupon_discount=Decimal("0")):
     """Compute the breakdown from cart/order line items.
 
     `items` is any iterable whose rows expose:
@@ -40,4 +46,4 @@ def summarize_items(items, shipping=Decimal("0")):
     """
     subtotal  = sum((Decimal(i.total_price) for i in items), Decimal("0"))
     mrp_total = sum((Decimal(i.subtotal)    for i in items), Decimal("0"))
-    return compute(subtotal, mrp_total, shipping)
+    return compute(subtotal, mrp_total, shipping, coupon_discount)

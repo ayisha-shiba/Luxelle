@@ -1,0 +1,279 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxelle Admin - Offer Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/admin_common.css' %}" rel="stylesheet">
+    <style>
+        .alert { margin-bottom: 1.5rem; border-radius: 8px; padding: 1rem 1.25rem; }
+        .alert-success { background-color: rgba(39,174,96,0.1); border:1px solid rgba(39,174,96,0.3); color:#27ae60; }
+        .alert-error { background-color: rgba(231,76,60,0.1); border:1px solid rgba(231,76,60,0.3); color:#e74c3c; }
+
+        .action-btns { display:flex; gap:0.6rem; align-items:center; }
+        .act-btn { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:6px; border:none; cursor:pointer; font-size:0.9rem; transition:all .3s; text-decoration:none; color:white; }
+        .act-btn:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.2); }
+        .act-btn-edit { background-color:#3498db; }
+        .act-btn-del { background-color:#e74c3c; }
+
+        .badge-live { background:rgba(39,174,96,0.12); color:#27ae60; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.75rem; font-weight:600; }
+        .badge-off  { background:rgba(149,165,166,0.15); color:#95a5a6; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.75rem; font-weight:600; }
+        .badge-soon { background:rgba(52,152,219,0.12); color:#3498db; padding:0.3rem 0.7rem; border-radius:20px; font-size:0.75rem; font-weight:600; }
+        .pct-pill { background:rgba(197,160,89,0.15); color:#c5a059; padding:0.3rem 0.7rem; border-radius:20px; font-weight:700; }
+
+        .form-modal-box { background:#0b0b0b; border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:2rem; max-width:520px; width:92%; box-shadow:0 20px 60px rgba(0,0,0,0.8); text-align:left; max-height:90vh; overflow-y:auto; }
+        .form-modal-box h3 { font-family:'Playfair Display',serif; font-size:1.4rem; color:#fff; margin:0 0 1.5rem; }
+        .form-group { margin-bottom:1.2rem; }
+        .form-group > label { display:block; font-size:0.8rem; letter-spacing:0.05em; text-transform:uppercase; color:#aaa; margin-bottom:0.5rem; }
+        .form-group input, .form-group select { width:100%; background:#161616; border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:0.75rem 1rem; color:#fff; font-size:0.9rem; font-family:'Inter',sans-serif; }
+        .form-group input:focus, .form-group select:focus { outline:none; border-color:#c5a059; }
+        .form-check-row { display:flex; align-items:center; gap:0.5rem; }
+        .form-check-row input { width:18px; height:18px; }
+        .form-check-row label { margin:0; text-transform:none; letter-spacing:0; color:#ddd; font-size:0.85rem; }
+        .field-err { color:#e74c3c; font-size:0.75rem; margin-top:0.4rem; }
+        .row-2 { display:flex; gap:1rem; }
+        .row-2 .form-group { flex:1; }
+    </style>
+</head>
+<body>
+    {% include 'admin_panel/partials/sidebar.html' with active='offers' %}
+
+    <main class="main">
+        <div class="top-bar">
+            <div><h1 class="page-title">Offer Management</h1><p class="page-sub">Product &amp; category percentage offers.</p></div>
+            <div class="top-actions" style="display:flex; gap:0.75rem;">
+                <div class="top-btn top-btn-gold" onclick="openAddModal()" style="cursor:pointer;"><i class="fa-solid fa-plus"></i> Add Offer</div>
+            </div>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="GET" action="{% url 'admin_offers' %}" class="filter-bar">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" name="search" value="{{ search_query|default:'' }}" placeholder="Search offers by name..." onkeydown="if(event.key==='Enter'){this.form.submit();}">
+            </div>
+            <select class="filter-select" name="status" onchange="this.form.submit()">
+                <option value="all"       {% if status == 'all' %}selected{% endif %}>All</option>
+                <option value="active"    {% if status == 'active' %}selected{% endif %}>Active</option>
+                <option value="scheduled" {% if status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                <option value="expired"   {% if status == 'expired' %}selected{% endif %}>Expired / Off</option>
+            </select>
+            <button type="submit" class="top-btn top-btn-gold"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+        </form>
+
+        <div class="panel">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Offer</th>
+                        <th>Type</th>
+                        <th>Target</th>
+                        <th>Discount</th>
+                        <th>Window</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if offers %}
+                        {% for offer in offers %}
+                            <tr>
+                                <td><div class="user-name">{{ offer.name }}</div></td>
+                                <td style="color:#aaa;">{{ offer.get_offer_type_display }}</td>
+                                <td style="color:#ddd;">{% if offer.offer_type == offer_type_product %}{{ offer.product.name }}{% else %}{{ offer.category.name }}{% endif %}</td>
+                                <td><span class="pct-pill">{{ offer.discount_percent }}%</span></td>
+                                <td style="color:#888; font-size:0.8rem;">{{ offer.valid_from|date:"d M Y H:i" }}<br>→ {{ offer.valid_to|date:"d M Y H:i" }}</td>
+                                <td>
+                                    {% if offer.is_live %}<span class="badge-live">Live</span>
+                                    {% elif offer.is_active %}<span class="badge-soon">Scheduled/Expired</span>
+                                    {% else %}<span class="badge-off">Off</span>{% endif %}
+                                </td>
+                                <td>
+                                    <div class="action-btns">
+                                        <button class="act-btn act-btn-edit" title="Edit"
+                                            onclick="openEditModal('{{ offer.id }}', '{{ offer.offer_type }}', '{{ offer.name|escapejs }}', '{{ offer.product_id|default:'' }}', '{{ offer.category_id|default:'' }}', '{{ offer.discount_percent }}', {{ offer.is_active|yesno:'true,false' }}, '{{ offer.valid_from|date:'Y-m-d\TH:i' }}', '{{ offer.valid_to|date:'Y-m-d\TH:i' }}')">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+                                        <button class="act-btn act-btn-del" title="Delete"
+                                            onclick="openDeleteModal('{{ offer.id }}', '{{ offer.name|escapejs }}')">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" style="text-align:center; padding:2rem; color:#888;">
+                                <i class="fa-solid fa-tag" style="font-size:2rem; margin-bottom:1rem; display:block;"></i>
+                                No offers found.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+            <div class="pagination-bar" style="display:flex; justify-content:space-between; align-items:center; padding:1rem 1.5rem; border-top:1px solid #f1f2f6;">
+                <div class="page-info text-muted small">
+                    Showing {{ page_obj.start_index|default:0 }} to {{ page_obj.end_index|default:0 }} of {{ page_obj.paginator.count|default:0 }} offers
+                </div>
+                {% if is_paginated %}
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}<li class="page-item"><a class="page-link text-lux-black" href="?page={{ page_obj.previous_page_number }}&status={{ status }}">Prev</a></li>{% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}<li class="page-item active"><span class="page-link bg-lux-black text-white border-lux-black">{{ num }}</span></li>
+                        {% else %}<li class="page-item"><a class="page-link text-lux-black" href="?page={{ num }}&status={{ status }}">{{ num }}</a></li>{% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}<li class="page-item"><a class="page-link text-lux-black" href="?page={{ page_obj.next_page_number }}&status={{ status }}">Next</a></li>{% endif %}
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <!-- Add / Edit Modal (shared fields) -->
+    <div class="modal-overlay" id="offerModal">
+        <div class="form-modal-box">
+            <h3 id="offerModalTitle">Add Offer</h3>
+            {% with f=add_form|default:edit_form %}
+            {% if f.non_field_errors %}<div class="alert alert-error">{% for e in f.non_field_errors %}<div>{{ e }}</div>{% endfor %}</div>{% endif %}
+            {% endwith %}
+            <form method="POST" id="offerForm" action="{% url 'admin_offer_add' %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label>Offer Name</label>
+                    <input type="text" name="name" id="of_name" required maxlength="120" placeholder="e.g. Summer Sale">
+                </div>
+                <div class="form-group">
+                    <label>Offer Type</label>
+                    <select name="offer_type" id="of_type" onchange="toggleTarget()">
+                        <option value="product">Product Offer</option>
+                        <option value="category">Category Offer</option>
+                    </select>
+                </div>
+                <div class="form-group" id="of_product_row">
+                    <label>Product</label>
+                    <select name="product" id="of_product">
+                        <option value="">— select product —</option>
+                        {% for p in products %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="form-group" id="of_category_row">
+                    <label>Category</label>
+                    <select name="category" id="of_category">
+                        <option value="">— select category —</option>
+                        {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Discount Percent (1–90)</label>
+                    <input type="number" name="discount_percent" id="of_percent" min="1" max="90" required>
+                </div>
+                <div class="row-2">
+                    <div class="form-group">
+                        <label>Valid From</label>
+                        <input type="datetime-local" name="valid_from" id="of_from" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Valid To</label>
+                        <input type="datetime-local" name="valid_to" id="of_to" required>
+                    </div>
+                </div>
+                <div class="form-group form-check-row">
+                    <input type="checkbox" name="is_active" id="of_active" checked>
+                    <label for="of_active">Active</label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="mbtn mbtn-cancel" onclick="closeOfferModal()">Cancel</button>
+                    <button type="submit" class="mbtn mbtn-gold" id="offerSubmitBtn">Add Offer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-box">
+            <div class="modal-icon"><i class="fa-solid fa-trash"></i></div>
+            <h3 class="modal-title">Delete Offer?</h3>
+            <p class="modal-desc">Delete "<span id="delName"></span>"? This cannot be undone.</p>
+            <div class="modal-actions">
+                <button class="mbtn mbtn-cancel" onclick="closeDeleteModal()">Cancel</button>
+                <a href="#" id="delLink" class="mbtn mbtn-gold">Delete</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const ADD_URL = "{% url 'admin_offer_add' %}";
+        const EDIT_URL_TPL = "/admin-panel/offers/__ID__/edit/";
+        const DEL_URL_TPL  = "/admin-panel/offers/__ID__/delete/";
+
+        function toggleTarget() {
+            const t = document.getElementById('of_type').value;
+            document.getElementById('of_product_row').style.display  = (t === 'product')  ? 'block' : 'none';
+            document.getElementById('of_category_row').style.display = (t === 'category') ? 'block' : 'none';
+        }
+
+        function openAddModal() {
+            document.getElementById('offerModalTitle').textContent = 'Add Offer';
+            document.getElementById('offerSubmitBtn').textContent = 'Add Offer';
+            const f = document.getElementById('offerForm');
+            f.action = ADD_URL; f.reset();
+            document.getElementById('of_type').value = 'product';
+            document.getElementById('of_active').checked = true;
+            toggleTarget();
+            document.getElementById('offerModal').classList.add('show');
+        }
+
+        function openEditModal(id, type, name, productId, categoryId, percent, isActive, from, to) {
+            document.getElementById('offerModalTitle').textContent = 'Edit Offer';
+            document.getElementById('offerSubmitBtn').textContent = 'Save Changes';
+            const f = document.getElementById('offerForm');
+            f.action = EDIT_URL_TPL.replace('__ID__', id);
+            document.getElementById('of_name').value = name;
+            document.getElementById('of_type').value = type;
+            document.getElementById('of_product').value = productId || '';
+            document.getElementById('of_category').value = categoryId || '';
+            document.getElementById('of_percent').value = percent;
+            document.getElementById('of_from').value = from;
+            document.getElementById('of_to').value = to;
+            document.getElementById('of_active').checked = isActive;
+            toggleTarget();
+            document.getElementById('offerModal').classList.add('show');
+        }
+
+        function closeOfferModal() { document.getElementById('offerModal').classList.remove('show'); }
+
+        function openDeleteModal(id, name) {
+            document.getElementById('delName').textContent = name;
+            document.getElementById('delLink').href = DEL_URL_TPL.replace('__ID__', id);
+            document.getElementById('deleteModal').classList.add('show');
+        }
+        function closeDeleteModal() { document.getElementById('deleteModal').classList.remove('show'); }
+
+        [document.getElementById('offerModal'), document.getElementById('deleteModal')].forEach(function (m) {
+            m.addEventListener('click', function (e) { if (e.target === this) this.classList.remove('show'); });
+        });
+
+        // Re-open the modal after a validation error round-trip.
+        {% if open_modal == 'add' %}openAddModal();{% endif %}
+        {% if open_modal == 'edit' and edit_offer %}
+        openEditModal('{{ edit_offer.id }}', '{{ edit_offer.offer_type }}', '{{ edit_offer.name|escapejs }}', '{{ edit_offer.product_id|default:'' }}', '{{ edit_offer.category_id|default:'' }}', '{{ edit_offer.discount_percent }}', {{ edit_offer.is_active|yesno:'true,false' }}, '{{ edit_offer.valid_from|date:'Y-m-d\TH:i' }}', '{{ edit_offer.valid_to|date:'Y-m-d\TH:i' }}');
+        {% endif %}
+    </script>
+</body>
+</html>
