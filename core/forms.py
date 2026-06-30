@@ -6,7 +6,7 @@ from django.utils import timezone
 from decimal import Decimal
 import re
 
-from .models import CustomUser, UserProfile, Address, Category, Product, ProductVariant, Brand, Material
+from .models import CustomUser, UserProfile, Address, Category, Product, ProductVariant, Brand, Material, ReferralCode
 
 PRODUCT_NAME_RE = re.compile(r"^[A-Za-z0-9 '\-]+$")
 HEX_COLOR_RE    = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -114,6 +114,19 @@ class RegistrationForm(forms.ModelForm):
         widget=_password("Confirm your password"),
     )
 
+    referral_code = forms.CharField(
+        label="Referral Code",
+        required=False,
+        max_length=20,
+        widget=forms.TextInput(attrs={
+            "placeholder":  "Referral Code (optional)",
+            "class":        "form-control",
+            "autocomplete": "off",
+            "style":        "text-transform: uppercase;",
+        }),
+        help_text="Enter a friend's referral code to earn wallet credits for both of you.",
+    )
+
     class Meta:
         model = CustomUser
         fields = ["email", "phone"]
@@ -156,6 +169,33 @@ class RegistrationForm(forms.ModelForm):
         if CustomUser.objects.filter(phone=normalized_phone).exists():
             raise ValidationError("A user with this phone number already exists.")
         return normalized_phone
+
+    def clean_referral_code(self):
+        """Validate the optional referral code.
+        - Empty → pass through (no referral).
+        - Normalise to uppercase.
+        - Must match an existing ReferralCode.
+        - Cannot be the referrer's own code (check against submitted email).
+        """
+        code = self.cleaned_data.get("referral_code", "").strip().upper()
+        if not code:
+            return ""
+
+        try:
+            ref_code_obj = ReferralCode.objects.select_related("user").get(code=code)
+        except ReferralCode.DoesNotExist:
+            raise forms.ValidationError("Invalid referral code. Please check and try again.")
+
+        # Ensure the code belongs to an active user
+        if not ref_code_obj.user.is_active:
+            raise forms.ValidationError("This referral code is no longer valid or belongs to an inactive user.")
+
+        # Prevent self-referral: compare against the email being registered.
+        submitted_email = self.cleaned_data.get("email", "").lower()
+        if ref_code_obj.user.email.lower() == submitted_email:
+            raise forms.ValidationError("You cannot use your own referral code.")
+
+        return code
 
     def clean(self):
         cleaned = super().clean()

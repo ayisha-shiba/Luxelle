@@ -1,8 +1,12 @@
 import uuid
+import string
+import secrets
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils import timezone
-from django.utils.text import slugify 
+from django.utils.text import slugify
 
 
 # Custom User Manager
@@ -777,8 +781,62 @@ class OrderStatusEvent(models.Model):
     class Meta:
         ordering = ["created_at"]
 
+
     def __str__(self):
         return f"{self.status} @ {self.created_at:%Y-%m-%d %H:%M}"
 
 
+# ─────────────────────────────────────────────
+# Referral Models
+# ─────────────────────────────────────────────
 
+def _generate_referral_code():
+    """Generate a unique 8-character alphanumeric referral code."""
+    alphabet = string.ascii_uppercase + string.digits
+    while True:
+        code = "".join(secrets.choice(alphabet) for _ in range(8))
+        if not ReferralCode.objects.filter(code=code).exists():
+            return code
+
+
+class ReferralCode(models.Model):
+    """One referral code per user. Auto-created via post_save signal."""
+
+    user = models.OneToOneField(
+        CustomUser, on_delete=models.CASCADE, related_name="referral_code"
+    )
+    code       = models.CharField(max_length=20, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.email} → {self.code}"
+
+
+class Referral(models.Model):
+    """Tracks a referrer→referee relationship and whether rewards have been issued."""
+
+    referrer   = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="referrals_made"
+    )
+    referee    = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="referral_received"
+    )
+    rewarded   = models.BooleanField(default=False)  # set True after wallets are credited
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # A user can only be referred once
+        unique_together = (("referrer", "referee"),)
+
+    def __str__(self):
+        return f"{self.referrer.email} referred {self.referee.email} (rewarded={self.rewarded})"
+
+
+@receiver(post_save, sender=CustomUser)
+def create_referral_code_for_user(sender, instance, created, **kwargs):
+    """Automatically create a ReferralCode whenever a new CustomUser is created."""
+    if created:
+        ReferralCode.objects.get_or_create(
+            user=instance,
+            defaults={"code": _generate_referral_code()},
+        )

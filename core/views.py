@@ -44,8 +44,10 @@ from .forms import (
     SetNewPasswordForm,
     UserProfileForm,
 )
-from .models import Address, CustomUser, UserProfile, OTPVerification, Product, Category, Brand, Review, Wishlist, Cart, CartItem, ProductVariant, Order, OrderItem, OrderStatusEvent
+from .models import Address, CustomUser, UserProfile, OTPVerification, Product, Category, Brand, Review, Wishlist, Cart, CartItem, ProductVariant, Order, OrderItem, OrderStatusEvent, ReferralCode, Referral
 from . import pricing
+from wallet import services as wallet_services
+from django.conf import settings
 from .utils import (
     check_resend_cooldown,
     clear_pending_user_session,
@@ -97,7 +99,74 @@ def _get_pending_otp_resend_seconds_remaining(request):
         return 0
 
 
+# REFERRAL REWARDS
+
+@transaction.atomic
+def apply_referral_reward(new_user, code):
+    """Credit both the referrer and the new user's wallets after successful sign-up.
+
+    Uses select_for_update on the Referral row to prevent a race condition
+    where two concurrent requests could both issue the reward.  The function is
+    safe to call multiple times — it is a no-op if the referral is already marked
+    as rewarded.
+    """
+    reward_amount = getattr(settings, "REFERRAL_REWARD_AMOUNT", 100)
+
+    try:
+        ref_code_obj = ReferralCode.objects.select_related("user").get(code=code)
+    except ReferralCode.DoesNotExist:
+        logger.warning(f"[REFERRAL] Code '{code}' not found when trying to reward {new_user.email}")
+        return
+
+    referrer = ref_code_obj.user
+
+    # Guard: should never happen since form validates this, but be defensive
+    if referrer == new_user:
+        logger.warning(f"[REFERRAL] Self-referral attempt by {new_user.email} — skipping reward.")
+        return
+
+    # Guard: check if referrer is active
+    if not referrer.is_active:
+        logger.warning(f"[REFERRAL] Referrer {referrer.email} is inactive — skipping reward for {new_user.email}.")
+        return
+
+    # get_or_create ensures idempotency; select_for_update prevents double-credit races
+    referral, created = Referral.objects.get_or_create(
+        referrer=referrer,
+        referee=new_user,
+    )
+
+    # Lock the row before reading the rewarded flag
+    referral = Referral.objects.select_for_update().get(pk=referral.pk)
+
+    if referral.rewarded:
+        logger.info(f"[REFERRAL] Already rewarded for {referrer.email} → {new_user.email}, skipping.")
+        return
+
+    # Credit the referrer's wallet
+    wallet_services.credit(
+        user=referrer,
+        amount=reward_amount,
+        reason=f"Referral reward — {new_user.get_full_name() or new_user.email} joined using your code",
+    )
+
+    # Credit the new user's (referee) wallet
+    wallet_services.credit(
+        user=new_user,
+        amount=reward_amount,
+        reason=f"Welcome referral bonus — referred by {referrer.get_full_name() or referrer.email}",
+    )
+
+    referral.rewarded = True
+    referral.save(update_fields=["rewarded"])
+
+    logger.info(
+        f"[REFERRAL] Rewarded ₹{reward_amount} to both {referrer.email} and {new_user.email}"
+    )
+
+
 # HOME
+
 
 def about_view(request):
     return render(request, "about.html")
@@ -175,10 +244,12 @@ def register_view(request):
     if request.method == "POST":
         if form.is_valid():
             registration_data = {
-                "email": form.cleaned_data["email"],
-                "password": form.cleaned_data["password1"],
-                "full_name": form.cleaned_data["full_name"],
-                "phone": form.cleaned_data.get("phone", ""),
+                "email":         form.cleaned_data["email"],
+                "password":      form.cleaned_data["password1"],
+                "full_name":     form.cleaned_data["full_name"],
+                "phone":         form.cleaned_data.get("phone", ""),
+                # Store validated referral code (empty string if none provided)
+                "referral_code": form.cleaned_data.get("referral_code", ""),
             }
             request.session["pending_registration"] = registration_data
 
@@ -263,6 +334,12 @@ def verify_otp_view(request):
                 user.is_active   = True
                 user.is_verified = True
                 user.save(update_fields=["is_active", "is_verified"])
+
+                # Apply referral reward if a valid code was submitted
+                referral_code = registration_data.get("referral_code", "")
+                if referral_code:
+                    apply_referral_reward(user, referral_code)
+
             except Exception as exc:
                 logger.error(f"[VERIFY_OTP] Failed to create user: {exc}")
                 messages.error(request, "Account creation failed. Please try again.")
@@ -812,6 +889,15 @@ def address_set_default_view(request, address_id):
         address.save()
         messages.success(request, "Default address updated.")
     return redirect("addresses")
+
+
+# MY REVIEWS
+
+@login_required
+@never_cache
+def my_reviews_view(request):
+    reviews = Review.objects.filter(user=request.user).select_related("product").order_by("-created_at")
+    return render(request, "my_reviews.html", {"reviews": reviews})
 
 
 #prodt

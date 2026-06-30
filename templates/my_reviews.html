@@ -1,0 +1,137 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Reviews | Luxelle</title>
+    <link rel="icon" type="image/svg+xml" href="{% static 'image/favicon.svg' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    <style>
+        .breadcrumb-bar a { color: var(--lux-gray); text-decoration: none; }
+        .breadcrumb-bar a:hover { color: var(--lux-gold); }
+
+        .review-card {
+            border: 1px solid #e2dfd9;
+            border-radius: 12px;
+            background: #fff;
+            overflow: hidden;
+            transition: box-shadow 0.2s ease;
+        }
+        .review-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+
+        .review-product-img {
+            width: 72px;
+            height: 72px;
+            object-fit: cover;
+            border-radius: 8px;
+            background: #f3f1ec;
+            flex-shrink: 0;
+        }
+
+        .star-filled { color: #c5a059; }
+        .star-empty  { color: #d9d4c9; }
+
+        .review-comment {
+            background: #faf8f4;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-style: italic;
+            color: #5c5248;
+            border-left: 3px solid #c5a059;
+        }
+    </style>
+</head>
+<body>
+
+    {% include 'partials/navbar.html' %}
+
+    <div class="container pt-4 breadcrumb-bar small text-uppercase tracking-wider">
+        <a href="{% url 'home' %}">Home</a>
+        <span class="text-lux-gray mx-1">/</span>
+        <a href="{% url 'profile' %}">Profile</a>
+        <span class="text-lux-gray mx-1">/</span>
+        <span class="text-lux-black">My Reviews</span>
+    </div>
+
+    <div class="container py-4">
+        <div class="mb-4">
+            <h1 class="font-playfair fw-bold text-lux-black mb-2">My Reviews</h1>
+            <p class="text-lux-gray font-inter mb-0">All the reviews you've left on Luxelle products.</p>
+        </div>
+
+        {% if reviews %}
+            <div class="d-flex flex-column gap-3">
+            {% for review in reviews %}
+                <div class="review-card p-3">
+                    <div class="d-flex gap-3 align-items-start">
+                        <!-- Product image -->
+                        {% with review.product.default_variant as variant %}
+                        {% if variant and variant.images.first %}
+                            <img src="{{ variant.images.first.image.url }}"
+                                 alt="{{ review.product.name }}"
+                                 class="review-product-img">
+                        {% else %}
+                            <img src="{% static 'image/default_product.svg' %}"
+                                 alt="{{ review.product.name }}"
+                                 class="review-product-img">
+                        {% endif %}
+                        {% endwith %}
+
+                        <div class="flex-grow-1">
+                            <!-- Product name & date -->
+                            <div class="d-flex justify-content-between flex-wrap gap-1 mb-1">
+                                <a href="{% url 'product_detail' review.product.slug %}"
+                                   class="fw-bold text-lux-black text-decoration-none hover-lux-gold">
+                                    {{ review.product.name }}
+                                </a>
+                                <span class="text-lux-gray small">{{ review.created_at|date:"d M Y" }}</span>
+                            </div>
+
+                            <!-- Star rating -->
+                            <div class="mb-2">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= review.rating %}
+                                        <i class="fa-solid fa-star star-filled small"></i>
+                                    {% else %}
+                                        <i class="fa-regular fa-star star-empty small"></i>
+                                    {% endif %}
+                                {% endfor %}
+                                <span class="ms-1 small text-lux-gray">({{ review.rating }}/5)</span>
+                            </div>
+
+                            <!-- Comment -->
+                            {% if review.comment %}
+                                <div class="review-comment small">"{{ review.comment }}"</div>
+                            {% else %}
+                                <p class="text-lux-gray small mb-0 fst-italic">No written comment.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+            </div>
+
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fa-regular fa-star fs-1 text-lux-gold mb-3"></i>
+                <h3 class="font-playfair fw-bold text-lux-black mb-2">No reviews yet</h3>
+                <p class="text-lux-gray mb-4">You haven't reviewed any products yet. Share your thoughts after a purchase!</p>
+                <a href="{% url 'product_list' %}"
+                   class="luxury-btn text-white text-uppercase tracking-wider px-4 py-3 border-0 text-decoration-none d-inline-block">
+                    Browse Products
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    {% include 'partials/toast.html' %}
+</body>
+</html>

@@ -122,6 +122,23 @@
         <div class="validation-error{% if form.password2.errors %} show{% endif %}">{{ form.password2.errors.0|default:'' }}</div>
     </div>
 
+                            <!-- Referral Code (optional) -->
+    <div class="form-floating mb-4 custom-input-group position-relative">
+        <input type="text"
+               class="form-control custom-input {% if form.referral_code.errors %}is-invalid{% endif %}"
+               name="referral_code"
+               id="referralCodeInput"
+               placeholder="Referral Code (optional)"
+               value="{{ form.referral_code.value|default_if_none:'' }}"
+               maxlength="20"
+               style="text-transform:uppercase; padding-right: 2.5rem;" />
+        <label>Referral Code <span class="text-muted fw-light" style="font-size:0.85em;">(optional)</span></label>
+        <span class="position-absolute end-0 top-50 translate-middle-y pe-3" style="color: var(--lux-gold, #c5a059); z-index:5;" title="Earn a welcome reward!">
+            <i class="fa-solid fa-gift"></i>
+        </span>
+        <div class="validation-error{% if form.referral_code.errors %} show{% endif %}">{{ form.referral_code.errors.0|default:'' }}</div>
+    </div>
+
                             <!-- Terms -->
                             <div class="form-check mb-4">
                                 <input class="form-check-input" type="checkbox" />
