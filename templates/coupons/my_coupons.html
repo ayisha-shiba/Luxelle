@@ -1,5 +1,4 @@
 {% load static %}
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,54 +10,378 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="{% static 'css/styles.css' %}" rel="stylesheet">
     <style>
-        .coupon-card { border: 1px dashed #c5a059; border-radius: 12px; background: #fff; position: relative; overflow: hidden; }
-        .coupon-code { font-weight: 700; letter-spacing: 0.12em; color: #1a1a1a; font-size: 1.2rem; }
-        .coupon-off { color: #c5a059; font-weight: 700; }
+        .coupons-container-box {
+            background: #ffffff;
+            border: 1px solid #eaeaea;
+            border-radius: 12px;
+            padding: 2.25rem;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.03);
+            margin-bottom: 3rem;
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1.25rem;
+        }
+
+        .header-row h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin: 0;
+        }
+
+        .filters-group {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .search-input-wrap {
+            position: relative;
+        }
+        .search-input-wrap input {
+            background: #ffffff;
+            border: 1px solid #d5d5d5;
+            border-radius: 8px;
+            padding: 0.55rem 1rem;
+            font-size: 0.9rem;
+            color: #1a1a1a;
+            width: 240px;
+            transition: all 0.22s;
+        }
+        .search-input-wrap input:focus {
+            outline: none;
+            border-color: #c5a059;
+            box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.15);
+        }
+        .search-input-wrap input::placeholder {
+            color: #999;
+        }
+
+        .status-select {
+            background: #ffffff;
+            border: 1px solid #d5d5d5;
+            border-radius: 8px;
+            padding: 0.55rem 2.2rem 0.55rem 1rem;
+            font-size: 0.9rem;
+            color: #1a1a1a;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.22s;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23666666' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 10px 10px;
+        }
+        .status-select:focus {
+            border-color: #c5a059;
+            box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.15);
+        }
+
+        /* ── Coupon Cards Grid ── */
+        .coupons-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+        @media(max-width: 768px) {
+            .coupons-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .user-coupon-card {
+            background: #ffffff;
+            border: 1px dashed #c5a059;
+            border-radius: 12px;
+            padding: 1.5rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 280px;
+            transition: transform 0.22s ease, box-shadow 0.22s ease;
+        }
+        .user-coupon-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(197, 160, 89, 0.12);
+        }
+
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.85rem;
+        }
+
+        .discount-val {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #c5a059;
+            line-height: 1.2;
+        }
+
+        .coupon-code-lbl {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            letter-spacing: 0.08em;
+            margin-top: 0.25rem;
+        }
+
+        .status-badge {
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            text-transform: uppercase;
+        }
+        .status-available {
+            color: #27ae60;
+            background: rgba(39, 174, 96, 0.12);
+        }
+        .status-expired {
+            color: #e74c3c;
+            background: rgba(231, 76, 60, 0.12);
+        }
+        .status-used {
+            color: #6c757d;
+            background: rgba(108, 117, 125, 0.12);
+        }
+
+        .dotted-divider {
+            border-top: 2px dashed #f0f0f0;
+            margin: 0.75rem 0 1.25rem;
+        }
+
+        .card-mid {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-mid .title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .card-mid .description {
+            font-size: 0.85rem;
+            color: #666666;
+            line-height: 1.4;
+            margin-bottom: 0.4rem;
+        }
+
+        .card-mid .meta-item {
+            font-size: 0.8rem;
+            color: #666666;
+        }
+
+        /* ── Buttons ── */
+        .btn-coupon-action {
+            width: 100%;
+            height: 44px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-available {
+            background: #c5a059;
+            color: #ffffff;
+        }
+        .btn-available:hover {
+            background: #b38f4a;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(197, 160, 89, 0.3);
+        }
+
+        .btn-disabled {
+            background: #f1f1f1;
+            color: #888888;
+            border: 1px solid #e0e0e0;
+            cursor: not-allowed;
+        }
+
+        /* ── Copy Toast Notification ── */
+        .copy-toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 2rem;
+            background: #1a1a1a;
+            border-left: 4px solid #c5a059;
+            border-radius: 8px;
+            padding: 0.9rem 1.4rem;
+            color: #ffffff;
+            font-size: 0.85rem;
+            font-weight: 500;
+            z-index: 10000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transform: translateY(120%);
+            opacity: 0;
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .copy-toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .empty-view {
+            text-align: center;
+            padding: 4rem 1rem;
+            color: #666666;
+        }
+        .empty-view i {
+            font-size: 3rem;
+            margin-bottom: 1.25rem;
+            color: #c5a059;
+            opacity: 0.5;
+        }
     </style>
 </head>
 <body>
 
     {% include 'partials/navbar.html' %}
 
-    <div class="container py-5" style="max-width: 820px;">
+    <div class="container py-5" style="max-width: 1000px;">
+        <!-- Breadcrumbs -->
+        <div class="mb-4">
+            <a href="/" class="text-decoration-none text-lux-gray small text-uppercase" style="letter-spacing: 0.1em;">Home</a>
+            <span class="text-lux-gray mx-2">/</span>
+            <a href="{% url 'profile' %}" class="text-decoration-none text-lux-gray small text-uppercase" style="letter-spacing: 0.1em;">My Account</a>
+            <span class="text-lux-gray mx-2">/</span>
+            <span class="text-lux-black small text-uppercase fw-semibold" style="letter-spacing: 0.1em;">My Coupons</span>
+        </div>
 
-        <h1 class="font-playfair fw-bold text-lux-black mb-1">My Coupons</h1>
-        <p class="text-lux-gray font-inter mb-4">Available coupons you can use at checkout.</p>
-
-        {% if coupons %}
-        <div class="row g-3">
-            {% for coupon in coupons %}
-            <div class="col-12 col-md-6">
-                <div class="coupon-card p-4 h-100">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <span class="coupon-code">{{ coupon.code }}</span>
-                        <span class="coupon-off">
-                            {% if coupon.discount_type == 'percentage' %}{{ coupon.discount_value }}% OFF{% else %}₹{{ coupon.discount_value }} OFF{% endif %}
-                        </span>
+        <div class="coupons-container-box">
+            <!-- Header Row with search & dropdown -->
+            <div class="header-row">
+                <h1>My Coupons</h1>
+                <form method="GET" action="{% url 'my_coupons' %}" id="couponFilterForm" class="filters-group">
+                    <div class="search-input-wrap">
+                        <input type="text" name="search" id="userSearchInput" value="{{ search_query|default:'' }}" placeholder="Search code or title...">
                     </div>
-                    {% if coupon.description %}<div class="text-lux-gray small mb-2">{{ coupon.description }}</div>{% endif %}
-                    <ul class="list-unstyled small text-lux-gray mb-0">
-                        {% if coupon.min_order_amount %}<li>· Min order ₹{{ coupon.min_order_amount }}</li>{% endif %}
-                        {% if coupon.max_discount_amount %}<li>· Max discount ₹{{ coupon.max_discount_amount }}</li>{% endif %}
-                        <li>· Valid till {{ coupon.valid_to|date:"d M Y" }}</li>
-                    </ul>
-                </div>
+                    <select name="status" id="userStatusSelect" class="status-select" onchange="this.form.submit()">
+                        <option value="all"       {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                        <option value="available" {% if status_filter == 'available' %}selected{% endif %}>Available</option>
+                        <option value="used"      {% if status_filter == 'used' %}selected{% endif %}>Used</option>
+                        <option value="expired"   {% if status_filter == 'expired' %}selected{% endif %}>Expired</option>
+                    </select>
+                </form>
             </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="text-center text-lux-gray py-5">
-            <i class="fa-solid fa-ticket fs-1 mb-3 d-block"></i>
-            No coupons available right now.
-        </div>
-        {% endif %}
 
-        <div class="mt-4">
-            <a href="{% url 'profile' %}" class="text-decoration-none text-lux-gray"><i class="fa-solid fa-arrow-left me-1"></i> Back to profile</a>
-        </div>
+            <!-- Coupons Grid -->
+            {% if coupons %}
+            <div class="coupons-grid">
+                {% for coupon in coupons %}
+                <div class="user-coupon-card">
+                    <div>
+                        <div class="card-top">
+                            <div>
+                                <div class="discount-val">
+                                    {% if coupon.discount_type == 'percentage' %}{{ coupon.discount_value|floatformat:0 }}% OFF{% else %}₹{{ coupon.discount_value|floatformat:0 }} OFF{% endif %}
+                                </div>
+                                <div class="coupon-code-lbl">{{ coupon.code }}</div>
+                            </div>
+                            <span class="status-badge {% if coupon.user_status == 'available' %}status-available{% elif coupon.user_status == 'expired' %}status-expired{% else %}status-used{% endif %}">
+                                {{ coupon.user_status_label }}
+                            </span>
+                        </div>
 
+                        <div class="dotted-divider"></div>
+
+                        <div class="card-mid">
+                            <div class="title">{{ coupon.title|default:coupon.code }}</div>
+                            {% if coupon.description %}
+                                <div class="description">{{ coupon.description }}</div>
+                            {% endif %}
+                            {% if coupon.min_order_amount %}
+                                <div class="meta-item"><i class="fa-solid fa-circle text-lux-gray me-1" style="font-size:4px; vertical-align:middle;"></i> Min. Order: ₹{{ coupon.min_order_amount|floatformat:0 }}</div>
+                            {% endif %}
+                            {% if coupon.discount_type == 'percentage' and coupon.max_discount_amount %}
+                                <div class="meta-item"><i class="fa-solid fa-circle text-lux-gray me-1" style="font-size:4px; vertical-align:middle;"></i> Max Discount: ₹{{ coupon.max_discount_amount|floatformat:0 }}</div>
+                            {% endif %}
+                            <div class="meta-item"><i class="fa-solid fa-circle text-lux-gray me-1" style="font-size:4px; vertical-align:middle;"></i> Expires: {{ coupon.valid_to|date:"M d, Y" }}</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        {% if coupon.user_status == 'available' %}
+                            <button type="button" class="btn-coupon-action btn-available" onclick="copyCouponCode('{{ coupon.code|escapejs }}')">
+                                Copy Code
+                            </button>
+                        {% else %}
+                            <button type="button" class="btn-coupon-action btn-disabled" disabled>
+                                {{ coupon.user_status_label }}
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-view">
+                <i class="fa-solid fa-ticket-simple"></i>
+                <p>No coupons found matching the filters.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Toast notification element -->
+    <div class="copy-toast" id="copyToast">
+        <i class="fa-solid fa-circle-check" style="color: #c5a059;"></i>
+        <span>Coupon copied to clipboard!</span>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Form submit on Enter key inside search
+        const searchInput = document.getElementById('userSearchInput');
+        searchInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                document.getElementById('couponFilterForm').submit();
+            }
+        });
+
+        // Copy Code Functionality
+        let toastTimeout;
+        function copyCouponCode(code) {
+            navigator.clipboard.writeText(code).then(() => {
+                const toast = document.getElementById('copyToast');
+                toast.classList.add('show');
+                
+                clearTimeout(toastTimeout);
+                toastTimeout = setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
+        }
+    </script>
 </body>
 </html>

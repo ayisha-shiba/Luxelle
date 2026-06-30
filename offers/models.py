@@ -11,9 +11,11 @@ class Offer(models.Model):
     Either a product offer or a category offer; for any product the larger
     of the two (by rupee value) wins."""
 
+    GLOBAL   = "global"
     PRODUCT  = "product"
     CATEGORY = "category"
     TYPE_CHOICES = [
+        (GLOBAL,   "Global Offer"),
         (PRODUCT,  "Product Offer"),
         (CATEGORY, "Category Offer"),
     ]

@@ -7,8 +7,13 @@ urlpatterns = [
     path("coupon/remove/", views.remove_coupon, name="remove_coupon"),
     path("my-coupons/",    views.my_coupons,    name="my_coupons"),
 
-    path("admin-panel/coupons/",                       admin_views.admin_coupon_list_view,   name="admin_coupons"),
-    path("admin-panel/coupons/add/",                   admin_views.admin_coupon_add_view,    name="admin_coupon_add"),
-    path("admin-panel/coupons/<int:coupon_id>/edit/",  admin_views.admin_coupon_edit_view,   name="admin_coupon_edit"),
-    path("admin-panel/coupons/<int:coupon_id>/delete/", admin_views.admin_coupon_delete_view, name="admin_coupon_delete"),
+    # Admin coupon management
+    path("admin-panel/coupons/",                        admin_views.admin_coupon_list_view,        name="admin_coupons"),
+    path("admin-panel/coupons/add/",                    admin_views.admin_coupon_add_view,         name="admin_coupon_add"),
+    path("admin-panel/coupons/generate-code/",          admin_views.admin_coupon_generate_code,    name="admin_coupon_generate_code"),
+    path("admin-panel/coupons/search-products/",        admin_views.admin_coupon_search_products,  name="admin_coupon_search_products"),
+    path("admin-panel/coupons/search-categories/",      admin_views.admin_coupon_search_categories,name="admin_coupon_search_categories"),
+    path("admin-panel/coupons/<int:coupon_id>/edit/",   admin_views.admin_coupon_edit_view,        name="admin_coupon_edit"),
+    path("admin-panel/coupons/<int:coupon_id>/toggle/", admin_views.admin_coupon_toggle_view,      name="admin_coupon_toggle"),
+    path("admin-panel/coupons/<int:coupon_id>/delete/", admin_views.admin_coupon_delete_view,      name="admin_coupon_delete"),
 ]

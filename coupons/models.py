@@ -11,11 +11,28 @@ class Coupon(models.Model):
     FLAT       = "flat"
     TYPE_CHOICES = [
         (PERCENTAGE, "Percentage"),
-        (FLAT,       "Flat Amount"),
+        (FLAT,       "Fixed Amount (₹)"),
     ]
 
+    # Applicability choices
+    GLOBAL              = "global"
+    SPECIFIC_PRODUCTS   = "specific_products"
+    SPECIFIC_CATEGORIES = "specific_categories"
+    TARGET_CHOICES = [
+        (GLOBAL,              "All Products (Global)"),
+        (SPECIFIC_PRODUCTS,   "Specific Products"),
+        (SPECIFIC_CATEGORIES, "Specific Categories"),
+    ]
+
+    # Payment method choices (stored as comma-separated)
+    PM_ALL    = "all"
+    PM_COD    = "cod"
+    PM_WALLET = "wallet"
+    PM_ONLINE = "online"
+
     code          = models.CharField(max_length=30, unique=True, db_index=True)
-    description   = models.CharField(max_length=200, blank=True)
+    title         = models.CharField(max_length=100, blank=True, help_text="Display name for this coupon")
+    description   = models.TextField(blank=True)
 
     discount_type  = models.CharField(max_length=10, choices=TYPE_CHOICES, default=PERCENTAGE)
     discount_value = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
@@ -24,11 +41,22 @@ class Coupon(models.Model):
     # Smallest cart subtotal the coupon can be used on.
     min_order_amount    = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
 
+    # Applicability
+    applies_to   = models.CharField(max_length=20, choices=TARGET_CHOICES, default=GLOBAL)
+    specific_products   = models.ManyToManyField("core.Product",   blank=True, related_name="coupons")
+    specific_categories = models.ManyToManyField("core.Category",  blank=True, related_name="coupons")
+
     valid_from = models.DateTimeField()
     valid_to   = models.DateTimeField()
 
-    # Total times the coupon may be redeemed across all users (0 = unlimited).
-    usage_limit = models.PositiveIntegerField(default=0)
+    # Usage restrictions
+    usage_limit    = models.PositiveIntegerField(default=0, help_text="0 = unlimited")
+    per_user_limit = models.PositiveIntegerField(default=0, help_text="0 = unlimited per user")
+    first_time_only = models.BooleanField(default=False, help_text="Only for first-time users")
+
+    # Payment method restrictions (comma-separated: all, cod, wallet, online)
+    payment_methods = models.CharField(max_length=50, default="all", blank=True)
+
     is_active   = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -43,6 +71,18 @@ class Coupon(models.Model):
     def save(self, *args, **kwargs):
         self.code = self.code.strip().upper()
         super().save(*args, **kwargs)
+
+    @property
+    def status(self):
+        """Return human-readable status."""
+        now = timezone.now()
+        if not self.is_active:
+            return "disabled"
+        if self.valid_from > now:
+            return "scheduled"
+        if self.valid_to < now:
+            return "expired"
+        return "active"
 
     @property
     def is_live(self):
@@ -64,7 +104,7 @@ class CouponUsage(models.Model):
     used_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("coupon", "user")
+        unique_together = (("coupon", "user"),)
 
     def __str__(self):
         return f"{self.coupon.code} by {self.user}"
