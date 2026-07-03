@@ -940,9 +940,6 @@ def my_reviews_view(request):
 @never_cache
 def write_review_view(request, product_id):
     product = get_object_or_404(Product, id=product_id)
-    
-    # Check if user purchased product and received it.
-    # Order delivery is tracked at the item level, not always reflected on the order status.
     has_purchased = OrderItem.objects.filter(
         order__user=request.user,
         variant__product=product,
@@ -953,9 +950,6 @@ def write_review_view(request, product_id):
         messages.error(request, "You can only review products you have purchased and received.")
         return redirect("product_detail", slug=product.slug)
 
-    # Edit mode: only consider active (not hidden) reviews for editing.
-    # Hidden reviews should not be loaded into the edit form — they must not
-    # prevent the user from creating a new, visible review.
     review = Review.objects.filter(product=product, user=request.user, is_hidden=False).first()
 
     if request.method == "POST":
@@ -984,8 +978,6 @@ def write_review_view(request, product_id):
             review.save()
             messages.success(request, "Your review has been updated successfully!")
         else:
-            # Ensure we don't create multiple visible reviews in a race.
-            # Lock the user row to serialize concurrent review submissions by the same user.
             with transaction.atomic():
                 locked_user = CustomUser.objects.select_for_update().get(pk=request.user.pk)
                 existing = Review.objects.filter(product=product, user=locked_user, is_hidden=False).first()
@@ -1006,7 +998,6 @@ def write_review_view(request, product_id):
                     messages.success(request, "Your review has been submitted successfully!")
         return redirect("product_detail", slug=product.slug)
 
-        # Preserve entered data on failure
         return render(request, "write_review.html", {
             "product": product,
             "rating": rating,
@@ -1197,7 +1188,7 @@ def product_detail_view(request, slug):
         "rating_percentages": rating_percentages,
         "has_purchased": has_purchased,
         "user_review": user_review,
-        "reviews": reviews, # show all reviews
+        "reviews": reviews, 
         "related_products": related_products,
         "in_wishlist": in_wishlist,
         "in_cart": in_cart,
@@ -1277,10 +1268,6 @@ def order_invoice_view(request, order_number):
             # Fallback to regeneration if the file is missing from disk for some reason
             pass
 
-    # Totals are kept current on the order itself (recalculate_totals runs on
-    # every cancel/return), so the invoice, the user order page and the admin
-    # order page all read the same persisted figures. Bill only what the
-    # customer keeps; list cancelled/returned items separately, not in totals.
     billed = [i for i in order.items.all() if i.is_billable]
     status_value, status_label = order.derived_status
 
@@ -1322,7 +1309,6 @@ def cancel_order_item_view(request, item_id):
     from wallet import services as wallet_services
 
     with transaction.atomic():
-        # Only restore stock if the item was actually active/paid (not payment_failed)
         if item.variant and item.status != OrderItem.STATUS_PAYMENT_FAILED:
             item.variant.stock += item.quantity
             item.variant.save(update_fields=["stock"])
@@ -1340,9 +1326,6 @@ def cancel_order_item_view(request, item_id):
         item.order.recalculate_totals()
         refund = total_before - item.order.total
 
-        # Direct refund to wallet — but only if the order was actually paid up
-        # front. COD isn't paid until delivery (and you can't cancel post-delivery),
-        # so there's nothing to refund there.
         prepaid = (item.order.payment_method == Order.PAYMENT_WALLET
                    or item.order.payments.filter(status="paid").exists())
         if prepaid and refund > 0:
@@ -1774,8 +1757,6 @@ def checkout_view(request):
         messages.info(request, "Your cart is empty.")
         return redirect("cart")
 
-    # Resolve any coupon held in the session. Re-validate it against the current
-    # cart so a coupon that no longer qualifies (cart changed) is dropped.
     from decimal import Decimal
     from coupons import services as coupon_services
     from coupons.models import Coupon
@@ -1821,8 +1802,6 @@ def checkout_view(request):
             messages.error(request, "Please select a payment method to continue.")
             return redirect("checkout")
 
-        # Pay-with-wallet: reject up front if the balance can't cover the order,
-        # so we don't create an order (and decrement stock) we can't settle.
         if payment_method == Order.PAYMENT_WALLET:
             from wallet import services as wallet_services
             est_total = pricing.summarize_items(items, coupon_discount=coupon_discount)["grand_total"]
@@ -1833,9 +1812,6 @@ def checkout_view(request):
         if payment_method == Order.PAYMENT_RAZORPAY:
             temp_order = Order(user=request.user)
             order_number = temp_order._generate_order_number()
-
-            # Create the order and failed items in the DB upfront so it appears in My Orders immediately.
-            # Do NOT touch stock or cart yet — this only happens when the callback verifies payment is paid.
             try:
                 with transaction.atomic():
                     order = Order.objects.create(
@@ -1932,8 +1908,6 @@ def checkout_view(request):
                     variant = ProductVariant.objects.select_for_update().get(pk=item.variant_id)
                     if variant.stock < item.quantity:
                         raise ValueError(f"{variant.variant_name} just went out of stock.")
-                    # Snapshot the offer-discounted price so the order, totals and
-                    # any future refund all reflect what the customer actually paid.
                     unit_price = offers_services.best_offer_for(variant)["effective_price"]
                     line_total = unit_price * item.quantity
                     order_item = OrderItem.objects.create(
@@ -1958,16 +1932,10 @@ def checkout_view(request):
 
                 order.recalculate_totals()
 
-                # Lock in the coupon redemption (once per user) for this order.
                 if active_coupon:
                     coupon_services.record_usage(active_coupon, request.user, order, order.coupon_discount)
 
-                # Wallet payment: debit inside the atomic block so that if
-                # the debit fails (InsufficientBalance or DB error) the whole
-                # order is rolled back — no orphan orders, no double-charges.
                 if payment_method == Order.PAYMENT_WALLET:
-                    # Idempotency guard: if this order was already debited
-                    # (e.g. user double-submitted) don't debit again.
                     already_debited = WalletTransaction.objects.filter(
                         order=order,
                         txn_type=WalletTransaction.DEBIT,
@@ -2028,8 +1996,6 @@ def checkout_view(request):
 @never_cache
 def order_success_view(request, order_number):
     order = get_object_or_404(Order, order_number=order_number, user = request.user)
-
-    # Reaching this page means an order completed — grant referral reward if due.
     from offers.services import grant_referral_reward_if_due
     grant_referral_reward_if_due(order)
 

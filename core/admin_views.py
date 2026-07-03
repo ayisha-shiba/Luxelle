@@ -48,7 +48,7 @@ from .utils import (
 logger = logging.getLogger(__name__)
 
 
-# ADMIN LOGIN / LOGOUT
+# Admin login / logout
 
 @never_cache
 def admin_login_view(request):
@@ -89,9 +89,9 @@ def admin_logout_view(request):
 
 
 
-# ADMIN DASHBOARD
 
-# ADMIN DASHBOARD
+
+# Admin dashboard
 
 @admin_required
 def admin_dashboard_view(request):
@@ -109,7 +109,7 @@ def admin_dashboard_view(request):
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # ── Customers ─────────────────────────────────────────────────────────────
+    # Customers
     non_staff = CustomUser.objects.filter(is_staff=False)
     total_customers   = non_staff.count()
     active_customers  = non_staff.filter(is_active=True).count()
@@ -117,23 +117,21 @@ def admin_dashboard_view(request):
     new_this_month    = non_staff.filter(date_joined__gte=first_of_month).count()
     recent_users      = non_staff.order_by("-date_joined")[:5]
 
-    # ── Catalogue counts ──────────────────────────────────────────────────────
+    # Catalogue counts
     total_products   = Product.objects.filter(is_deleted=False).count()
     total_categories = Category.objects.filter(is_deleted=False).count()
     total_brands     = Brand.objects.count()
 
-    # ── Orders — aggregate by item status (each item moves independently) ─────
+    # Orders
     all_orders = Order.objects.all()
     total_orders = all_orders.count()
 
-    # Statuses that make an order "revenue-generating"
     billable_statuses = [
         OrderItem.STATUS_CONFIRMED, OrderItem.STATUS_PACKED,
         OrderItem.STATUS_SHIPPED,   OrderItem.STATUS_OUT_FOR_DELIVERY,
         OrderItem.STATUS_DELIVERED,
     ]
 
-    # Summary card counts (by item, which is the real unit of fulfilment)
     item_qs = OrderItem.objects.all()
     pending_orders    = item_qs.filter(status=OrderItem.STATUS_PENDING).values("order").distinct().count()
     processing_orders = item_qs.filter(status__in=[OrderItem.STATUS_CONFIRMED, OrderItem.STATUS_PACKED]).values("order").distinct().count()
@@ -142,8 +140,7 @@ def admin_dashboard_view(request):
     cancelled_orders  = item_qs.filter(status=OrderItem.STATUS_CANCELLED).values("order").distinct().count()
     returned_orders   = item_qs.filter(status=OrderItem.STATUS_RETURNED).values("order").distinct().count()
 
-    # ── Revenue statistics ────────────────────────────────────────────────────
-    # Only include orders whose status is NOT cancelled / returned at order level
+    # Revenue statistics
     revenue_qs = all_orders.exclude(
         status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED]
     )
@@ -163,7 +160,7 @@ def admin_dashboard_view(request):
     total_tax        = rev_agg["total_tax"]
     total_shipping   = rev_agg["total_shipping"]
 
-    # Referral wallet credits — treat as a marketing discount
+    # Referral wallet credits 
     try:
         from wallet.models import WalletTransaction
         referral_credits = (
@@ -176,13 +173,13 @@ def admin_dashboard_view(request):
 
     aov = revenue_qs.aggregate(a=Avg("total"))["a"] or _D0
 
-    # ── Today's snapshot ──────────────────────────────────────────────────────
+    #Today's snapshot 
     today_orders  = all_orders.filter(created_at__gte=today_start)
     today_revenue = today_orders.exclude(
         status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED]
     ).aggregate(s=Coalesce(Sum("total"), _D0))["s"]
 
-    # ── Best-selling products (top 10 by units sold — excludes cancelled/returned items) ──
+    # Best-selling products
     top_products = list(
         OrderItem.objects
         .filter(status__in=billable_statuses)
@@ -198,7 +195,7 @@ def admin_dashboard_view(request):
         )
         .order_by("-units_sold")[:10]
     )
-    # Append current stock from the variant with the most units sold
+    # Append current stock for the variant with the most units sold
     from core.models import ProductVariant as _PV
     for p in top_products:
         name = p["variant__product__name"]
@@ -209,7 +206,7 @@ def admin_dashboard_view(request):
         )
         p["stock"] = stock
 
-    # ── Best-selling categories (top 10) ──────────────────────────────────────
+    # Best-selling categories (top 10)
     top_categories = list(
         OrderItem.objects
         .filter(status__in=billable_statuses)
@@ -219,7 +216,7 @@ def admin_dashboard_view(request):
         .order_by("-units_sold")[:10]
     )
 
-    # ── Best-selling brands (top 10) ──────────────────────────────────────────
+    # Best-selling brands (top 10)
     top_brands = list(
         OrderItem.objects
         .filter(status__in=billable_statuses)
@@ -229,7 +226,7 @@ def admin_dashboard_view(request):
         .order_by("-units_sold")[:10]
     )
 
-    # ── Recent orders (last 10) ───────────────────────────────────────────────
+    # Recent orders (last 10)
     recent_orders = (
         all_orders
         .select_related("user")
@@ -237,7 +234,7 @@ def admin_dashboard_view(request):
         .order_by("-created_at")[:10]
     )
 
-    # ── Daily Revenue Trend (Last 15 Days) ────────────────────────────────────
+    # Daily revenue trend for the last 15 days
     trend_start = now - dt.timedelta(days=14)
     daily_revenue_qs = (
         all_orders
@@ -256,7 +253,7 @@ def admin_dashboard_view(request):
         trend_labels.append(day_date.strftime("%Y-%m-%d"))
         trend_revenue.append(float(trend_map.get(day_date, _D0)))
 
-    # ── Order Status Counts for Doughnut Chart (all statuses) ─────────────────
+    # Order status counts for the doughnut chart
     status_counter = {
         "pending":    0,
         "processing": 0,
@@ -473,7 +470,7 @@ def _build_dashboard_sales_chart(request):
     return labels, revenues, order_counts, period_label, granularity
 
 
-# ── Dashboard Bar Chart AJAX Data ─────────────────────────────────────────────
+# Dashboard bar chart API
 
 @admin_required
 def admin_dashboard_chart_data(request):
@@ -487,7 +484,7 @@ def admin_dashboard_chart_data(request):
     })
 
 
-# USER MANAGEMENT
+# User management
 
 @admin_required
 def admin_user_management_view(request):
@@ -581,7 +578,7 @@ def admin_delete_user_view(request, user_id):
     return redirect('admin_users')
 
 
-# ADMIN FORGOT PASSWORD - REQUEST OTP
+# Forgot password request OTP
 
 
 def admin_forgot_password_view(request):
@@ -617,7 +614,7 @@ def admin_forgot_password_view(request):
     return redirect('admin_forgot_password_otp')
 
 
-# ADMIN FORGOT PASSWORD - VERIFY OTP
+# Forgot password verify OTP
 
 @never_cache
 def admin_forgot_password_otp_view(request):
@@ -645,7 +642,7 @@ def admin_forgot_password_otp_view(request):
     return render(request, "admin_panel/otp.html", {"email": user.email})
 
 
-# ADMIN FORGOT PASSWORD - RESEND OTP
+# Forgot password resend OTP
 
 @never_cache
 def admin_resend_forgot_password_otp_view(request):
@@ -671,7 +668,7 @@ def admin_resend_forgot_password_otp_view(request):
     return redirect("admin_forgot_password_otp")
 
 
-# ADMIN FORGOT PASSWORD - RESET PASSWORD
+# Forgot password reset password
 
 @never_cache
 def admin_reset_password_view(request):
@@ -710,7 +707,7 @@ def admin_reset_password_view(request):
     return render(request, "admin_panel/reset_password.html", {"form": form})
 
 
-#ADMIN CATEGORY MANAGEMENT
+# Category management
 
 def _category_list_context(request):
     search_query = request.GET.get("search", "").strip()
@@ -840,7 +837,7 @@ def admin_category_toggle_visibility_view(request, category_id):
     return redirect(request.META.get("HTTP_REFERER") or "admin_categories")
 
 
-# ADMIN PRODUCT MANAGEMENT
+# Product management
 
 SORT_OPTIONS = {
     "latest":     "-created_at",
@@ -1004,8 +1001,6 @@ MIN_IMAGE_DIM       = 200
 
 
 def process_product_image(uploaded_file):
-    """Validate format/size/dimensions, square-crop without distortion (cover), resize to a
-    uniform size and re-encode as an optimized JPEG. Raises ValidationError on bad input."""
     name = getattr(uploaded_file, "name", "image")
     if getattr(uploaded_file, "size", 0) > MAX_IMAGE_BYTES:
         raise ValidationError(f"\"{name}\" is larger than 5 MB.")
@@ -1033,7 +1028,6 @@ def process_product_image(uploaded_file):
 
 
 def _process_images(uploaded_files):
-    """Process a batch of uploads with dedupe. Returns (processed_list, error_or_None)."""
     processed, hashes = [], set()
     for img in uploaded_files:
         try:
@@ -1050,8 +1044,6 @@ def _process_images(uploaded_files):
 
 
 def _apply_inline_new(data):
-    """A newly-added brand arrives as a NON-numeric select value (the typed name).
-    Create it (case-insensitive get-or-create) and replace the value with its id."""
     brand_val = data.get("p-brand", "").strip()
     if brand_val and not brand_val.isdigit():
         brand = (Brand.objects.filter(name__iexact=brand_val, is_deleted=False).first()
@@ -1445,7 +1437,7 @@ def admin_variant_restore_view(request, variant_id):
     return redirect(f"{reverse('admin_product_detail', args=[variant.product_id])}?show=trash")
 
 
-# ORDER MANAGEMENT
+# Order management
 
 ORDER_SORT_OPTIONS = {
     "latest":      "-created_at",
@@ -1463,7 +1455,6 @@ def admin_order_list_view(request):
 
     orders = Order.objects.select_related("user").prefetch_related("items")
 
-    # Filter by item status: orders that contain at least one item in the chosen status.
     valid_statuses = dict(OrderItem.STATUS_CHOICES)
     if status in valid_statuses:
         orders = orders.filter(items__status=status).distinct()
@@ -1597,8 +1588,6 @@ def admin_order_item_update_status_view(request, item_id):
             order_item=item, status=new_status,
             note=note or f"Status updated to {allowed[new_status]} by admin.",
         )
-
-        # Cancelling/restoring an item changes what's payable — keep totals fresh.
         order.recalculate_totals()
 
     messages.success(request, f"{item.product_name} marked as {allowed[new_status]}.")
@@ -1606,7 +1595,7 @@ def admin_order_item_update_status_view(request, item_id):
     return redirect(f"{url}#item-{item.id}")
 
 
-# RETURN MANAGEMENT
+# Return management
 
 RETURN_FILTERS = [
     (OrderItem.STATUS_RETURN_REQUESTED, "Return Requested"),
@@ -1678,9 +1667,6 @@ def admin_return_approve_view(request, item_id):
             order_item=item, status=OrderItem.STATUS_RETURN_APPROVED,
             note="Return approved by admin. Awaiting product pickup and inspection.",
         )
-        # NOTE: No refund here. The wallet credit is issued only after the admin
-        # confirms the inventory action (Returned to Stock or Sent for Repair)
-        # in admin_return_update_status_view below.
 
     messages.success(request, f"Return approved for {item.product_name}. Proceed to schedule pickup.")
     return redirect(request.POST.get("next") or "admin_returns")
@@ -1706,7 +1692,6 @@ def admin_return_decline_view(request, item_id):
         order_item=item, status=OrderItem.STATUS_RETURN_REJECTED,
         note=f"Return rejected by admin. Reason: {reason}",
     )
-    # Rejected return → customer keeps & pays for the item → restore it to the total.
     item.order.recalculate_totals()
     messages.success(request, f"Return rejected for {item.product_name}.")
     return redirect(request.POST.get("next") or "admin_returns")
@@ -1729,7 +1714,6 @@ def admin_return_update_status_view(request, item_id):
     from wallet import services as wallet_services
 
     with transaction.atomic():
-        # ── Restock: only when item is physically returned to inventory ──────────
         if new_status == OrderItem.STATUS_RETURNED and item.variant:
             item.variant.stock += item.quantity
             item.variant.save(update_fields=["stock"])
@@ -1737,7 +1721,6 @@ def admin_return_update_status_view(request, item_id):
         item.status = new_status
         item.save(update_fields=["status"])
 
-        # ── Build the audit note ─────────────────────────────────────────────────
         if new_status == OrderItem.STATUS_RETURNED:
             note = "Item inspected — returned to stock."
         elif new_status == OrderItem.STATUS_RETURN_REPAIR:
@@ -1746,13 +1729,8 @@ def admin_return_update_status_view(request, item_id):
             note = f"Return step updated to {allowed[new_status]} by admin."
         OrderStatusEvent.objects.create(order_item=item, status=new_status, note=note)
 
-        # ── Issue refund at the terminal inventory action ────────────────────────
-        # Refund is due when the product is either restocked OR sent for repair.
-        # In both cases the customer no longer holds the item, so the refund is
-        # always warranted. The already_refunded() guard prevents double-credits.
         refund_statuses = {OrderItem.STATUS_RETURNED, OrderItem.STATUS_RETURN_REPAIR}
         if new_status in refund_statuses:
-            # Drop the item from the payable total first so `refund` is exact.
             total_before = item.order.total
             item.order.recalculate_totals()
             refund = total_before - item.order.total
@@ -1807,18 +1785,9 @@ def admin_return_reallow_view(request, item_id):
     return redirect("admin_returns")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# ANALYTICS & REPORTS
-# ─────────────────────────────────────────────────────────────────────────────
+# Analytics and reports
 
 def _get_analytics_period(request):
-    """Parse GET params and return (period, period_label, start, end, prev_start, prev_end,
-    start_date_str, end_date_str).
-
-    Variable contract: every variable is guaranteed to be assigned before return,
-    regardless of the period value or URL parameters.  Invalid / missing custom
-    dates fall back to "This Month" without raising any exception.
-    """
     import datetime as dt
     from django.utils import timezone
 
@@ -1831,7 +1800,7 @@ def _get_analytics_period(request):
     def make_aware(d):
         return timezone.make_aware(dt.datetime.combine(d, dt.time.min))
 
-    # ── Safe defaults (This Month) ─────────────────────────────────────────
+    # Safe defaults (this month)
     prev_m     = today.month - 1 or 12
     prev_y     = today.year if today.month > 1 else today.year - 1
     start      = make_aware(dt.date(today.year, today.month, 1))
@@ -1841,7 +1810,7 @@ def _get_analytics_period(request):
     label      = "This Month"
     period     = "month"
 
-    # ── Map recognised periods ─────────────────────────────────────────────
+    # Map recognized periods to start/end ranges
     if requested == "today":
         start      = make_aware(today)
         end        = now
@@ -1886,12 +1855,10 @@ def _get_analytics_period(request):
         period     = "year"
 
     elif requested == "custom":
-        # Both dates must be present and parseable; otherwise fall back quietly.
         if start_date_str and end_date_str:
             try:
                 _s = dt.datetime.strptime(start_date_str, "%Y-%m-%d").date()
                 _e = dt.datetime.strptime(end_date_str,   "%Y-%m-%d").date()
-                # If inverted, swap so the range is always valid
                 if _s > _e:
                     _s, _e = _e, _s
                     start_date_str = str(_s)
@@ -1904,14 +1871,11 @@ def _get_analytics_period(request):
                 label      = f"{_s.strftime('%d %b %Y')} – {_e.strftime('%d %b %Y')}"
                 period     = "custom"
             except (ValueError, OverflowError):
-                # Bad date format → fall back to This Month (defaults already set)
                 start_date_str = ""
                 end_date_str   = ""
         else:
-            # One or both dates empty → fall back to This Month
             start_date_str = ""
             end_date_str   = ""
-    # Any other unknown period value falls back to This Month (defaults already set)
 
     return period, label, start, end, prev_start, prev_end, start_date_str, end_date_str
 
@@ -1933,8 +1897,6 @@ def admin_analytics_view(request):
     all_orders = Order.objects.all()
     period_orders = all_orders.filter(created_at__gte=start, created_at__lte=end)
 
-    # Only include completed/delivered (successful) orders in revenue/sales calculations.
-    # Use item-level delivery status because order.status may not track individual item fulfilment.
     delivered_orders = period_orders.filter(items__status=OrderItem.STATUS_DELIVERED).distinct()
 
     # Metrics
@@ -1955,7 +1917,7 @@ def admin_analytics_view(request):
     # Average Order Value (AOV)
     average_order_value = net_revenue / order_count if order_count > 0 else Decimal("0.00")
 
-    # ── Sales Analytics Chart ────────────────────────────────────────────────
+    # Sales analytics chart data
     chart_labels, chart_revenue, chart_items, _, _ = _build_dashboard_sales_chart(request)
 
     # Sales Report Table — paginated (20 rows per page)
@@ -1973,8 +1935,6 @@ def admin_analytics_view(request):
         report_orders = paginator.page(page_number)
     except (PageNotAnInteger, EmptyPage):
         report_orders = paginator.page(1)
-
-    # Build a query-string fragment that keeps period/date params when paginating
     qs_parts = [f"period={period}"]
     if start_date_str:
         qs_parts.append(f"start_date={start_date_str}")
@@ -2103,9 +2063,7 @@ def admin_analytics_pdf_view(request):
     return response
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# LEDGER BOOK EXPORTS  (PDF / Excel / CSV)
-# ─────────────────────────────────────────────────────────────────────────────
+# Ledger exports (PDF / Excel / CSV)
 
 def _build_ledger_rows(start, end):
     """Return a list of ledger dicts sorted by created_at, with running balance."""
@@ -2147,7 +2105,6 @@ def _build_ledger_rows(start, end):
 
 
 def _ledger_period(request):
-    """Parse start_date/end_date from GET; default to current month."""
     import datetime as dt
     from django.utils import timezone
     today = timezone.now().date()
@@ -2263,7 +2220,6 @@ def admin_ledger_csv_view(request):
     return response
 @admin_required
 def admin_analytics_excel_view(request):
-    """Generate and stream a multi-sheet Excel analytics report using openpyxl."""
     from decimal import Decimal
     from django.db.models import Sum, Count
     from django.http import HttpResponse
@@ -2285,7 +2241,7 @@ def admin_analytics_excel_view(request):
 
     wb = openpyxl.Workbook()
 
-    # ── Styling helpers ───────────────────────────────────────────────────────
+    # Styling helpers
     GOLD_FILL   = PatternFill("solid", fgColor="C5A059")
     DARK_FILL   = PatternFill("solid", fgColor="1A1A1A")
     HEADER_FONT = Font(bold=True, color="0B0B0B", size=11)
@@ -2314,7 +2270,7 @@ def admin_analytics_excel_view(request):
                     pass
             ws.column_dimensions[col_letter].width = min(max_len + 4, 40)
 
-    # ── Sheet 1: Sales Summary ────────────────────────────────────────────────
+    # Sheet 1: Sales Summary
     ws1 = wb.active
     ws1.title = "Sales Summary"
     agg = period_orders.aggregate(
@@ -2345,7 +2301,7 @@ def admin_analytics_excel_view(request):
         ws1.cell(row=ri, column=2).number_format = "#,##0.00"
     auto_width(ws1)
 
-    # ── Sheet 2: Orders ───────────────────────────────────────────────────────
+    # Sheet 2: Orders
     ws2 = wb.create_sheet("Orders")
     ws2.append(["Order Number", "Date", "Customer", "Payment", "Status", "Total (₹)"])
     style_header_row(ws2, 1, 6)
@@ -2361,7 +2317,7 @@ def admin_analytics_excel_view(request):
         ])
     auto_width(ws2)
 
-    # ── Sheet 3: Top Products ─────────────────────────────────────────────────
+    # Top Products
     ws3 = wb.create_sheet("Top Products")
     ws3.append(["Product Name", "SKU", "Units Sold", "Revenue (₹)"])
     style_header_row(ws3, 1, 4)
@@ -2376,7 +2332,7 @@ def admin_analytics_excel_view(request):
         ws3.append([p["variant__product__name"], p["sku"], p["units"], float(p["rev"] or 0)])
     auto_width(ws3)
 
-    # ── Sheet 4: Category Revenue ─────────────────────────────────────────────
+    # Category Revenue
     ws4 = wb.create_sheet("Category Revenue")
     ws4.append(["Category", "Units Sold", "Revenue (₹)"])
     style_header_row(ws4, 1, 3)
@@ -2390,7 +2346,7 @@ def admin_analytics_excel_view(request):
         ws4.append([c["variant__product__category__name"], c["units"], float(c["rev"] or 0)])
     auto_width(ws4)
 
-    # ── Sheet 5: Brand Revenue ────────────────────────────────────────────────
+    # Brand Revenue
     ws5 = wb.create_sheet("Brand Revenue")
     ws5.append(["Brand", "Units Sold", "Revenue (₹)"])
     style_header_row(ws5, 1, 3)
@@ -2404,7 +2360,7 @@ def admin_analytics_excel_view(request):
         ws5.append([b["variant__product__brand__name"], b["units"], float(b["rev"] or 0)])
     auto_width(ws5)
 
-    # ── Sheet 6: Payment Methods ──────────────────────────────────────────────
+    # Payment Methods
     ws6 = wb.create_sheet("Payment Methods")
     ws6.append(["Payment Method", "Order Count"])
     style_header_row(ws6, 1, 2)
@@ -2412,7 +2368,7 @@ def admin_analytics_excel_view(request):
         ws6.append([pm_map.get(p["payment_method"], p["payment_method"]), p["cnt"]])
     auto_width(ws6)
 
-    # ── Sheet 7: Order Status ─────────────────────────────────────────────────
+    #  Order Status
     ws7 = wb.create_sheet("Order Status")
     ws7.append(["Status", "Item Count"])
     style_header_row(ws7, 1, 2)
@@ -2423,7 +2379,7 @@ def admin_analytics_excel_view(request):
         ws7.append([st_map.get(s["status"], s["status"]), s["cnt"]])
     auto_width(ws7)
 
-    # ── Stream ────────────────────────────────────────────────────────────────
+    # Stream the workbook to the response
     buffer = BytesIO()
     wb.save(buffer)
     buffer.seek(0)
@@ -2436,7 +2392,7 @@ def admin_analytics_excel_view(request):
     return response
 
 
-# ── Admin Reviews ────────────────────────────────────────────────────────────
+# Admin reviews
 
 @admin_required
 @never_cache
@@ -2501,7 +2457,6 @@ def admin_review_toggle_view(request, review_id):
         review.save(update_fields=["is_hidden"])
         action = "hidden" if review.is_hidden else "restored"
         messages.success(request, f"Review has been {action} successfully.")
-    # preserve filters in redirect
     next_url = request.POST.get("next", "")
     if next_url:
         return HttpResponseRedirect(next_url)

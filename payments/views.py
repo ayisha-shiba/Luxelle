@@ -73,7 +73,11 @@ def payment_start(request, order_number):
     ).first()
 
     if not pending_rzp:
-        pending_rzp = services.create_pending_razorpay_order(request.user, checkout_data, total_amount)
+        try:
+            pending_rzp = services.create_pending_razorpay_order(request.user, checkout_data, total_amount)
+        except services.RazorpayOrderError as exc:
+            messages.error(request, str(exc))
+            return redirect("checkout")
 
     order_context = {
         "order_number": order_number,

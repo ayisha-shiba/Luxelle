@@ -5,9 +5,6 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load .env into os.environ. override=True so the .env file is the source of
-# truth in dev, even if a stale variable lingers in the shell session.
-# (In production there's no .env, so real environment variables are used.)
 load_dotenv(BASE_DIR / ".env", override=True)
 
 SECRET_KEY = os.environ.get(
