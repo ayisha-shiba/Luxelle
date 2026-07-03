@@ -170,9 +170,15 @@
                     <hr class="border-light">
 
                     <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
-                        <span>Subtotal</span>
-                        <span id="cartSubtotal">₹{{ summary.subtotal }}</span>
+                        <span>Subtotal (MRP)</span>
+                        <span id="cartSubtotal">₹{{ summary.mrp_subtotal }}</span>
                     </div>
+                    {% if summary.discount %}
+                    <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
+                        <span>Offer Discount</span>
+                        <span class="text-success" id="cartDiscount">− ₹{{ summary.discount }}</span>
+                    </div>
+                    {% endif %}
                     <div class="d-flex justify-content-between mb-2 text-lux-gray font-inter">
                         <span>CGST (9%)</span>
                         <span id="cartCgst">₹{{ summary.cgst }}</span>
@@ -190,6 +196,7 @@
                         <span>Total</span>
                         <span id="cartTotal">₹{{ summary.grand_total }}</span>
                     </div>
+
 
                     {% if can_checkout %}
                         <a href="{% url 'checkout' %}" class="luxury-btn text-white text-uppercase tracking-wider px-4 py-3 border-0 d-block text-center text-decoration-none">Proceed to Checkout</a>

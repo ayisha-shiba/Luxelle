@@ -248,7 +248,5 @@ LOGGING = {
 LOGIN_URL = 'login'
 LOGOUT_REDIRECT_URL = 'login'
 
-# Referral reward — amount (in rupees) credited to each wallet on a successful referral.
-# Override by setting REFERRAL_REWARD_AMOUNT in .env (e.g. REFERRAL_REWARD_AMOUNT=200).
 from decimal import Decimal as _Decimal
 REFERRAL_REWARD_AMOUNT = _Decimal(os.environ.get("REFERRAL_REWARD_AMOUNT", "100"))

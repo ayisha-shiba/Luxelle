@@ -4,8 +4,9 @@ from django.db.models import Q, Min, Avg, F
 
 import logging
 import math
+import re
 
-from django.db import transaction
+from django.db import transaction, DatabaseError, IntegrityError
 from decimal import Decimal
 
 
@@ -75,11 +76,69 @@ _REGISTRATION_SESSION_KEYS = (
     "otp_purpose",
 )
 
+COMMENT_MIN_ALNUM = 10
+COMMENT_MIN_ALPHA = 2
+
+REPEATED_CHAR_PATTERN = re.compile(r"[^A-Za-z0-9]")
+
+REVIEW_TITLE_MAX_LENGTH = 100
+REVIEW_COMMENT_MAX_LENGTH = 1000
+
+
+def _review_has_meaningful_text(value: str) -> bool:
+    if not value:
+        return False
+    trimmed = value.strip()
+    if not trimmed:
+        return False
+    alnum_chars = re.findall(r"[A-Za-z0-9]", trimmed)
+    if len(alnum_chars) < COMMENT_MIN_ALNUM:
+        return False
+    alpha_chars = re.findall(r"[A-Za-z]", trimmed)
+    if len(alpha_chars) < COMMENT_MIN_ALPHA:
+        return False
+    return True
+
+
+def _review_is_repeated_character(value: str) -> bool:
+    cleaned = re.sub(r"[^A-Za-z0-9]", "", value.strip())
+    return bool(cleaned) and len(set(cleaned)) == 1
+
+
+def _validate_review_inputs(comment: str, title: str = "") -> list[str]:
+    errors = []
+    comment_text = (comment or "").strip()
+    title_text = (title or "").strip()
+
+    if not comment_text:
+        errors.append("Please enter a meaningful review.")
+    else:
+        if not re.search(r"[A-Za-z0-9]", comment_text):
+            errors.append("Review cannot contain only special characters.")
+        elif _review_is_repeated_character(comment_text):
+            errors.append("Review must contain valid text.")
+        elif len(comment_text) > REVIEW_COMMENT_MAX_LENGTH:
+            errors.append("Review must be at most 1000 characters long.")
+        elif not _review_has_meaningful_text(comment_text):
+            if len(re.findall(r"[A-Za-z0-9]", comment_text)) < COMMENT_MIN_ALNUM:
+                errors.append("Review must be at least 10 characters long.")
+            else:
+                errors.append("Review must contain valid text.")
+
+    if title_text:
+        if len(title_text) > REVIEW_TITLE_MAX_LENGTH:
+            errors.append("Review title cannot exceed 100 characters.")
+        elif not re.search(r"[A-Za-z0-9]", title_text):
+            errors.append("Review title must contain valid text.")
+
+    return errors
+
 
 def _clear_registration_session(request):
     
     for key in _REGISTRATION_SESSION_KEYS:
         request.session.pop(key, None)
+    request.session.pop("pending_referral_code", None)
 
 
 def _get_pending_otp_resend_seconds_remaining(request):
@@ -262,33 +321,38 @@ def verify_otp_view(request):
                 })
 
             try:
-                full_name = registration_data.get("full_name", "")
-                name_parts = full_name.split(maxsplit=1)
-                first_name = name_parts[0] if len(name_parts) > 0 else ""
-                last_name = name_parts[1] if len(name_parts) > 1 else ""
-                user = CustomUser.objects.create_user(
-                    email      = registration_data["email"],
-                    password   = registration_data["password"],
-                    first_name = first_name,
-                    last_name  = last_name,
-                    full_name  = full_name,
-                    phone      = registration_data.get("phone", ""),
-                )
-                user.is_active   = True
-                user.is_verified = True
-                user.save(update_fields=["is_active", "is_verified"])
+                with transaction.atomic():
+                    full_name = registration_data.get("full_name", "")
+                    name_parts = full_name.split(maxsplit=1)
+                    first_name = name_parts[0] if len(name_parts) > 0 else ""
+                    last_name = name_parts[1] if len(name_parts) > 1 else ""
+                    user = CustomUser.objects.create_user(
+                        email      = registration_data["email"],
+                        password   = registration_data["password"],
+                        first_name = first_name,
+                        last_name  = last_name,
+                        full_name  = full_name,
+                        phone      = registration_data.get("phone", ""),
+                    )
+                    user.is_active   = True
+                    user.is_verified = True
+                    user.save(update_fields=["is_active", "is_verified"])
 
+                    # Record who referred this user (reward comes on their first order).
+                    referral_code = request.session.get("pending_referral_code")
+                    if referral_code:
+                        from offers.services import apply_referral_code
+                        apply_referral_code(user, referral_code)
 
-            except Exception as exc:
-                logger.error(f"[VERIFY_OTP] Failed to create user: {exc}")
+            except (IntegrityError, DatabaseError) as exc:
+                logger.exception("[VERIFY_OTP] Registration failed during user/referral creation for %s", registration_data.get("email"))
                 messages.error(request, "Account creation failed. Please try again.")
                 return redirect("register")
 
-            # Record who referred this user (reward comes on their first order).
-            referral_code = request.session.get("pending_referral_code")
-            if referral_code:
-                from offers.services import apply_referral_code
-                apply_referral_code(user, referral_code)
+            except Exception as exc:
+                logger.exception("[VERIFY_OTP] Unexpected registration failure for %s", registration_data.get("email"))
+                messages.error(request, "Account creation failed. Please try again.")
+                return redirect("register")
 
             _clear_registration_session(request)
 
@@ -872,6 +936,104 @@ def my_reviews_view(request):
     reviews = Review.objects.filter(user=request.user).select_related("product").order_by("-created_at")
     return render(request, "my_reviews.html", {"reviews": reviews})
 
+@login_required
+@never_cache
+def write_review_view(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    
+    # Check if user purchased product and received it.
+    # Order delivery is tracked at the item level, not always reflected on the order status.
+    has_purchased = OrderItem.objects.filter(
+        order__user=request.user,
+        variant__product=product,
+        status=OrderItem.STATUS_DELIVERED
+    ).exists()
+
+    if not has_purchased:
+        messages.error(request, "You can only review products you have purchased and received.")
+        return redirect("product_detail", slug=product.slug)
+
+    # Edit mode: only consider active (not hidden) reviews for editing.
+    # Hidden reviews should not be loaded into the edit form — they must not
+    # prevent the user from creating a new, visible review.
+    review = Review.objects.filter(product=product, user=request.user, is_hidden=False).first()
+
+    if request.method == "POST":
+        rating = request.POST.get("rating")
+        title = request.POST.get("title", "").strip()
+        comment = request.POST.get("comment", "").strip()
+
+        validation_errors = _validate_review_inputs(comment, title)
+        if not rating or not rating.isdigit() or not (1 <= int(rating) <= 5):
+            validation_errors.insert(0, "Please select a valid star rating.")
+
+        if validation_errors:
+            for error in validation_errors:
+                messages.error(request, error)
+            return render(request, "write_review.html", {
+                "product": product,
+                "rating": rating,
+                "title": title,
+                "comment": comment,
+            })
+
+        if review:
+            review.rating = int(rating)
+            review.title = title
+            review.comment = comment
+            review.save()
+            messages.success(request, "Your review has been updated successfully!")
+        else:
+            # Ensure we don't create multiple visible reviews in a race.
+            # Lock the user row to serialize concurrent review submissions by the same user.
+            with transaction.atomic():
+                locked_user = CustomUser.objects.select_for_update().get(pk=request.user.pk)
+                existing = Review.objects.filter(product=product, user=locked_user, is_hidden=False).first()
+                if existing:
+                    existing.rating = int(rating)
+                    existing.title = title
+                    existing.comment = comment
+                    existing.save()
+                    messages.success(request, "Your review has been updated successfully!")
+                else:
+                    Review.objects.create(
+                        user=locked_user,
+                        product=product,
+                        rating=int(rating),
+                        title=title,
+                        comment=comment,
+                    )
+                    messages.success(request, "Your review has been submitted successfully!")
+        return redirect("product_detail", slug=product.slug)
+
+        # Preserve entered data on failure
+        return render(request, "write_review.html", {
+            "product": product,
+            "rating": rating,
+            "title": title,
+            "comment": comment
+        })
+
+    return render(request, "write_review.html", {
+        "product": product,
+        "rating": review.rating if review else "",
+        "title": review.title if review else "",
+        "comment": review.comment if review else ""
+    })
+
+
+@login_required
+@never_cache
+def delete_review_view(request, product_id):
+    """POST-only: delete the authenticated user's review for this product."""
+    product = get_object_or_404(Product, id=product_id)
+    if request.method == "POST":
+        deleted, _ = Review.objects.filter(product=product, user=request.user).delete()
+        if deleted:
+            messages.success(request, "Your review has been deleted.")
+        else:
+            messages.error(request, "No review found to delete.")
+    return redirect("product_detail", slug=product.slug)
 
 #prodt
 
@@ -980,9 +1142,19 @@ def product_detail_view(request, slug):
                 seen_sizes.add(v.size)
                 size_options.append(variants.filter(size=v.size, color__iexact=variant.color).first() or v)
 
-    reviews = Review.objects.filter(product=product).select_related("user")
+    reviews = Review.objects.filter(product=product, is_hidden=False).select_related("user")
     review_count = reviews.count()
     avg_rating = reviews.aggregate(Avg("rating"))["rating__avg"]
+    
+    # Rating breakdown
+    rating_breakdown = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0}
+    for r in reviews:
+        if r.rating in rating_breakdown:
+            rating_breakdown[r.rating] += 1
+    
+    rating_percentages = {}
+    for stars, count in rating_breakdown.items():
+        rating_percentages[stars] = (count / review_count * 100) if review_count > 0 else 0
 
     related_products = Product.objects.filter(
         category=product.category,
@@ -1003,6 +1175,16 @@ def product_detail_view(request, slug):
 
     max_qty = min(variant.stock, CartItem.MAX_QUANTITY) if variant else 0
 
+    has_purchased = False
+    user_review = None
+    if request.user.is_authenticated:
+        has_purchased = OrderItem.objects.filter(
+            order__user=request.user,
+            variant__product=product,
+            status=OrderItem.STATUS_DELIVERED
+        ).exists()
+        user_review = reviews.filter(user=request.user).first()
+
     context = {
         "product": product,
         "variant": variant,
@@ -1011,7 +1193,11 @@ def product_detail_view(request, slug):
         "size_options": size_options,
         "avg_rating": avg_rating,
         "review_count": review_count,
-        "reviews": reviews[:6],
+        "rating_breakdown": rating_breakdown,
+        "rating_percentages": rating_percentages,
+        "has_purchased": has_purchased,
+        "user_review": user_review,
+        "reviews": reviews, # show all reviews
         "related_products": related_products,
         "in_wishlist": in_wishlist,
         "in_cart": in_cart,
@@ -1067,6 +1253,7 @@ def order_invoice_view(request, order_number):
     from io import BytesIO
     from django.template.loader import render_to_string
     from xhtml2pdf import pisa
+    from django.core.files.base import ContentFile
 
     order = (Order.objects.filter(order_number=order_number, user=request.user)
              .prefetch_related("items").first())
@@ -1075,8 +1262,20 @@ def order_invoice_view(request, order_number):
         return redirect("orders")
 
     if not order.can_download_invoice:
-        messages.error(request, "Invoice is available only after an item has been delivered.")
+        if order.payment_method == Order.PAYMENT_COD:
+            messages.error(request, "Invoice is available only after your order is delivered.")
+        else:
+            messages.error(request, "Invoice is available only after successful payment.")
         return redirect("order_detail", order_number=order.order_number)
+
+    if order.invoice_file:
+        try:
+            response = HttpResponse(order.invoice_file.read(), content_type="application/pdf")
+            response["Content-Disposition"] = f'attachment; filename="Luxelle-Invoice-{order.order_number}.pdf"'
+            return response
+        except Exception:
+            # Fallback to regeneration if the file is missing from disk for some reason
+            pass
 
     # Totals are kept current on the order itself (recalculate_totals runs on
     # every cancel/return), so the invoice, the user order page and the admin
@@ -1097,7 +1296,10 @@ def order_invoice_view(request, order_number):
         messages.error(request, "Could not generate the invoice. Please try again.")
         return redirect("order_detail", order_number=order.order_number)
 
-    response = HttpResponse(result.getvalue(), content_type="application/pdf")
+    pdf_bytes = result.getvalue()
+    order.invoice_file.save(f"Luxelle-Invoice-{order.order_number}.pdf", ContentFile(pdf_bytes), save=True)
+
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="Luxelle-Invoice-{order.order_number}.pdf"'
     return response
 
@@ -1120,7 +1322,8 @@ def cancel_order_item_view(request, item_id):
     from wallet import services as wallet_services
 
     with transaction.atomic():
-        if item.variant:
+        # Only restore stock if the item was actually active/paid (not payment_failed)
+        if item.variant and item.status != OrderItem.STATUS_PAYMENT_FAILED:
             item.variant.stock += item.quantity
             item.variant.save(update_fields=["stock"])
 
@@ -1535,26 +1738,16 @@ def remove_from_cart_view(request, item_id):
     messages.success(request, "Item removed from your cart.")
     return redirect("cart")
 
-def payment_handler(request,order):
+def payment_handler(request, order):
     method = order.payment_method
 
     if method == Order.PAYMENT_COD:
         return redirect("order_success", order_number=order.order_number)
 
     if method == Order.PAYMENT_RAZORPAY:
-        # Razorpay logic lives in the payments app; core only knows the URL name.
         return redirect("payment_start", order_number=order.order_number)
 
     if method == Order.PAYMENT_WALLET:
-        from wallet import services as wallet_services
-        try:
-            wallet_services.debit(
-                request.user, order.total,
-                f"Payment for order {order.order_number}", order=order,
-            )
-        except wallet_services.InsufficientBalance:
-            messages.error(request, "Wallet balance was insufficient to pay for this order.")
-            return redirect("order_detail", order_number=order.order_number)
         return redirect("order_success", order_number=order.order_number)
 
     raise ValueError(f"Unsupported payment method: {method}")
@@ -1562,6 +1755,7 @@ def payment_handler(request,order):
 @login_required
 @never_cache
 def checkout_view(request):
+    from core.models import Order
     from offers import services as offers_services
     cart, _ = Cart.objects.get_or_create(user=request.user)
     items   = list(cart.items.select_related("variant__product", "variant__product__category"))
@@ -1622,9 +1816,9 @@ def checkout_view(request):
             messages.error(request,"Please select a valid delivery address.")
             return redirect("checkout")
 
-        payment_method = request.POST.get("payment_method", Order.PAYMENT_COD)
-        if payment_method not in dict(Order.PAYMENT_CHOICES):
-            messages.error(request, "Please select a valid payment method.")
+        payment_method = request.POST.get("payment_method", "").strip()
+        if not payment_method or payment_method not in dict(Order.PAYMENT_CHOICES):
+            messages.error(request, "Please select a payment method to continue.")
             return redirect("checkout")
 
         # Pay-with-wallet: reject up front if the balance can't cover the order,
@@ -1635,6 +1829,88 @@ def checkout_view(request):
             if wallet_services.get_wallet(request.user).balance < est_total:
                 messages.error(request, "Your wallet balance is insufficient for this order.")
                 return redirect("checkout")
+
+        if payment_method == Order.PAYMENT_RAZORPAY:
+            temp_order = Order(user=request.user)
+            order_number = temp_order._generate_order_number()
+
+            # Create the order and failed items in the DB upfront so it appears in My Orders immediately.
+            # Do NOT touch stock or cart yet — this only happens when the callback verifies payment is paid.
+            try:
+                with transaction.atomic():
+                    order = Order.objects.create(
+                        user=request.user,
+                        order_number=order_number,
+                        ship_full_name=address.full_name,
+                        ship_phone=address.phone,
+                        ship_address_line1=address.address_line1,
+                        ship_address_line2=address.address_line2,
+                        ship_city=address.city,
+                        ship_state=address.state,
+                        ship_postal_code=address.postal_code,
+                        ship_country=address.country,
+                        payment_method=payment_method,
+                        coupon=active_coupon,
+                    )
+
+                    for item in items:
+                        variant = item.variant
+                        unit_price = offers_services.best_offer_for(variant)["effective_price"]
+                        line_total = unit_price * item.quantity
+                        
+                        order_item = OrderItem.objects.create(
+                            order=order,
+                            variant=variant,
+                            product_name=variant.product.name,
+                            variant_name=variant.variant_name,
+                            sku=variant.sku,
+                            unit_price=unit_price,
+                            original_price=variant.original_price,
+                            quantity=item.quantity,
+                            line_total=line_total,
+                            status=OrderItem.STATUS_PAYMENT_FAILED,
+                        )
+
+                        OrderStatusEvent.objects.create(
+                            order_item=order_item,
+                            status=OrderItem.STATUS_PAYMENT_FAILED,
+                            note="Order payment initiated.",
+                        )
+
+                    order.recalculate_totals()
+            except Exception as exc:
+                messages.error(request, f"Error initiating order: {str(exc)}")
+                return redirect("checkout")
+
+            checkout_data = {
+                "order_number": order_number,
+                "address": {
+                    "full_name": address.full_name,
+                    "phone": address.phone,
+                    "address_line1": address.address_line1,
+                    "address_line2": address.address_line2,
+                    "city": address.city,
+                    "state": address.state,
+                    "postal_code": address.postal_code,
+                    "country": address.country,
+                },
+                "coupon_id": active_coupon.id if active_coupon else None,
+                "payment_method": payment_method,
+                "items": [
+                    {
+                        "variant_id": item.variant_id,
+                        "quantity": item.quantity,
+                    }
+                    for item in items
+                ],
+                "total_amount": str(order.total),
+            }
+
+            request.session["pending_razorpay_checkout"] = checkout_data
+            return redirect("payment_start", order_number=order_number)
+
+        from wallet import services as wallet_services
+        from wallet.models import WalletTransaction
 
         try:
             with transaction.atomic():
@@ -1686,8 +1962,29 @@ def checkout_view(request):
                 if active_coupon:
                     coupon_services.record_usage(active_coupon, request.user, order, order.coupon_discount)
 
+                # Wallet payment: debit inside the atomic block so that if
+                # the debit fails (InsufficientBalance or DB error) the whole
+                # order is rolled back — no orphan orders, no double-charges.
+                if payment_method == Order.PAYMENT_WALLET:
+                    # Idempotency guard: if this order was already debited
+                    # (e.g. user double-submitted) don't debit again.
+                    already_debited = WalletTransaction.objects.filter(
+                        order=order,
+                        txn_type=WalletTransaction.DEBIT,
+                    ).exists()
+                    if not already_debited:
+                        wallet_services.debit(
+                            request.user,
+                            order.total,
+                            f"Payment for order {order.order_number}",
+                            order=order,
+                        )
+
                 cart.items.all().delete()
 
+        except wallet_services.InsufficientBalance:
+            messages.error(request, "Insufficient wallet balance. Please choose another payment method or add funds.")
+            return redirect("checkout")
         except ValueError as exc:
             messages.error(request, str(exc))
             return redirect("cart")
@@ -1697,6 +1994,24 @@ def checkout_view(request):
     
     from wallet import services as wallet_services
     summary = pricing.summarize_items(items, coupon_discount=coupon_discount)
+
+    # Fetch available coupons for the dropdown
+    from coupons.models import Coupon, CouponUsage
+    from django.db.models import Count
+    now = timezone.now()
+    used_coupon_ids = CouponUsage.objects.filter(user=request.user).values_list("coupon_id", flat=True)
+    available_coupons_qs = Coupon.objects.filter(
+        is_active=True,
+        valid_from__lte=now,
+        valid_to__gte=now
+    ).exclude(id__in=used_coupon_ids).annotate(
+        usage_count=Count("usages")
+    )
+    available_coupons = [
+        c for c in available_coupons_qs
+        if c.usage_limit == 0 or c.usage_count < c.usage_limit
+    ]
+
     context = {
         "items": items,
         "addresses": addresses,
@@ -1705,6 +2020,7 @@ def checkout_view(request):
         "open_address_modal": open_address_modal,
         "wallet_balance": wallet_services.get_wallet(request.user).balance,
         "active_coupon": active_coupon,
+        "available_coupons": available_coupons,
     }
     return render(request, "checkout.html", context)
 

@@ -457,7 +457,7 @@
                 <button class="cm-close" onclick="closeModal()" title="Close"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <form method="POST" id="couponForm" action="{% url 'admin_coupon_add' %}">
+            <form method="POST" id="couponForm" action="{% url 'admin_coupon_add' %}" onsubmit="return validateCouponForm(event)">
                 {% csrf_token %}
                 <div class="cm-body">
 
@@ -482,8 +482,9 @@
                         </div>
                         <div class="cm-row single">
                             <div class="cm-group">
-                                <label class="cm-label">Description</label>
-                                <textarea name="description" id="cp_desc" class="cm-textarea" placeholder="Optional internal note…"></textarea>
+                                <label class="cm-label">Description <span class="opt">(optional)</span></label>
+                                <textarea name="description" id="cp_desc" class="cm-textarea" placeholder="Optional internal note…" maxlength="500"></textarea>
+                                <div class="field-err" id="err_desc"></div>
                             </div>
                         </div>
                     </div>
@@ -493,11 +494,9 @@
                         <div class="cm-section-title"><i class="fa-solid fa-percent"></i> B) Discount Configuration</div>
                         <div class="cm-row">
                             <div class="cm-group">
-                                <label class="cm-label">Discount Type <span class="req">*</span></label>
-                                <select name="discount_type" id="cp_type" class="cm-select" onchange="onTypeChange()">
-                                    <option value="percentage">Percentage (%)</option>
-                                    <option value="flat">Fixed Amount (₹)</option>
-                                </select>
+                                <label class="cm-label">Discount Type</label>
+                                <input type="text" class="cm-input" value="Percentage (%)" disabled style="opacity:0.6; cursor:not-allowed;">
+                                <input type="hidden" name="discount_type" id="cp_type" value="percentage">
                             </div>
                             <div class="cm-group">
                                 <label class="cm-label">Discount Value <span class="req">*</span></label>
@@ -507,12 +506,14 @@
                         </div>
                         <div class="cm-row" id="maxRow">
                             <div class="cm-group">
-                                <label class="cm-label">Minimum Order Value (₹)</label>
-                                <input type="number" step="0.01" min="0" name="min_order_amount" id="cp_min" class="cm-input" value="0" placeholder="0">
+                                <label class="cm-label">Minimum Order Value (₹) <span class="req">*</span></label>
+                                <input type="number" step="0.01" min="0" name="min_order_amount" id="cp_min" class="cm-input" value="0" placeholder="0" required>
+                                <div class="field-err" id="err_min_order"></div>
                             </div>
                             <div class="cm-group" id="maxDiscGroup">
-                                <label class="cm-label">Max Discount Cap (₹)</label>
-                                <input type="number" step="0.01" min="0" name="max_discount_amount" id="cp_max" class="cm-input" placeholder="Leave blank for no cap">
+                                <label class="cm-label">Max Discount Cap (₹) <span class="opt">(optional)</span></label>
+                                <input type="number" step="0.01" min="0.01" name="max_discount_amount" id="cp_max" class="cm-input" placeholder="Leave blank for no cap">
+                                <div class="field-err" id="err_max_disc"></div>
                             </div>
                         </div>
                     </div>
@@ -528,6 +529,7 @@
                                     <option value="specific_products">Specific Products</option>
                                     <option value="specific_categories">Specific Categories</option>
                                 </select>
+                                <div class="field-err" id="err_applies"></div>
                             </div>
                         </div>
 
@@ -580,11 +582,13 @@
                         <div class="cm-row">
                             <div class="cm-group">
                                 <label class="cm-label">Global Usage Limit <span style="color:var(--gray); font-size:.6rem; text-transform:none;">(0 = unlimited)</span></label>
-                                <input type="number" min="0" name="usage_limit" id="cp_limit" class="cm-input" value="0">
+                                <input type="number" min="0" name="usage_limit" id="cp_limit" class="cm-input" value="0" required>
+                                <div class="field-err" id="err_limit"></div>
                             </div>
                             <div class="cm-group">
                                 <label class="cm-label">Per User Limit <span style="color:var(--gray); font-size:.6rem; text-transform:none;">(0 = unlimited)</span></label>
-                                <input type="number" min="0" name="per_user_limit" id="cp_perlimit" class="cm-input" value="0">
+                                <input type="number" min="0" name="per_user_limit" id="cp_perlimit" class="cm-input" value="0" required>
+                                <div class="field-err" id="err_perlimit"></div>
                             </div>
                         </div>
                         <div class="cm-row single">
@@ -618,6 +622,7 @@
                                 </label>
                             </div>
                             <input type="hidden" name="payment_methods" id="cp_pm" value="all">
+                            <div class="field-err" id="err_pm"></div>
                         </div>
                     </div>
 
@@ -890,14 +895,115 @@
             selectedState['ms_categories'] = [];
             updateWidget('ms_products');
             updateWidget('ms_categories');
-            document.getElementById('ms_products_dd').innerHTML = '';
-            document.getElementById('ms_categories_dd').innerHTML = '';
         }
 
-        /* ── Show / hide max cap based on type ── */
-        function onTypeChange() {
-            const t = document.getElementById('cp_type').value;
-            document.getElementById('maxDiscGroup').style.opacity = (t === 'percentage') ? '1' : '0.4';
+        function clearCouponErrors() {
+            const errs = ['err_code', 'err_title', 'err_desc', 'err_discount_value', 'err_min_order', 'err_max_disc', 'err_limit', 'err_perlimit', 'err_pm', 'err_applies', 'err_valid_from', 'err_valid_to'];
+            errs.forEach(e => {
+                const el = document.getElementById(e);
+                if(el) { el.style.display = 'none'; el.innerText = ''; }
+            });
+            document.querySelectorAll('.cm-input, .cm-select, .cm-textarea').forEach(el => el.style.borderColor = '');
+        }
+
+        function showError(id, errId, msg) {
+            const el = document.getElementById(errId);
+            const input = document.getElementById(id);
+            if(el) { el.innerText = msg; el.style.display = 'block'; }
+            if(input) { input.style.borderColor = '#e74c3c'; }
+        }
+
+        function validateCouponForm(e) {
+            clearCouponErrors();
+            let isValid = true;
+
+            // Code
+            const codeRaw = document.getElementById('cp_code').value;
+            const code = codeRaw.trim().toUpperCase();
+            if (!code) { showError('cp_code', 'err_code', 'Coupon code is required.'); isValid = false; }
+            else if (code.length < 4 || code.length > 20) { showError('cp_code', 'err_code', 'Code must be 4-20 characters long.'); isValid = false; }
+            else if (!/^[A-Z0-9]+$/.test(code)) { showError('cp_code', 'err_code', 'Only uppercase letters and numbers allowed (no spaces).'); isValid = false; }
+
+            // Title
+            const title = document.getElementById('cp_title').value.trim();
+            if (!title) { showError('cp_title', 'err_title', 'Coupon title is required.'); isValid = false; }
+            else if (title.length < 3 || title.length > 100) { showError('cp_title', 'err_title', 'Title must be 3-100 characters.'); isValid = false; }
+            else if (!/[a-zA-Z0-9]/.test(title)) { showError('cp_title', 'err_title', 'Title must contain alphanumeric characters.'); isValid = false; }
+
+            // Description
+            const desc = document.getElementById('cp_desc').value.trim();
+            if (desc.length > 500) { showError('cp_desc', 'err_desc', 'Description cannot exceed 500 characters.'); isValid = false; }
+
+            // Discount Value
+            const val = parseFloat(document.getElementById('cp_value').value);
+            if (isNaN(val)) { showError('cp_value', 'err_discount_value', 'Discount value is required.'); isValid = false; }
+            else if (val <= 0 || val > 100) { showError('cp_value', 'err_discount_value', 'Percentage discount must be between 1 and 100.'); isValid = false; }
+
+            // Min Order
+            const minOrd = parseFloat(document.getElementById('cp_min').value);
+            if (isNaN(minOrd)) { showError('cp_min', 'err_min_order', 'Min order is required (can be 0).'); isValid = false; }
+            else if (minOrd < 0) { showError('cp_min', 'err_min_order', 'Min order cannot be negative.'); isValid = false; }
+
+            // Max Cap
+            const maxCapRaw = document.getElementById('cp_max').value;
+            if (maxCapRaw.trim() !== '') {
+                const maxCap = parseFloat(maxCapRaw);
+                if (isNaN(maxCap) || maxCap <= 0) { showError('cp_max', 'err_max_disc', 'Max cap must be greater than 0.'); isValid = false; }
+            }
+
+            // Applies To
+            const applies = document.getElementById('cp_applies').value;
+            if (applies === 'specific_products') {
+                if (!document.getElementById('specific_product_ids').value) { showError('cp_applies', 'err_applies', 'Please select at least one product.'); isValid = false; }
+            } else if (applies === 'specific_categories') {
+                if (!document.getElementById('specific_category_ids').value) { showError('cp_applies', 'err_applies', 'Please select at least one category.'); isValid = false; }
+            }
+
+            // Limits
+            const gLimit = parseInt(document.getElementById('cp_limit').value, 10);
+            if (isNaN(gLimit) || gLimit < 0) { showError('cp_limit', 'err_limit', 'Must be a valid positive integer.'); isValid = false; }
+            
+            const uLimit = parseInt(document.getElementById('cp_perlimit').value, 10);
+            if (isNaN(uLimit) || uLimit < 0) { showError('cp_perlimit', 'err_perlimit', 'Must be a valid positive integer.'); isValid = false; }
+            
+            if (gLimit > 0 && uLimit > gLimit) { showError('cp_perlimit', 'err_perlimit', 'Per user limit cannot exceed global limit.'); isValid = false; }
+
+            // Payment Methods
+            if (document.getElementById('cp_pm').value.trim() === '') {
+                document.getElementById('err_pm').innerText = 'Select at least one payment method.';
+                document.getElementById('err_pm').style.display = 'block';
+                isValid = false;
+            }
+
+            // Dates
+            const startRaw = document.getElementById('cp_from').value;
+            const endRaw = document.getElementById('cp_to').value;
+            if (!startRaw) { showError('cp_from', 'err_valid_from', 'Start date is required.'); isValid = false; }
+            if (!endRaw) { showError('cp_to', 'err_valid_to', 'Expiry date is required.'); isValid = false; }
+            
+            if (startRaw && endRaw) {
+                const startDate = new Date(startRaw);
+                const endDate = new Date(endRaw);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                if (document.getElementById('modalTitle').textContent === 'Create Coupon') {
+                    if (startDate < today) {
+                        showError('cp_from', 'err_valid_from', 'Start date cannot be in the past.');
+                        isValid = false;
+                    }
+                }
+
+                if (endDate <= startDate) { showError('cp_to', 'err_valid_to', 'Expiry date must be after start date.'); isValid = false; }
+            }
+
+            if (!isValid && e) { e.preventDefault(); }
+            else if (isValid) {
+                const btn = document.getElementById('couponSubmitBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+            }
+            return isValid;
         }
 
         /* ── Generate code via AJAX ── */
@@ -913,18 +1019,15 @@
         function openModal(mode) {
             const f = document.getElementById('couponForm');
             f.reset();
-            document.getElementById('err_code').textContent = '';
-            document.getElementById('err_discount_value').textContent = '';
-            document.getElementById('err_valid_from').textContent = '';
-            document.getElementById('err_valid_to').textContent = '';
+            clearCouponErrors();
 
             document.getElementById('modalIcon').className = 'fa-solid fa-ticket-simple';
             document.getElementById('modalTitle').textContent = 'Create Coupon';
             document.getElementById('submitLabel').textContent = 'Save Coupon';
             document.getElementById('cp_active').checked = true;
+            document.getElementById('cp_type').value = 'percentage';
             f.action = ADD_URL;
             setPmValue('all');
-            onTypeChange();
             clearWidgets();
             onAppliesToChange();
             document.getElementById('couponModal').classList.add('show');
@@ -934,6 +1037,7 @@
         function openEditModal(id, code, title, desc, type, value, max, min, applies, limit, perLimit, fto, pm, from, to, isActive, specificProductsJson, specificCategoriesJson) {
             const f = document.getElementById('couponForm');
             f.reset();
+            clearCouponErrors();
             document.getElementById('modalIcon').className = 'fa-solid fa-pen-to-square';
             document.getElementById('modalTitle').textContent = 'Edit Coupon';
             document.getElementById('submitLabel').textContent = 'Save Coupon';
@@ -942,7 +1046,7 @@
             document.getElementById('cp_code').value    = code;
             document.getElementById('cp_title').value   = title;
             document.getElementById('cp_desc').value    = desc;
-            document.getElementById('cp_type').value    = type;
+            document.getElementById('cp_type').value    = 'percentage';
             document.getElementById('cp_value').value   = value;
             document.getElementById('cp_max').value     = max;
             document.getElementById('cp_min').value     = min;
@@ -954,7 +1058,6 @@
             document.getElementById('cp_to').value      = to;
             document.getElementById('cp_active').checked= isActive;
             setPmValue(pm);
-            onTypeChange();
 
             // Populate multi-select states
             try {
@@ -1062,8 +1165,51 @@
             });
         });
 
-        /* init type-change state */
-        onTypeChange();
+        /* init form */
+        {% if open_modal %}
+            {% if add_form %}
+                {% for field in add_form %}
+                    {% for error in field.errors %}
+                        {% if field.name == "code" %}showError('cp_code', 'err_code', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "title" %}showError('cp_title', 'err_title', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "description" %}showError('cp_desc', 'err_desc', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "discount_value" %}showError('cp_value', 'err_discount_value', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "min_order_amount" %}showError('cp_min', 'err_min_order', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "max_discount_amount" %}showError('cp_max', 'err_max_disc', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "usage_limit" %}showError('cp_limit', 'err_limit', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "per_user_limit" %}showError('cp_perlimit', 'err_perlimit', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "payment_methods" %}showError('cp_pm', 'err_pm', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "applies_to" %}showError('cp_applies', 'err_applies', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "valid_from" %}showError('cp_from', 'err_valid_from', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "valid_to" %}showError('cp_to', 'err_valid_to', '{{ error|escapejs }}');{% endif %}
+                    {% endfor %}
+                {% endfor %}
+                {% for error in add_form.non_field_errors %}
+                    alert("{{ error|escapejs }}");
+                {% endfor %}
+            {% endif %}
+            {% if edit_form %}
+                {% for field in edit_form %}
+                    {% for error in field.errors %}
+                        {% if field.name == "code" %}showError('cp_code', 'err_code', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "title" %}showError('cp_title', 'err_title', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "description" %}showError('cp_desc', 'err_desc', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "discount_value" %}showError('cp_value', 'err_discount_value', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "min_order_amount" %}showError('cp_min', 'err_min_order', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "max_discount_amount" %}showError('cp_max', 'err_max_disc', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "usage_limit" %}showError('cp_limit', 'err_limit', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "per_user_limit" %}showError('cp_perlimit', 'err_perlimit', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "payment_methods" %}showError('cp_pm', 'err_pm', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "applies_to" %}showError('cp_applies', 'err_applies', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "valid_from" %}showError('cp_from', 'err_valid_from', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "valid_to" %}showError('cp_to', 'err_valid_to', '{{ error|escapejs }}');{% endif %}
+                    {% endfor %}
+                {% endfor %}
+                {% for error in edit_form.non_field_errors %}
+                    alert("{{ error|escapejs }}");
+                {% endfor %}
+            {% endif %}
+        {% endif %}
     </script>
 </body>
 </html>

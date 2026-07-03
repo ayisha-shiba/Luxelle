@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luxelle Admin — Analytics & Reports</title>
-    <meta name="description" content="Luxelle admin analytics dashboard — real-time sales, orders, products, customers and coupon analytics.">
+    <title>Luxelle Admin — Sales Analytics &amp; Reports</title>
+    <meta name="description" content="Luxelle admin analytics: real-time sales performance, revenue trends, and order insights.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -14,21 +14,21 @@
 <style>
 /* ── CSS Variables ──────────────────────────────────────────────────────── */
 :root {
-    --bg:      #0b0b0b;
+    --bg: #0b0b0b;
     --sidebar: #0f0f0f;
-    --card:    #151515;
-    --card2:   #1a1a1a;
-    --gold:    #c5a059;
-    --gold-b:  #e5c17d;
-    --white:   #fff;
-    --gray:    #888;
-    --gray2:   #555;
-    --border:  rgba(255,255,255,0.06);
-    --green:   #27ae60;
-    --red:     #e74c3c;
-    --blue:    #3498db;
-    --orange:  #f39c12;
-    --purple:  #9b59b6;
+    --card: #151515;
+    --card2: #1a1a1a;
+    --gold: #c5a059;
+    --gold-b: #e5c17d;
+    --white: #fff;
+    --gray: #888;
+    --gray2: #555;
+    --border: rgba(255,255,255,0.06);
+    --green: #27ae60;
+    --red: #e74c3c;
+    --blue: #3498db;
+    --orange: #f39c12;
+    --purple: #9b59b6;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:var(--bg); color:var(--white); font-family:'Inter',sans-serif; display:flex; min-height:100vh; overflow-x:hidden; }
@@ -50,9 +50,11 @@ body { background:var(--bg); color:var(--white); font-family:'Inter',sans-serif;
 .admin-name { font-size:.82rem; font-weight:600; color:var(--white); }
 .admin-role { font-size:.62rem; color:var(--gray); letter-spacing:.1em; text-transform:uppercase; }
 
-/* ── Main ───────────────────────────────────────────────────────────────── */
-.main { margin-left:260px; flex:1; padding:2.5rem 3rem; min-height:100vh; }
-.top-bar { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:2rem; }
+/* ── Main Layout ────────────────────────────────────────────────────────── */
+.main { margin-left:260px; flex:1; padding:2.5rem 3rem; min-height:100vh; width:calc(100% - 260px); overflow-x:hidden; }
+
+/* ── Top Bar ────────────────────────────────────────────────────────────── */
+.top-bar { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:2rem; gap: 1rem; flex-wrap: wrap; }
 .page-title { font-family:'Playfair Display',serif; font-size:2rem; font-weight:600; color:var(--white); margin-bottom:.35rem; }
 .page-subtitle { font-size:.78rem; color:var(--gray); letter-spacing:.05em; }
 
@@ -69,120 +71,115 @@ body { background:var(--bg); color:var(--white); font-family:'Inter',sans-serif;
 
 /* ── Period Filter ──────────────────────────────────────────────────────── */
 .filter-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.5rem 2rem; margin-bottom:2rem; }
-.period-pills { display:flex; gap:.75rem; margin-bottom:1.25rem; flex-wrap:wrap; }
-.pill { padding:.55rem 1.25rem; border-radius:50px; font-size:.78rem; font-weight:600; cursor:pointer; border:1px solid var(--border); color:var(--gray); text-decoration:none; transition:all .25s; letter-spacing:.05em; }
+.period-pills { display:flex; gap:.75rem; flex-wrap:wrap; align-items:center; }
+.pill { padding:.55rem 1.25rem; border-radius:50px; font-size:.78rem; font-weight:600; cursor:pointer; border:1px solid var(--border); color:var(--gray); text-decoration:none; transition:all .25s; letter-spacing:.05em; display:inline-flex; align-items:center; gap:.3rem; }
 .pill:hover { border-color:rgba(197,160,89,.4); color:var(--white); }
 .pill.active { background:var(--gold); color:#0b0b0b; border-color:var(--gold); }
-.custom-row { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+.custom-row { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; margin-top:1.25rem; border-top:1px solid rgba(255,255,255,.04); padding-top:1.25rem; }
 .custom-label { font-size:.7rem; color:var(--gray); text-transform:uppercase; letter-spacing:.1em; font-weight:600; }
 .date-input { background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:8px; padding:.55rem 1rem; color:var(--white); font-size:.82rem; font-family:'Inter',sans-serif; outline:none; }
 .date-input:focus { border-color:var(--gold); }
 .filter-btn { background:var(--gold); color:#0b0b0b; border:none; border-radius:8px; padding:.55rem 1.25rem; font-size:.78rem; font-weight:700; cursor:pointer; letter-spacing:.05em; transition:all .25s; }
 .filter-btn:hover { background:var(--gold-b); }
-.clear-btn { background:transparent; border:1px solid var(--border); color:var(--gray); border-radius:8px; padding:.55rem 1rem; font-size:.78rem; cursor:pointer; text-decoration:none; transition:all .25s; display:inline-flex; align-items:center; }
+.clear-btn { background:transparent; border:1px solid var(--border); color:var(--gray); border-radius:8px; padding:.55rem 1rem; font-size:.78rem; cursor:pointer; text-decoration:none; transition:all .25s; display:inline-flex; align-items:center; gap:.4rem; }
 .clear-btn:hover { border-color:var(--red); color:var(--red); }
 
-/* ── Section Title ──────────────────────────────────────────────────────── */
-.section-title { font-family:'Playfair Display',serif; font-size:1.1rem; font-weight:600; color:var(--white); margin:2.5rem 0 1.25rem; display:flex; align-items:center; gap:.75rem; }
-.section-title i { color:var(--gold); font-size:.95rem; }
-.section-title::after { content:''; flex:1; height:1px; background:var(--border); margin-left:.75rem; }
+/* ── Section Label ──────────────────────────────────────────────────────── */
+.sec-label { font-size:.68rem; letter-spacing:.15em; text-transform:uppercase; color:var(--gray); font-weight:600; margin-bottom:1rem; display:flex; align-items:center; gap:.6rem; }
+.sec-label::after { content:''; flex:1; height:1px; background:var(--border); }
+.sec-label i { color:var(--gold); }
 
-/* ── KPI Grid ───────────────────────────────────────────────────────────── */
-.kpi-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:1.25rem; margin-bottom:2rem; }
-.kpi-card { background:linear-gradient(135deg,rgba(21,21,21,.9),rgba(26,26,26,.7)); border:1px solid rgba(197,160,89,.1); border-radius:16px; padding:1.5rem; position:relative; overflow:hidden; transition:all .3s cubic-bezier(.16,1,.3,1); }
-.kpi-card::before { content:''; position:absolute; top:-40%; right:-40%; width:160px; height:160px; background:radial-gradient(circle,rgba(197,160,89,.07) 0%,transparent 70%); border-radius:50%; }
-.kpi-card:hover { border-color:rgba(197,160,89,.3); transform:translateY(-3px); box-shadow:0 10px 32px rgba(197,160,89,.1); }
-.kpi-icon { width:42px; height:42px; border-radius:10px; background:rgba(197,160,89,.12); border:1px solid rgba(197,160,89,.2); display:flex; align-items:center; justify-content:center; color:var(--gold); font-size:1rem; margin-bottom:1rem; }
-.kpi-label { font-size:.6rem; letter-spacing:.15em; text-transform:uppercase; color:var(--gray); font-weight:600; margin-bottom:.5rem; }
-.kpi-value { font-family:'Playfair Display',serif; font-size:1.65rem; font-weight:700; color:var(--white); }
-.kpi-sub { font-size:.65rem; color:var(--gray2); margin-top:.35rem; }
+/* ── KPI Grid (Top Section) ─────────────────────────────────────────────── */
+.kpi-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:1.25rem; margin-bottom:2.25rem; }
+.kpi-card { background:linear-gradient(135deg,rgba(21,21,21,.9),rgba(26,26,26,.7)); border:1px solid rgba(197,160,89,.12); border-radius:16px; padding:1.5rem; position:relative; overflow:hidden; transition:all .3s cubic-bezier(.16,1,.3,1); }
+.kpi-card::before { content:''; position:absolute; top:-40%; right:-40%; width:160px; height:160px; background:radial-gradient(circle,rgba(197,160,89,.07) 0%,transparent 70%); border-radius:50%; pointer-events:none; }
+.kpi-card:hover { border-color:rgba(197,160,89,.35); transform:translateY(-3px); box-shadow:0 10px 32px rgba(197,160,89,.15); }
+.kpi-icon { width:42px; height:42px; border-radius:10px; background:rgba(197,160,89,.1); border:1px solid rgba(197,160,89,.18); display:flex; align-items:center; justify-content:center; color:var(--gold); font-size:1rem; margin-bottom:1rem; }
+.kpi-label { font-size:.62rem; letter-spacing:.15em; text-transform:uppercase; color:var(--gray); font-weight:600; margin-bottom:.5rem; }
+.kpi-value { font-family:'Playfair Display',serif; font-size:1.6rem; font-weight:700; color:var(--white); line-height:1.1; }
+.kpi-sub { font-size:.67rem; color:var(--gray2); margin-top:.4rem; }
 
-/* ── Sales Row ──────────────────────────────────────────────────────────── */
-.sales-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1.25rem; margin-bottom:2rem; }
-.sales-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.25rem 1.5rem; display:flex; align-items:center; gap:1rem; transition:all .25s; }
-.sales-card:hover { border-color:rgba(197,160,89,.25); transform:translateY(-2px); }
-.sales-card-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:.95rem; flex-shrink:0; }
-.sales-card-info { flex:1; min-width:0; }
-.sales-card-label { font-size:.6rem; letter-spacing:.12em; text-transform:uppercase; color:var(--gray); font-weight:600; }
-.sales-card-value { font-family:'Playfair Display',serif; font-size:1.3rem; font-weight:700; color:var(--white); margin-top:.2rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.growth-pos { color:var(--green); }
-.growth-neg { color:var(--red); }
+/* ── Analytics Visual Grid (Chart + Breakdown) ────────────────────────── */
+.visual-grid { display:grid; grid-template-columns: 2.1fr 1fr; gap:1.75rem; margin-bottom:2.25rem; }
 
-/* ── Charts ─────────────────────────────────────────────────────────────── */
-.chart-full { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.75rem 2rem 1.5rem; display:flex; flex-direction:column; margin-bottom:1.75rem; }
-.chart-full .chart-panel-title { font-size:.83rem; font-weight:700; color:var(--white); margin-bottom:1.5rem; letter-spacing:.04em; display:flex; align-items:center; gap:.6rem; }
-.chart-full .chart-panel-title i { color:var(--gold); }
-.chart-full .chart-wrap { position:relative; width:100%; height:380px; }
+/* ── Sales Chart Card ───────────────────────────────────────────────────── */
+.chart-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.75rem 2rem 1.5rem; display:flex; flex-direction:column; justify-content:space-between; }
+.chart-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; }
+.chart-title { font-size:.88rem; font-weight:700; color:var(--white); letter-spacing:.04em; display:flex; align-items:center; gap:.6rem; }
+.chart-title i { color:var(--gold); }
+.chart-tag { font-size:.68rem; color:var(--gray); background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:6px; padding:.25rem .65rem; }
+.chart-wrap { position:relative; width:100%; height:380px; }
+.no-data-chart { display:flex; flex-direction:column; align-items:center; justify-content:center; height:380px; color:var(--gray); font-size:.85rem; gap:.75rem; border:1px dashed rgba(255,255,255,.06); border-radius:12px; background:rgba(0,0,0,.08); }
+.no-data-chart i { font-size:2rem; color:var(--gray2); }
 
-.charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.75rem; margin-bottom:1.75rem; }
-.charts-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:1.75rem; margin-bottom:1.75rem; }
-.chart-panel { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.75rem 2rem 1.5rem; display:flex; flex-direction:column; }
-.chart-panel-title { font-size:.83rem; font-weight:700; color:var(--white); margin-bottom:1.5rem; letter-spacing:.04em; display:flex; align-items:center; gap:.6rem; }
-.chart-panel-title i { color:var(--gold); }
-.chart-panel-subtitle { font-size:.7rem; color:var(--gray); margin-left:auto; font-weight:400; letter-spacing:0; }
-.chart-wrap { position:relative; width:100%; height:300px; }
-.chart-wrap.tall { height:360px; }
+/* ── Sales Summary Card ─────────────────────────────────────────────────── */
+.summary-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.75rem 1.75rem 1.5rem; display:flex; flex-direction:column; }
+.summary-header { display:flex; align-items:center; gap:.6rem; border-bottom:1px solid var(--border); padding-bottom:1rem; margin-bottom:1.25rem; }
+.summary-header i { color:var(--gold); font-size:1.1rem; }
+.summary-title { font-size:.88rem; font-weight:700; color:var(--white); letter-spacing:.04em; }
+.summary-list { display:flex; flex-direction:column; gap:.95rem; flex:1; }
+.summary-row-item { display:flex; justify-content:space-between; align-items:center; }
+.summary-row-label { font-size:.78rem; color:var(--gray); display:flex; align-items:center; gap:.5rem; }
+.summary-row-label i { font-size:.78rem; width:16px; text-align:center; color:var(--gray2); }
+.summary-row-value { font-size:.85rem; font-weight:600; color:var(--white); }
+.summary-divider { height:1px; background:var(--border); margin:.25rem 0; }
+.summary-total-row { display:flex; justify-content:space-between; align-items:center; padding: .6rem .75rem; background: rgba(197, 160, 89, 0.05); border: 1px solid rgba(197, 160, 89, 0.15); border-radius: 8px; margin-top: auto; }
+.summary-total-label { font-size:.82rem; font-weight:700; color:var(--gold); }
+.summary-total-value { font-size:1.1rem; font-family:'Playfair Display',serif; font-weight:700; color:var(--gold); }
 
-/* ── Table Panels ───────────────────────────────────────────────────────── */
-.table-panel { background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
-.panel-head { padding:1.25rem 1.5rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
-.panel-head-title { font-size:.82rem; font-weight:700; color:var(--white); letter-spacing:.04em; }
-.panel-head-badge { font-size:.62rem; font-weight:700; color:var(--gold); background:rgba(197,160,89,.1); border:1px solid rgba(197,160,89,.2); padding:3px 10px; border-radius:6px; letter-spacing:.08em; }
-.data-table { width:100%; border-collapse:collapse; }
-.data-table th { font-size:.6rem; letter-spacing:.15em; text-transform:uppercase; color:var(--gray2); font-weight:700; padding:.85rem 1.25rem; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
-.data-table td { padding:.8rem 1.25rem; font-size:.82rem; color:var(--white); border-bottom:1px solid rgba(255,255,255,.03); vertical-align:middle; }
+/* ── Sales Report Table ─────────────────────────────────────────────────── */
+.table-panel { background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:2rem; }
+.panel-head { padding:1.25rem 1.75rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.75rem; }
+.panel-head-title { font-size:.88rem; font-weight:700; color:var(--white); letter-spacing:.04em; display:flex; align-items:center; gap:.6rem; }
+.panel-head-title i { color:var(--gold); }
+.panel-meta { display:flex; align-items:center; gap:.75rem; }
+.panel-badge { font-size:.62rem; font-weight:700; color:var(--gold); background:rgba(197,160,89,.1); border:1px solid rgba(197,160,89,.2); padding:4px 10px; border-radius:6px; letter-spacing:.08em; }
+.panel-count { font-size:.72rem; color:var(--gray); }
+.table-scroll { overflow-x:auto; width:100%; }
+.data-table { width:100%; border-collapse:collapse; min-width:1050px; }
+.data-table th { font-size:.6rem; letter-spacing:.15em; text-transform:uppercase; color:var(--gray); font-weight:700; padding:.9rem 1.25rem; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; background:rgba(255,255,255,.015); }
+.data-table td { padding:.85rem 1.25rem; font-size:.82rem; color:var(--white); border-bottom:1px solid rgba(255,255,255,.03); vertical-align:middle; }
 .data-table tbody tr:last-child td { border-bottom:none; }
 .data-table tbody tr { transition:background .2s; }
-.data-table tbody tr:hover { background:rgba(197,160,89,.04); }
-.rank-badge { width:24px; height:24px; border-radius:6px; background:rgba(197,160,89,.12); color:var(--gold); font-size:.7rem; font-weight:700; display:inline-flex; align-items:center; justify-content:center; }
-.product-thumb { width:36px; height:36px; border-radius:8px; object-fit:cover; background:var(--card2); }
-.product-thumb-placeholder { width:36px; height:36px; border-radius:8px; background:rgba(197,160,89,.1); display:inline-flex; align-items:center; justify-content:center; color:var(--gold); font-size:.8rem; }
-.stock-badge { font-size:.65rem; font-weight:700; padding:3px 9px; border-radius:6px; }
-.stock-ok   { color:var(--green); background:rgba(39,174,96,.12); border:1px solid rgba(39,174,96,.25); }
-.stock-low  { color:var(--orange); background:rgba(243,156,18,.12); border:1px solid rgba(243,156,18,.25); }
-.stock-out  { color:var(--red); background:rgba(231,76,60,.12); border:1px solid rgba(231,76,60,.25); }
-.gold-text { color:var(--gold); font-weight:700; }
-.two-col { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:2rem; }
+.data-table tbody tr:hover { background:rgba(197,160,89,.03); }
 
-/* ── Stat Mini Cards ────────────────────────────────────────────────────── */
-.mini-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
-.mini-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.1rem 1.25rem; text-align:center; transition:all .25s; }
-.mini-card:hover { border-color:rgba(197,160,89,.25); transform:translateY(-2px); }
-.mini-card-icon { font-size:1.4rem; margin-bottom:.6rem; }
-.mini-card-val { font-family:'Playfair Display',serif; font-size:1.5rem; font-weight:700; color:var(--white); }
-.mini-card-label { font-size:.62rem; color:var(--gray); letter-spacing:.1em; text-transform:uppercase; margin-top:.3rem; }
-
-/* ── Order Status Cards ─────────────────────────────────────────────────── */
-.status-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:2rem; }
-.status-item { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.1rem 1.25rem; display:flex; align-items:center; gap:.85rem; transition:all .25s; }
-.status-item:hover { border-color:rgba(197,160,89,.2); }
-.status-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-.status-info-label { font-size:.72rem; color:var(--gray); font-weight:500; }
-.status-info-count { font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; color:var(--white); }
-
-/* ── Logout Modal (reused) ──────────────────────────────────────────────── */
-.modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.6); z-index:1000; align-items:center; justify-content:center; }
-.modal-overlay.show { display:flex; }
-.modal-box { background:#0b0b0b; border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:2.5rem; text-align:center; max-width:400px; box-shadow:0 20px 60px rgba(0,0,0,.8); animation:slideUp .3s ease-out; }
-@keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-.modal-icon { font-size:3rem; color:var(--gold); margin-bottom:1rem; }
-.modal-title { font-family:'Playfair Display',serif; font-size:1.5rem; font-weight:600; color:var(--white); margin:0 0 .75rem; }
-.modal-desc { font-size:.9rem; color:var(--gray); margin-bottom:2rem; line-height:1.6; }
-.modal-actions { display:flex; gap:1rem; justify-content:center; }
-.mbtn { padding:.85rem 2rem; border:none; border-radius:8px; font-size:.85rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase; cursor:pointer; transition:all .3s ease; text-decoration:none; display:inline-block; font-family:'Inter',sans-serif; }
-.mbtn-cancel { background:rgba(255,255,255,.08); color:#fff; border:1px solid rgba(255,255,255,.12); }
-.mbtn-cancel:hover { background:rgba(255,255,255,.12); }
-.mbtn-gold { background:var(--gold); color:#0b0b0b; }
-.mbtn-gold:hover { background:var(--gold-b); transform:translateY(-2px); }
+/* ── Status Badges ──────────────────────────────────────────────────────── */
+.sb { display:inline-block; padding:.22rem .6rem; border-radius:5px; font-size:.68rem; font-weight:700; text-transform:capitalize; letter-spacing:.03em; white-space:nowrap; }
+.sb-pending { background:rgba(243,156,18,.14); color:#f39c12; border:1px solid rgba(243,156,18,.28); }
+.sb-shipped { background:rgba(26,188,156,.14); color:#1abc9c; border:1px solid rgba(26,188,156,.28); }
+.sb-out_for_delivery { background:rgba(155,89,182,.14); color:#9b59b6; border:1px solid rgba(155,89,182,.28); }
+.sb-delivered { background:rgba(39,174,96,.14); color:#27ae60; border:1px solid rgba(39,174,96,.28); }
+.sb-cancelled { background:rgba(231,76,60,.14); color:#e74c3c; border:1px solid rgba(231,76,60,.28); }
+.sb-returned { background:rgba(127,140,141,.14); color:#95a5a6; border:1px solid rgba(127,140,141,.28); }
 
 /* ── Empty State ────────────────────────────────────────────────────────── */
-.empty { text-align:center; padding:2.5rem; color:var(--gray2); font-size:.82rem; }
-.empty i { font-size:2rem; color:var(--gray2); margin-bottom:.75rem; display:block; }
+.empty-state { text-align:center; padding:4rem 2rem; color:var(--gray); font-size:.85rem; }
+.empty-state i { font-size:2.2rem; color:var(--gray2); margin-bottom:1rem; display:block; }
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+.pagination-bar { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.75rem; border-top:1px solid var(--border); flex-wrap:wrap; gap:.75rem; }
+.pagination-info { font-size:.75rem; color:var(--gray); }
+.pagination-info strong { color:var(--white); }
+.pagination-pages { display:flex; align-items:center; gap:.4rem; }
+.pg-btn { display:inline-flex; align-items:center; justify-content:center; min-width:34px; height:34px; padding:0 .6rem; border-radius:8px; font-size:.78rem; font-weight:600; text-decoration:none; border:1px solid var(--border); color:var(--gray); transition:all .2s; cursor:pointer; background:transparent; }
+.pg-btn:hover { border-color:rgba(197,160,89,.4); color:var(--white); background:rgba(197,160,89,.06); }
+.pg-btn.active { background:var(--gold); color:#0b0b0b; border-color:var(--gold); cursor:default; }
+.pg-btn.disabled { opacity:.35; pointer-events:none; }
+.pg-ellipsis { font-size:.78rem; color:var(--gray2); padding:0 .25rem; line-height:34px; }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
-@media(max-width:1400px) { .kpi-grid { grid-template-columns:repeat(4,1fr); } }
-@media(max-width:1200px) { .kpi-grid { grid-template-columns:repeat(3,1fr); } .sales-grid { grid-template-columns:repeat(2,1fr); } .charts-grid { grid-template-columns:1fr; } .charts-grid-3 { grid-template-columns:1fr 1fr; } .two-col { grid-template-columns:1fr; } }
-@media(max-width:900px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } .status-grid { grid-template-columns:repeat(2,1fr); } .charts-grid-3 { grid-template-columns:1fr; } }
+@media (max-width: 1400px) {
+    .kpi-grid { grid-template-columns:repeat(3,1fr); }
+    .visual-grid { grid-template-columns:1fr; }
+}
+@media (max-width: 900px) {
+    .kpi-grid { grid-template-columns:repeat(2,1fr); }
+    .main { padding: 2rem 1.5rem; }
+}
+@media (max-width: 600px) {
+    .kpi-grid { grid-template-columns:1fr; }
+    .main { padding:1.5rem 1rem; }
+}
 </style>
 </head>
 <body>
@@ -191,15 +188,24 @@ body { background:var(--bg); color:var(--white); font-family:'Inter',sans-serif;
 
 <main class="main">
 
-    <!-- Top Bar -->
+    <!-- ── Top Bar ───────────────────────────────────────────────────── -->
     <div class="top-bar">
         <div>
-            <h1 class="page-title"><i class="fa-solid fa-chart-line" style="color:var(--gold);font-size:1.5rem;margin-right:.75rem;"></i>Analytics &amp; Reports</h1>
-            <p class="page-subtitle">Showing data for: <strong style="color:var(--gold)">{{ period_label }}</strong>{% if start_date %}&nbsp;|&nbsp;{{ start_date }} – {{ end_date }}{% endif %}</p>
+            <h1 class="page-title">
+                <i class="fa-solid fa-chart-line" style="color:var(--gold);font-size:1.5rem;margin-right:.75rem;"></i>
+                Analytics &amp; Reports
+            </h1>
+            <p class="page-subtitle">
+                Showing metrics for:&nbsp;
+                <strong style="color:var(--gold);">{{ period_label }}</strong>
+                {% if start_date %}&nbsp;|&nbsp;{{ start_date }} &ndash; {{ end_date }}{% endif %}
+            </p>
         </div>
         <div class="export-wrap">
             <button class="export-btn" onclick="toggleExport()" id="exportBtn">
-                <i class="fa-solid fa-download"></i> Export Report <i class="fa-solid fa-chevron-down" style="font-size:.7rem;"></i>
+                <i class="fa-solid fa-download"></i>
+                Export Report
+                <i class="fa-solid fa-chevron-down" style="font-size:.7rem;"></i>
             </button>
             <div class="export-dropdown" id="exportDropdown">
                 <a href="{% url 'admin_analytics_pdf' %}?period={{ period }}{% if start_date %}&start_date={{ start_date }}&end_date={{ end_date }}{% endif %}" class="export-option">
@@ -212,761 +218,392 @@ body { background:var(--bg); color:var(--white); font-family:'Inter',sans-serif;
         </div>
     </div>
 
-    <!-- Period Filter -->
+    <!-- ── Date Filter ──────────────────────────────────────────────── -->
     <div class="filter-card">
         <div class="period-pills">
-            <a href="?period=today"  class="pill {% if period == 'today'  %}active{% endif %}">Today</a>
-            <a href="?period=week"   class="pill {% if period == 'week'   %}active{% endif %}">This Week</a>
-            <a href="?period=month"  class="pill {% if period == 'month'  %}active{% endif %}">This Month</a>
-            <a href="?period=year"   class="pill {% if period == 'year'   %}active{% endif %}">This Year</a>
-            <span class="pill {% if period == 'custom' %}active{% endif %}" style="cursor:default;">Custom Range</span>
+            <a href="?period=today" class="pill {% if period == 'today' %}active{% endif %}">
+                <i class="fa-solid fa-calendar-day" style="font-size:.65rem;"></i> Daily
+            </a>
+            <a href="?period=week" class="pill {% if period == 'week' %}active{% endif %}">
+                <i class="fa-solid fa-calendar-week" style="font-size:.65rem;"></i> Weekly
+            </a>
+            <a href="?period=month" class="pill {% if period == 'month' %}active{% endif %}">
+                <i class="fa-solid fa-calendar-days" style="font-size:.65rem;"></i> Monthly
+            </a>
+            <a href="?period=year" class="pill {% if period == 'year' %}active{% endif %}">
+                <i class="fa-solid fa-calendar" style="font-size:.65rem;"></i> Yearly
+            </a>
+            <span class="pill {% if period == 'custom' %}active{% endif %}" id="customPill" style="cursor:pointer;">
+                <i class="fa-solid fa-sliders" style="font-size:.65rem;"></i> Custom Range
+            </span>
         </div>
-        <form method="get" action="" class="custom-row" id="customForm">
+        <form method="get" action="" class="custom-row" id="customForm"
+              style="display:{% if period == 'custom' %}flex{% else %}none{% endif %};">
             <input type="hidden" name="period" value="custom">
-            <span class="custom-label">Start Date</span>
-            <input type="date" name="start_date" class="date-input" value="{{ start_date }}" id="startDate">
-            <span class="custom-label">End Date</span>
-            <input type="date" name="end_date" class="date-input" value="{{ end_date }}" id="endDate">
-            <button type="submit" class="filter-btn"><i class="fa-solid fa-filter" style="margin-right:.4rem;"></i>Filter</button>
-            <a href="?period=month" class="clear-btn"><i class="fa-solid fa-xmark" style="margin-right:.4rem;"></i>Clear</a>
+            <span class="custom-label">From</span>
+            <input type="date" name="start_date" class="date-input" value="{{ start_date }}" id="startDate" required>
+            <span class="custom-label">To</span>
+            <input type="date" name="end_date" class="date-input" value="{{ end_date }}" id="endDate" required>
+            <button type="submit" class="filter-btn">
+                <i class="fa-solid fa-filter" style="margin-right:.4rem;"></i>Apply
+            </button>
+            <a href="?period=month" class="clear-btn">
+                <i class="fa-solid fa-xmark"></i> Clear
+            </a>
         </form>
     </div>
 
-    <!-- ─── Overview KPIs ─────────────────────────────────────────────── -->
-    <div class="section-title"><i class="fa-solid fa-gauge-high"></i> Dashboard Overview</div>
+    <!-- ── KPI Cards (Fulfills KPI Top Grid requirements) ────────────────── -->
+    <div class="sec-label">
+        <i class="fa-solid fa-gauge-high"></i>Key Performance Indicators
+    </div>
     <div class="kpi-grid">
         <div class="kpi-card">
-            <div class="kpi-icon"><i class="fa-solid fa-indian-rupee-sign"></i></div>
-            <div class="kpi-label">Total Revenue</div>
-            <div class="kpi-value">₹{{ total_revenue|floatformat:0 }}</div>
-            <div class="kpi-sub">All time, excl. cancelled</div>
+            <div class="kpi-icon"><i class="fa-solid fa-cart-shopping"></i></div>
+            <div class="kpi-label">Total Sales</div>
+            <div class="kpi-value">&#8377;{{ gross_sales|floatformat:2 }}</div>
+            <div class="kpi-sub">MRP value before discounts</div>
         </div>
         <div class="kpi-card">
             <div class="kpi-icon"><i class="fa-solid fa-bag-shopping"></i></div>
             <div class="kpi-label">Total Orders</div>
-            <div class="kpi-value">{{ total_orders }}</div>
-            <div class="kpi-sub">All time</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon"><i class="fa-solid fa-users"></i></div>
-            <div class="kpi-label">Total Customers</div>
-            <div class="kpi-value">{{ total_customers }}</div>
-            <div class="kpi-sub">Registered non-staff</div>
+            <div class="kpi-value">{{ order_count }}</div>
+            <div class="kpi-sub">Delivered orders count</div>
         </div>
         <div class="kpi-card">
             <div class="kpi-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
-            <div class="kpi-label">Total Products</div>
-            <div class="kpi-value">{{ total_products }}</div>
-            <div class="kpi-sub">Active in catalogue</div>
+            <div class="kpi-label">Products Sold</div>
+            <div class="kpi-value">{{ products_sold }}</div>
+            <div class="kpi-sub">Total product units delivered</div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-icon" style="background:rgba(39,174,96,.12);border-color:rgba(39,174,96,.25);color:var(--green)"><i class="fa-solid fa-circle-check"></i></div>
-            <div class="kpi-label">Delivered</div>
-            <div class="kpi-value" style="color:var(--green)">{{ delivered_count }}</div>
-            <div class="kpi-sub">Orders fulfilled</div>
+            <div class="kpi-icon"><i class="fa-solid fa-tag"></i></div>
+            <div class="kpi-label">Total Discounts</div>
+            <div class="kpi-value">&#8377;{{ total_discount|floatformat:2 }}</div>
+            <div class="kpi-sub">Product + coupon deductions</div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-icon" style="background:rgba(243,156,18,.12);border-color:rgba(243,156,18,.25);color:var(--orange)"><i class="fa-solid fa-clock"></i></div>
-            <div class="kpi-label">Pending</div>
-            <div class="kpi-value" style="color:var(--orange)">{{ pending_count }}</div>
-            <div class="kpi-sub">Awaiting processing</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon" style="background:rgba(231,76,60,.12);border-color:rgba(231,76,60,.25);color:var(--red)"><i class="fa-solid fa-circle-xmark"></i></div>
-            <div class="kpi-label">Cancelled</div>
-            <div class="kpi-value" style="color:var(--red)">{{ cancelled_count }}</div>
-            <div class="kpi-sub">Cancelled orders</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon" style="background:rgba(155,89,182,.12);border-color:rgba(155,89,182,.25);color:var(--purple)"><i class="fa-solid fa-rotate-left"></i></div>
-            <div class="kpi-label">Returned</div>
-            <div class="kpi-value" style="color:var(--purple)">{{ returned_count }}</div>
-            <div class="kpi-sub">Returned items</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon" style="background:rgba(52,152,219,.12);border-color:rgba(52,152,219,.25);color:var(--blue)"><i class="fa-solid fa-wallet"></i></div>
-            <div class="kpi-label">Wallet Balance</div>
-            <div class="kpi-value" style="color:var(--blue)">₹{{ total_wallet_balance|floatformat:0 }}</div>
-            <div class="kpi-sub">Total across all wallets</div>
-        </div>
-        <div class="kpi-card">
-            <div class="kpi-icon" style="background:rgba(197,160,89,.12);border-color:rgba(197,160,89,.25);color:var(--gold)"><i class="fa-solid fa-chart-simple"></i></div>
-            <div class="kpi-label">Avg Order Value</div>
-            <div class="kpi-value">₹{{ aov|floatformat:0 }}</div>
-            <div class="kpi-sub">Excl. cancelled orders</div>
+            <div class="kpi-icon"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+            <div class="kpi-label">Net Revenue</div>
+            <div class="kpi-value" style="color:var(--gold);">&#8377;{{ net_revenue|floatformat:2 }}</div>
+            <div class="kpi-sub">Customer-paid total collected</div>
         </div>
     </div>
 
-    <!-- ─── Sales Analytics ───────────────────────────────────────────── -->
-    <div class="section-title"><i class="fa-solid fa-chart-bar"></i> Sales Analytics — {{ period_label }}</div>
-    <div class="sales-grid">
-        <div class="sales-card">
-            <div class="sales-card-icon" style="background:rgba(197,160,89,.12);color:var(--gold)"><i class="fa-solid fa-cart-shopping"></i></div>
-            <div class="sales-card-info">
-                <div class="sales-card-label">Gross Sales</div>
-                <div class="sales-card-value">₹{{ gross_sales|floatformat:2 }}</div>
+    <!-- ── Visual Row: Combo Chart + Complete Sales Summary Breakdown ────── -->
+    <div class="sec-label" style="margin-top:.25rem;">
+        <i class="fa-solid fa-chart-area"></i>Sales Insights
+    </div>
+    
+    <div class="visual-grid">
+        <!-- Sales Chart Card -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">
+                    <i class="fa-solid fa-chart-line"></i>
+                    Sales Trend Analytics
+                </div>
+                <span class="chart-tag">{{ period_label }}</span>
             </div>
-        </div>
-        <div class="sales-card">
-            <div class="sales-card-icon" style="background:rgba(39,174,96,.12);color:var(--green)"><i class="fa-solid fa-indian-rupee-sign"></i></div>
-            <div class="sales-card-info">
-                <div class="sales-card-label">Net Revenue</div>
-                <div class="sales-card-value">₹{{ net_revenue|floatformat:2 }}</div>
+
+            {% if chart_revenue %}
+            <div class="chart-wrap">
+                <canvas id="salesTrendChart"></canvas>
             </div>
-        </div>
-        <div class="sales-card">
-            <div class="sales-card-icon" style="background:rgba(243,156,18,.12);color:var(--orange)"><i class="fa-solid fa-tag"></i></div>
-            <div class="sales-card-info">
-                <div class="sales-card-label">Discounts</div>
-                <div class="sales-card-value">₹{{ discounts|floatformat:2 }}</div>
+            {% else %}
+            <div class="no-data-chart">
+                <i class="fa-solid fa-chart-simple"></i>
+                <span>No sales data available for this period</span>
+                <span style="font-size:.72rem;color:var(--gray2);">Try selecting a different date range or check delivered orders</span>
             </div>
+            {% endif %}
         </div>
-        <div class="sales-card">
-            <div class="sales-card-icon" style="background:rgba(52,152,219,.12);color:var(--blue)"><i class="fa-solid fa-ticket"></i></div>
-            <div class="sales-card-info">
-                <div class="sales-card-label">Coupon Discounts</div>
-                <div class="sales-card-value">₹{{ coupon_disc|floatformat:2 }}</div>
+
+        <!-- Complete Sales Summary Details Card (Fulfills all requirements) -->
+        <div class="summary-card">
+            <div class="summary-header">
+                <i class="fa-solid fa-receipt"></i>
+                <span class="summary-title">Sales Summary</span>
             </div>
-        </div>
-        <div class="sales-card">
-            <div class="sales-card-icon" style="background:rgba(155,89,182,.12);color:var(--purple)"><i class="fa-solid fa-percent"></i></div>
-            <div class="sales-card-info">
-                <div class="sales-card-label">Taxes (GST)</div>
-                <div class="sales-card-value">₹{{ taxes|floatformat:2 }}</div>
-            </div>
-        </div>
-        <div class="sales-card">
-            <div class="sales-card-icon" style="background:rgba(231,76,60,.12);color:var(--red)"><i class="fa-solid fa-truck"></i></div>
-            <div class="sales-card-info">
-                <div class="sales-card-label">Delivery Charges</div>
-                <div class="sales-card-value">₹{{ delivery|floatformat:2 }}</div>
-            </div>
-        </div>
-        <div class="sales-card">
-            <div class="sales-card-icon" style="background:rgba(197,160,89,.12);color:var(--gold)"><i class="fa-solid fa-bag-shopping"></i></div>
-            <div class="sales-card-info">
-                <div class="sales-card-label">Total Orders</div>
-                <div class="sales-card-value">{{ order_count }}</div>
-            </div>
-        </div>
-        <div class="sales-card">
-            <div class="sales-card-icon" style="background:{% if growth_pct >= 0 %}rgba(39,174,96,.12){% else %}rgba(231,76,60,.12){% endif %};color:{% if growth_pct >= 0 %}var(--green){% else %}var(--red){% endif %}"><i class="fa-solid fa-arrow-trend-{% if growth_pct >= 0 %}up{% else %}down{% endif %}"></i></div>
-            <div class="sales-card-info">
-                <div class="sales-card-label">Sales Growth</div>
-                <div class="sales-card-value {% if growth_pct >= 0 %}growth-pos{% else %}growth-neg{% endif %}">{% if growth_pct >= 0 %}+{% endif %}{{ growth_pct }}%</div>
+            <div class="summary-list">
+                <div class="summary-row-item">
+                    <span class="summary-row-label"><i class="fa-solid fa-hashtag"></i>Overall Sales Count</span>
+                    <span class="summary-row-value">{{ order_count }} orders</span>
+                </div>
+                <div class="summary-row-item">
+                    <span class="summary-row-label"><i class="fa-solid fa-cart-flatbed-suitcases"></i>Gross Sales Amount</span>
+                    <span class="summary-row-value">&#8377;{{ gross_sales|floatformat:2 }}</span>
+                </div>
+                
+                <div class="summary-divider"></div>
+                
+                <div class="summary-row-item">
+                    <span class="summary-row-label"><i class="fa-solid fa-percent"></i>Product Discounts</span>
+                    <span class="summary-row-value" style="color:var(--red);">-&#8377;{{ product_discounts|floatformat:2 }}</span>
+                </div>
+                <div class="summary-row-item">
+                    <span class="summary-row-label"><i class="fa-solid fa-ticket"></i>Coupon Deductions</span>
+                    <span class="summary-row-value" style="color:var(--orange);">-&#8377;{{ coupon_discounts|floatformat:2 }}</span>
+                </div>
+                <div class="summary-row-item">
+                    <span class="summary-row-label"><i class="fa-solid fa-share-nodes"></i>Referral Discounts</span>
+                    <span class="summary-row-value" style="color:var(--blue);">-&#8377;{{ referral_discounts|floatformat:2 }}</span>
+                </div>
+                <div class="summary-row-item" style="font-weight: 500;">
+                    <span class="summary-row-label"><i class="fa-solid fa-tags"></i>Total Discounts</span>
+                    <span class="summary-row-value" style="color:var(--red); font-weight:700;">-&#8377;{{ total_discount|floatformat:2 }}</span>
+                </div>
+
+                <div class="summary-divider"></div>
+
+                <div class="summary-row-item">
+                    <span class="summary-row-label"><i class="fa-solid fa-wallet"></i>Average Order Value</span>
+                    <span class="summary-row-value">&#8377;{{ average_order_value|floatformat:2 }}</span>
+                </div>
+
+                <div class="summary-total-row">
+                    <span class="summary-total-label">Net Sales</span>
+                    <span class="summary-total-value">&#8377;{{ net_revenue|floatformat:2 }}</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- ─── Charts ────────────────────────────────────────────────────── -->
-    <div class="section-title"><i class="fa-solid fa-chart-area"></i> Charts &amp; Trends</div>
-
-    <!-- Row 1: Full-width Sales & Revenue Trend -->
-    <div class="chart-full">
-        <div class="chart-panel-title">
-            <i class="fa-solid fa-chart-line"></i>
-            Sales &amp; Revenue Trend
-            <span class="chart-panel-subtitle">{{ period_label }}</span>
-        </div>
-        <div class="chart-wrap" style="height:400px;">
-            <canvas id="salesTrendChart"></canvas>
-        </div>
+    <!-- ── Sales Report Table ────────────────────────────────────────── -->
+    <div class="sec-label">
+        <i class="fa-solid fa-table-list"></i>Detailed Sales Report
     </div>
-
-    <!-- Row 2: Orders by Status + Payment Method -->
-    <div class="charts-grid">
-        <div class="chart-panel">
-            <div class="chart-panel-title"><i class="fa-solid fa-chart-bar"></i> Orders by Status</div>
-            <div class="chart-wrap"><canvas id="orderStatusChart"></canvas></div>
-        </div>
-        <div class="chart-panel">
-            <div class="chart-panel-title"><i class="fa-solid fa-credit-card"></i> Revenue by Payment Method</div>
-            <div class="chart-wrap"><canvas id="paymentChart"></canvas></div>
-        </div>
-    </div>
-
-    <!-- Row 3: Top Selling Products -->
-    <div class="chart-full">
-        <div class="chart-panel-title">
-            <i class="fa-solid fa-trophy"></i>
-            Top Selling Products
-            <span class="chart-panel-subtitle">by Units Sold — {{ period_label }}</span>
-        </div>
-        <div class="chart-wrap" style="height:320px;">
-            <canvas id="topProductsChart"></canvas>
-        </div>
-    </div>
-
-    <!-- ─── Product Analytics ─────────────────────────────────────────── -->
-    <div class="section-title"><i class="fa-solid fa-boxes-stacked"></i> Product Analytics</div>
-    <div class="table-panel" style="margin-bottom:2rem;">
+    <div class="table-panel">
         <div class="panel-head">
-            <span class="panel-head-title">Top Selling Products</span>
-            <span class="panel-head-badge">{{ period_label }}</span>
+            <div class="panel-head-title">
+                <i class="fa-solid fa-list-check"></i>
+                Transaction Log
+            </div>
+            <div class="panel-meta">
+                {% if paginator.count %}
+                <span class="panel-count">{{ paginator.count }} record{{ paginator.count|pluralize }}</span>
+                {% endif %}
+                <span class="panel-badge">{{ period_label }}</span>
+            </div>
         </div>
-        {% if top_products_list %}
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Product</th>
-                    <th>SKU</th>
-                    <th>Units Sold</th>
-                    <th>Revenue</th>
-                    <th>Stock</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for p in top_products_list %}
-                <tr>
-                    <td><span class="rank-badge">{{ forloop.counter }}</span></td>
-                    <td style="display:flex;align-items:center;gap:.75rem;">
-                        {% if p.image %}
-                            <img src="{{ p.image }}" alt="{{ p.name }}" class="product-thumb">
-                        {% else %}
-                            <span class="product-thumb-placeholder"><i class="fa-solid fa-image"></i></span>
-                        {% endif %}
-                        <span style="font-weight:600;font-size:.82rem;">{{ p.name }}</span>
-                    </td>
-                    <td style="color:var(--gray);font-size:.75rem;letter-spacing:.05em;">{{ p.sku }}</td>
-                    <td style="font-weight:700;color:var(--gold)">{{ p.units_sold }}</td>
-                    <td class="gold-text">₹{{ p.revenue|floatformat:2 }}</td>
-                    <td>
-                        {% if p.stock == 0 %}
-                            <span class="stock-badge stock-out">Out of Stock</span>
-                        {% elif p.stock <= 10 %}
-                            <span class="stock-badge stock-low">Low — {{ p.stock }}</span>
-                        {% else %}
-                            <span class="stock-badge stock-ok">{{ p.stock }}</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <div class="empty"><i class="fa-solid fa-box-open"></i>No product sales data for this period.</div>
-        {% endif %}
-    </div>
-
-    <!-- ─── Category & Brand ──────────────────────────────────────────── -->
-    <div class="section-title"><i class="fa-solid fa-tags"></i> Category &amp; Brand Analytics</div>
-    <div class="two-col">
-        <div class="table-panel">
-            <div class="panel-head"><span class="panel-head-title">Top Selling Categories</span></div>
-            {% if top_categories %}
+        <div class="table-scroll">
+            {% if report_orders %}
             <table class="data-table">
-                <thead><tr><th>#</th><th>Category</th><th>Units</th><th>Revenue</th></tr></thead>
-                <tbody>
-                    {% for c in top_categories %}
+                <thead>
                     <tr>
-                        <td><span class="rank-badge">{{ forloop.counter }}</span></td>
-                        <td style="font-weight:600">{{ c.variant__product__category__name }}</td>
-                        <td>{{ c.units }}</td>
-                        <td class="gold-text">₹{{ c.revenue|floatformat:2 }}</td>
+                        <th>Order ID</th>
+                        <th>Order Date</th>
+                        <th>Customer</th>
+                        <th>Order Amount (Gross)</th>
+                        <th>Product Discount</th>
+                        <th>Coupon Discount</th>
+                        <th>Referral Discount</th>
+                        <th>Net Amount</th>
+                        <th>Payment Method</th>
+                        <th>Order Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in report_orders %}
+                    <tr>
+                        <td>
+                            <span style="font-weight:700;font-size:.78rem;color:var(--gold);">{{ order.order_number }}</span>
+                        </td>
+                        <td style="color:var(--gray);font-size:.75rem;white-space:nowrap;">
+                            {{ order.created_at|date:"d M Y" }}<br>
+                            <span style="color:var(--gray2);font-size:.68rem;">{{ order.created_at|date:"H:i" }}</span>
+                        </td>
+                        <td>
+                            <div style="font-weight:600;font-size:.82rem;">{{ order.user.full_name|default:order.user.email }}</div>
+                            <div style="color:var(--gray2);font-size:.68rem;">{{ order.user.email }}</div>
+                        </td>
+                        <td style="font-weight:600;">
+                            &#8377;{{ order.gross_amount|floatformat:2 }}
+                        </td>
+                        <td>
+                            {% if order.discount %}
+                            <span style="color:#e74c3c;">-&#8377;{{ order.discount|floatformat:2 }}</span>
+                            {% else %}<span style="color:var(--gray2);">&#8212;</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if order.coupon_discount %}
+                            <span style="color:#e67e22;">-&#8377;{{ order.coupon_discount|floatformat:2 }}</span>
+                            {% else %}<span style="color:var(--gray2);">&#8212;</span>{% endif %}
+                        </td>
+                        <td style="color:var(--gray2);">&#8212;</td>
+                        <td><span style="font-weight:700;color:var(--gold);">&#8377;{{ order.total|floatformat:2 }}</span></td>
+                        <td style="font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:var(--gray);">
+                            {{ order.get_payment_method_display }}
+                        </td>
+                        <td><span class="sb sb-{{ order.status }}">{{ order.get_status_display }}</span></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
-            {% else %}<div class="empty"><i class="fa-solid fa-tags"></i>No data.</div>{% endif %}
-        </div>
-        <div class="table-panel">
-            <div class="panel-head"><span class="panel-head-title">Top Selling Brands</span></div>
-            {% if top_brands %}
-            <table class="data-table">
-                <thead><tr><th>#</th><th>Brand</th><th>Units</th><th>Revenue</th></tr></thead>
-                <tbody>
-                    {% for b in top_brands %}
-                    <tr>
-                        <td><span class="rank-badge">{{ forloop.counter }}</span></td>
-                        <td style="font-weight:600">{{ b.variant__product__brand__name }}</td>
-                        <td>{{ b.units }}</td>
-                        <td class="gold-text">₹{{ b.revenue|floatformat:2 }}</td>
-                    </tr>
+
+            <!-- Pagination bar -->
+            {% if report_orders.has_other_pages %}
+            <div class="pagination-bar">
+                <div class="pagination-info">
+                    Showing
+                    <strong>{{ report_orders.start_index }}–{{ report_orders.end_index }}</strong>
+                    of <strong>{{ paginator.count }}</strong> records
+                </div>
+                <div class="pagination-pages">
+                    <!-- Previous -->
+                    {% if report_orders.has_previous %}
+                    <a href="?{{ base_qs }}&page={{ report_orders.previous_page_number }}" class="pg-btn">
+                        <i class="fa-solid fa-chevron-left" style="font-size:.65rem;"></i>
+                    </a>
+                    {% else %}
+                    <span class="pg-btn disabled"><i class="fa-solid fa-chevron-left" style="font-size:.65rem;"></i></span>
+                    {% endif %}
+
+                    <!-- Page numbers -->
+                    {% for p in paginator.page_range %}
+                        {% if p == report_orders.number %}
+                        <span class="pg-btn active">{{ p }}</span>
+                        {% elif p == 1 or p == paginator.num_pages %}
+                        <a href="?{{ base_qs }}&page={{ p }}" class="pg-btn">{{ p }}</a>
+                        {% elif p == report_orders.number|add:"-2" or p == report_orders.number|add:"2" %}
+                        <a href="?{{ base_qs }}&page={{ p }}" class="pg-btn">{{ p }}</a>
+                        {% elif p == report_orders.number|add:"-1" or p == report_orders.number|add:"1" %}
+                        <a href="?{{ base_qs }}&page={{ p }}" class="pg-btn">{{ p }}</a>
+                        {% elif p == report_orders.number|add:"-3" or p == report_orders.number|add:"3" %}
+                        <span class="pg-ellipsis">&hellip;</span>
+                        {% endif %}
                     {% endfor %}
-                </tbody>
-            </table>
-            {% else %}<div class="empty"><i class="fa-solid fa-star"></i>No data.</div>{% endif %}
-        </div>
-    </div>
 
-    <!-- ─── Customer Analytics ────────────────────────────────────────── -->
-    <div class="section-title"><i class="fa-solid fa-users"></i> Customer Analytics</div>
-    <div class="mini-grid">
-        <div class="mini-card">
-            <div class="mini-card-icon" style="color:var(--gold)">👥</div>
-            <div class="mini-card-val">{{ total_cust }}</div>
-            <div class="mini-card-label">Total Customers</div>
-        </div>
-        <div class="mini-card">
-            <div class="mini-card-icon" style="color:var(--green)">🆕</div>
-            <div class="mini-card-val">{{ new_cust }}</div>
-            <div class="mini-card-label">New ({{ period_label }})</div>
-        </div>
-        <div class="mini-card">
-            <div class="mini-card-icon" style="color:var(--blue)">🔁</div>
-            <div class="mini-card-val">{{ repeat_cust }}</div>
-            <div class="mini-card-label">Repeat Customers</div>
-        </div>
-        <div class="mini-card">
-            <div class="mini-card-icon" style="color:var(--orange)">⚡</div>
-            <div class="mini-card-val">{{ active_cust }}</div>
-            <div class="mini-card-label">Active ({{ period_label }})</div>
-        </div>
-    </div>
-    <div class="table-panel" style="margin-bottom:2rem;">
-        <div class="panel-head"><span class="panel-head-title">Top Spending Customers</span><span class="panel-head-badge">{{ period_label }}</span></div>
-        {% if top_spenders %}
-        <table class="data-table">
-            <thead><tr><th>#</th><th>Customer</th><th>Email</th><th>Orders</th><th>Total Spent</th></tr></thead>
-            <tbody>
-                {% for s in top_spenders %}
-                <tr>
-                    <td><span class="rank-badge">{{ forloop.counter }}</span></td>
-                    <td style="font-weight:600">{{ s.user__full_name|default:"—" }}</td>
-                    <td style="color:var(--gray);font-size:.78rem;">{{ s.user__email }}</td>
-                    <td>{{ s.order_count }}</td>
-                    <td class="gold-text">₹{{ s.total_spent|floatformat:2 }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}<div class="empty"><i class="fa-solid fa-users"></i>No customer data for this period.</div>{% endif %}
-    </div>
+                    <!-- Next -->
+                    {% if report_orders.has_next %}
+                    <a href="?{{ base_qs }}&page={{ report_orders.next_page_number }}" class="pg-btn">
+                        <i class="fa-solid fa-chevron-right" style="font-size:.65rem;"></i>
+                    </a>
+                    {% else %}
+                    <span class="pg-btn disabled"><i class="fa-solid fa-chevron-right" style="font-size:.65rem;"></i></span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
 
-    <!-- ─── Order Analytics ───────────────────────────────────────────── -->
-    <div class="section-title"><i class="fa-solid fa-bag-shopping"></i> Order Analytics</div>
-    <div class="status-grid" style="margin-bottom:2rem;">
-        {% for item in order_status_counts %}
-        <div class="status-item">
-            <div class="status-dot" style="background:
-                {% if item.label == 'Delivered' %}var(--green)
-                {% elif item.label == 'Cancelled' %}var(--red)
-                {% elif item.label == 'Returned' %}var(--purple)
-                {% elif item.label == 'Pending' %}var(--orange)
-                {% elif item.label == 'Shipped' %}var(--blue)
-                {% else %}var(--gray){% endif %};"></div>
-            <div>
-                <div class="status-info-label">{{ item.label }}</div>
-                <div class="status-info-count">{{ item.count }}</div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fa-solid fa-box-open"></i>
+                <strong>No orders found</strong>
+                <p style="margin-top:.5rem;">No transaction records for the selected period.</p>
             </div>
-        </div>
-        {% endfor %}
-        <div class="status-item">
-            <div class="status-dot" style="background:var(--red);opacity:.5;"></div>
-            <div>
-                <div class="status-info-label">Failed Payments</div>
-                <div class="status-info-count" style="color:var(--red)">{{ failed_payments }}</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ─── Inventory Analytics ───────────────────────────────────────── -->
-    <div class="section-title"><i class="fa-solid fa-warehouse"></i> Inventory Analytics</div>
-    <div class="mini-grid" style="margin-bottom:1.5rem;">
-        <div class="mini-card">
-            <div class="mini-card-icon" style="color:var(--gold)">📦</div>
-            <div class="mini-card-val">{{ total_products }}</div>
-            <div class="mini-card-label">Total Products</div>
-        </div>
-        <div class="mini-card">
-            <div class="mini-card-icon" style="color:var(--green)">✅</div>
-            <div class="mini-card-val">{{ active_products_count }}</div>
-            <div class="mini-card-label">Active / Listed</div>
-        </div>
-        <div class="mini-card">
-            <div class="mini-card-icon" style="color:var(--orange)">⚠️</div>
-            <div class="mini-card-val">{{ low_stock_count }}</div>
-            <div class="mini-card-label">Low Stock (≤10)</div>
-        </div>
-        <div class="mini-card">
-            <div class="mini-card-icon" style="color:var(--red)">❌</div>
-            <div class="mini-card-val">{{ out_of_stock_count }}</div>
-            <div class="mini-card-label">Out of Stock</div>
-        </div>
-    </div>
-    <div class="table-panel" style="margin-bottom:2rem;">
-        <div class="panel-head"><span class="panel-head-title">Recently Added Products</span></div>
-        {% if recent_products %}
-        <table class="data-table">
-            <thead><tr><th>Product</th><th>Category</th><th>Brand</th><th>Added</th></tr></thead>
-            <tbody>
-                {% for p in recent_products %}
-                <tr>
-                    <td style="font-weight:600">{{ p.name }}</td>
-                    <td style="color:var(--gray)">{{ p.category.name }}</td>
-                    <td style="color:var(--gray)">{{ p.brand.name|default:"—" }}</td>
-                    <td style="color:var(--gray2);font-size:.75rem;">{{ p.created_at|date:"d M Y" }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}<div class="empty"><i class="fa-solid fa-box"></i>No products.</div>{% endif %}
-    </div>
-
-    <!-- ─── Coupon Analytics ──────────────────────────────────────────── -->
-    <div class="section-title"><i class="fa-solid fa-ticket"></i> Coupon Analytics</div>
-    <div class="mini-grid" style="margin-bottom:2rem;">
-        <div class="mini-card">
-            <div class="mini-card-icon" style="color:var(--gold)">🎟️</div>
-            <div class="mini-card-val">{{ coupons_created }}</div>
-            <div class="mini-card-label">Coupons Created</div>
-        </div>
-        <div class="mini-card">
-            <div class="mini-card-icon" style="color:var(--green)">✔️</div>
-            <div class="mini-card-val">{{ coupons_used }}</div>
-            <div class="mini-card-label">Used ({{ period_label }})</div>
-        </div>
-        <div class="mini-card">
-            <div class="mini-card-icon" style="color:var(--orange)">💸</div>
-            <div class="mini-card-val">₹{{ total_coupon_discount|floatformat:0 }}</div>
-            <div class="mini-card-label">Total Discount Given</div>
-        </div>
-        <div class="mini-card">
-            <div class="mini-card-icon" style="color:var(--blue)">🏆</div>
-            <div class="mini-card-val" style="font-size:1rem;padding-top:.3rem;">{{ most_used_coupon }}</div>
-            <div class="mini-card-label">Most Used Coupon</div>
-        </div>
-    </div>
-
-    <!-- ─── Payment Analytics ─────────────────────────────────────────── -->
-    <div class="section-title"><i class="fa-solid fa-credit-card"></i> Payment Analytics</div>
-    <div class="sales-grid" style="margin-bottom:3rem;">
-        <div class="sales-card">
-            <div class="sales-card-icon" style="background:rgba(197,160,89,.12);color:var(--gold)"><i class="fa-solid fa-bolt"></i></div>
-            <div class="sales-card-info">
-                <div class="sales-card-label">Razorpay Orders</div>
-                <div class="sales-card-value">{{ razorpay_orders }}</div>
-            </div>
-        </div>
-        <div class="sales-card">
-            <div class="sales-card-icon" style="background:rgba(39,174,96,.12);color:var(--green)"><i class="fa-solid fa-money-bill"></i></div>
-            <div class="sales-card-info">
-                <div class="sales-card-label">Cash on Delivery</div>
-                <div class="sales-card-value">{{ cod_orders }}</div>
-            </div>
-        </div>
-        <div class="sales-card">
-            <div class="sales-card-icon" style="background:rgba(52,152,219,.12);color:var(--blue)"><i class="fa-solid fa-wallet"></i></div>
-            <div class="sales-card-info">
-                <div class="sales-card-label">Wallet Payments</div>
-                <div class="sales-card-value">{{ wallet_orders }}</div>
-            </div>
-        </div>
-        <div class="sales-card">
-            <div class="sales-card-icon" style="background:rgba(39,174,96,.12);color:var(--green)"><i class="fa-solid fa-circle-check"></i></div>
-            <div class="sales-card-info">
-                <div class="sales-card-label">Successful Payments</div>
-                <div class="sales-card-value" style="color:var(--green)">{{ successful_payments }}</div>
-            </div>
-        </div>
-        <div class="sales-card">
-            <div class="sales-card-icon" style="background:rgba(231,76,60,.12);color:var(--red)"><i class="fa-solid fa-circle-xmark"></i></div>
-            <div class="sales-card-info">
-                <div class="sales-card-label">Failed Payments</div>
-                <div class="sales-card-value" style="color:var(--red)">{{ failed_payments }}</div>
-            </div>
+            {% endif %}
         </div>
     </div>
 
 </main>
 
-<!-- Chart.js Data -->
 {{ chart_labels|json_script:"chartLabels" }}
 {{ chart_revenue|json_script:"chartRevenue" }}
-{{ chart_orders|json_script:"chartOrders" }}
-{{ payment_labels|json_script:"paymentLabels" }}
-{{ payment_counts|json_script:"paymentCounts" }}
-{{ status_labels|json_script:"statusLabels" }}
-{{ status_counts|json_script:"statusCounts" }}
-{{ top_products_labels|json_script:"topProductLabels" }}
-{{ top_products_units|json_script:"topProductUnits" }}
+{{ chart_items|json_script:"chartItems" }}
 
 <script>
-// ── Helpers ───────────────────────────────────────────────────────────────
-function getJSON(id){ try{ return JSON.parse(document.getElementById(id).textContent); }catch(e){ return []; } }
-const GOLD='#c5a059', GOLD2='#e5c17d', GREEN='#27ae60', RED='#e74c3c', BLUE='#3498db', ORANGE='#f39c12', PURPLE='#9b59b6';
-const PALETTE = [GOLD, GREEN, BLUE, ORANGE, RED, PURPLE, '#1abc9c', '#e67e22', '#2ecc71', '#16a085'];
-
-const CHART_DEFAULTS = {
-    responsive: true,
-    maintainAspectRatio: false,
-    layout: {
-        padding: {
-            top: 15,
-            bottom: 10,
-            left: 10,
-            right: 15
-        }
-    },
-    plugins: {
-        legend: {
-            position: 'bottom',
-            align: 'center',
-            labels: {
-                color: '#aaa',
-                font: { family: 'Inter', size: 10, weight: '500' },
-                boxWidth: 8,
-                boxHeight: 8,
-                padding: 12,
-                usePointStyle: true
-            }
-        },
-        tooltip: {
-            backgroundColor: '#161616',
-            titleColor: '#fff',
-            titleFont: { family: 'Inter', size: 11, weight: 'bold' },
-            bodyColor: '#ccc',
-            bodyFont: { family: 'Inter', size: 11 },
-            borderColor: 'rgba(197, 160, 89, 0.25)',
-            borderWidth: 1,
-            padding: 8,
-            cornerRadius: 8,
-            displayColors: true,
-            usePointStyle: true,
-            callbacks: {
-                label: function(context) {
-                    let label = context.dataset.label || '';
-                    if (label) {
-                        label += ': ';
-                    }
-                    if (context.parsed.y !== undefined && context.parsed.y !== null) {
-                        if (label.toLowerCase().includes('revenue') || label.toLowerCase().includes('sales') || label.toLowerCase().includes('price') || context.dataset.yAxisID === 'y') {
-                            label += '₹' + Number(context.parsed.y).toLocaleString('en-IN', { maximumFractionDigits: 2 });
-                        } else {
-                            label += Number(context.parsed.y).toLocaleString('en-IN');
-                        }
-                    } else if (context.parsed !== undefined && context.parsed !== null) {
-                        if (context.label && (context.label.toLowerCase().includes('revenue') || context.label.toLowerCase().includes('sales') || context.label.toLowerCase().includes('spent'))) {
-                            label += '₹' + Number(context.parsed).toLocaleString('en-IN', { maximumFractionDigits: 2 });
-                        } else {
-                            label += Number(context.parsed).toLocaleString('en-IN');
-                        }
-                    }
-                    return label;
-                }
-            }
-        }
-    }
-};
-
-function createChart(ctxId, config) {
-    const ctx = document.getElementById(ctxId);
-    if (!ctx) return null;
-    
-    let hasData = false;
-    if (config.data && config.data.datasets && config.data.datasets.length > 0) {
-        hasData = config.data.datasets.some(ds => ds.data && ds.data.length > 0 && ds.data.some(val => val !== 0 && val !== null && val !== undefined));
-    }
-    
-    if (!hasData) {
-        const wrap = ctx.closest('.chart-wrap');
-        if (wrap) {
-            wrap.innerHTML = `
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 240px; color: var(--gray); font-size: 0.82rem; border: 1px dashed rgba(255,255,255,0.04); border-radius: 12px; background: rgba(0,0,0,0.1);">
-                    <i class="fa-solid fa-chart-simple" style="font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--gray2);"></i>
-                    No Data Available
-                </div>
-            `;
-            return null;
-        }
-    }
-    
-    return new Chart(ctx, config);
+function getJSON(id) {
+    try { return JSON.parse(document.getElementById(id).textContent); } catch(e) { return []; }
 }
 
-// ── Sales Trend (full-width line chart) ──────────────────────────────────
-(function(){
-    const labels = getJSON('chartLabels'), revenue = getJSON('chartRevenue'), orders = getJSON('chartOrders');
-    createChart('salesTrendChart', {
-        type: 'line',
+// Custom range toggle
+document.getElementById('customPill').addEventListener('click', function() {
+    var f = document.getElementById('customForm');
+    f.style.display = (f.style.display === 'none' || !f.style.display) ? 'flex' : 'none';
+});
+
+// Export dropdown
+function toggleExport() { document.getElementById('exportDropdown').classList.toggle('open'); }
+document.addEventListener('click', function(e) {
+    var w = document.querySelector('.export-wrap');
+    if (w && !w.contains(e.target)) document.getElementById('exportDropdown').classList.remove('open');
+});
+
+// Sales Chart bar rendering (Dashboard-style chart)
+(function() {
+    var canvas = document.getElementById('salesTrendChart');
+    if (!canvas) return;
+
+    var labels = getJSON('chartLabels');
+    var revenue = getJSON('chartRevenue');
+    if (!labels.length) return;
+
+    var ctx = canvas.getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
         data: {
-            labels,
+            labels: labels,
             datasets: [
                 {
-                    label: 'Revenue',
+                    label: 'Revenue (₹)',
                     data: revenue,
-                    borderColor: GOLD,
-                    backgroundColor: 'rgba(197,160,89,0.06)',
-                    fill: true,
-                    tension: 0.45,
-                    borderWidth: 2.5,
-                    pointBackgroundColor: GOLD,
-                    pointBorderColor: '#0b0b0b',
-                    pointBorderWidth: 2,
-                    pointRadius: 4,
-                    pointHoverRadius: 7,
-                    yAxisID: 'yRev'
-                },
-                {
-                    label: 'Orders',
-                    data: orders,
-                    borderColor: BLUE,
-                    backgroundColor: 'rgba(52,152,219,0.04)',
-                    fill: true,
-                    tension: 0.45,
-                    borderWidth: 2,
-                    borderDash: [5,3],
-                    pointBackgroundColor: BLUE,
-                    pointBorderColor: '#0b0b0b',
-                    pointBorderWidth: 2,
-                    pointRadius: 3,
-                    pointHoverRadius: 6,
-                    yAxisID: 'yOrd'
+                    backgroundColor: '#3b82f6',
+                    borderColor: 'transparent',
+                    borderWidth: 0,
+                    borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 0, bottomRight: 0 },
+                    borderSkipped: false,
+                    barPercentage: 0.55,
+                    categoryPercentage: 0.75,
                 }
             ]
         },
         options: {
-            ...CHART_DEFAULTS,
-            animation: { duration: 800, easing: 'easeInOutQuart' },
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 500, easing: 'easeInOutQuart' },
             interaction: { mode: 'index', intersect: false },
-            scales: {
-                x: {
-                    grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false },
-                    ticks: { color: '#555', font: { family: 'Inter', size: 10 }, autoSkip: true, maxTicksLimit: 10, maxRotation: 0 }
-                },
-                yRev: {
-                    position: 'left',
-                    grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
-                    ticks: {
-                        color: '#666',
-                        font: { family: 'Inter', size: 10 },
-                        callback: v => v >= 100000 ? '₹'+(v/100000).toFixed(1)+'L' : v >= 1000 ? '₹'+(v/1000).toFixed(0)+'k' : '₹'+v
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1a1a1a',
+                    borderColor: 'rgba(255,255,255,.1)',
+                    borderWidth: 1,
+                    titleColor: '#fff',
+                    bodyColor: '#aaa',
+                    padding: 12,
+                    callbacks: {
+                        title: items => items[0].label,
+                        label: function(ctx) {
+                            var v = ctx.parsed.y;
+                            return ' Revenue: ₹' + Number(v).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+                        },
+                        labelColor: function() {
+                            return {
+                                borderColor: '#3b82f6',
+                                backgroundColor: '#3b82f6',
+                                borderRadius: 3,
+                            };
+                        }
                     }
-                },
-                yOrd: {
-                    position: 'right',
-                    grid: { drawOnChartArea: false },
-                    ticks: { color: '#555', font: { family: 'Inter', size: 10 }, precision: 0 }
                 }
-            }
-        }
-    });
-})();
-
-// ── Orders by Status (horizontal bar) ────────────────────────────────────
-(function(){
-    const labels = getJSON('statusLabels'), data = getJSON('statusCounts');
-    const STATUS_COLORS = [ORANGE, BLUE, GREEN, RED, PURPLE, GOLD, '#1abc9c', '#e67e22'];
-    createChart('orderStatusChart', {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Orders',
-                data,
-                backgroundColor: labels.map((_, i) => STATUS_COLORS[i % STATUS_COLORS.length] + 'bb'),
-                borderColor:     labels.map((_, i) => STATUS_COLORS[i % STATUS_COLORS.length]),
-                borderWidth: 1.5,
-                borderRadius: 5,
-                barThickness: 'flex',
-                maxBarThickness: 36
-            }]
-        },
-        options: {
-            ...CHART_DEFAULTS,
-            indexAxis: 'y',
-            animation: { duration: 700 },
-            plugins: {
-                ...CHART_DEFAULTS.plugins,
-                legend: { display: false }
             },
             scales: {
                 x: {
-                    grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false },
-                    ticks: { color: '#555', font: { family: 'Inter', size: 10 }, precision: 0 }
+                    ticks: { color: '#888', font: { size: 10 }, maxTicksLimit: 16 },
+                    grid:  { display: false },
+                    border: { display: false },
                 },
                 y: {
-                    grid: { display: false },
-                    ticks: { color: '#aaa', font: { family: 'Inter', size: 11, weight: '500' } }
+                    beginAtZero: true,
+                    ticks: {
+                        color: '#888', font: { size: 10 },
+                        callback: function(v) { return Number(v).toLocaleString('en-IN'); }
+                    },
+                    grid:  { color: 'rgba(255,255,255,.04)', drawBorder: false },
+                    border: { display: false },
+                    title: {
+                        display: true,
+                        text: 'Revenue (₹)',
+                        color: '#555',
+                        font: { size: 10 },
+                        padding: { bottom: 6 }
+                    }
                 }
             }
         }
     });
 })();
-
-// ── Payment Method (donut) ────────────────────────────────────────────────
-(function(){
-    const labels = getJSON('paymentLabels'), data = getJSON('paymentCounts');
-    createChart('paymentChart', {
-        type: 'doughnut',
-        data: {
-            labels,
-            datasets: [{ data, backgroundColor: [GOLD, GREEN, BLUE, ORANGE, RED, PURPLE], borderWidth: 2, borderColor: '#151515', hoverOffset: 8 }]
-        },
-        options: {
-            ...CHART_DEFAULTS,
-            cutout: '68%',
-            animation: { animateRotate: true, duration: 900 },
-            plugins: {
-                ...CHART_DEFAULTS.plugins,
-                legend: {
-                    position: 'right',
-                    labels: { color: '#aaa', font: { family: 'Inter', size: 10 }, boxWidth: 10, padding: 14, usePointStyle: true }
-                }
-            }
-        }
-    });
-})();
-
-// ── Top Products (horizontal bar) ────────────────────────────────────────
-(function(){
-    const labels = getJSON('topProductLabels'), data = getJSON('topProductUnits');
-    if (!labels || !labels.length) return;
-    // Truncate long names
-    const shortLabels = labels.map(l => l.length > 28 ? l.slice(0, 26) + '…' : l);
-    // Gold gradient bars
-    const bgs = data.map((_, i) => `rgba(197,160,89,${Math.max(0.3, 1 - i * 0.09)})`);
-    createChart('topProductsChart', {
-        type: 'bar',
-        data: {
-            labels: shortLabels,
-            datasets: [{
-                label: 'Units Sold',
-                data,
-                backgroundColor: bgs,
-                borderColor: GOLD,
-                borderWidth: 1,
-                borderRadius: 5,
-                barThickness: 'flex',
-                maxBarThickness: 32
-            }]
-        },
-        options: {
-            ...CHART_DEFAULTS,
-            indexAxis: 'y',
-            animation: { duration: 700 },
-            plugins: {
-                ...CHART_DEFAULTS.plugins,
-                legend: { display: false }
-            },
-            scales: {
-                x: {
-                    grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false },
-                    ticks: { color: '#555', font: { family: 'Inter', size: 10 }, precision: 0 }
-                },
-                y: {
-                    grid: { display: false },
-                    ticks: { color: '#aaa', font: { family: 'Inter', size: 11, weight: '500' } }
-                }
-            }
-        }
-    });
-})();
-
-// ── Export Dropdown ───────────────────────────────────────────────────────
-function toggleExport(){
-    document.getElementById('exportDropdown').classList.toggle('open');
-}
-document.addEventListener('click', function(e){
-    const wrap = document.querySelector('.export-wrap');
-    if(wrap && !wrap.contains(e.target)) document.getElementById('exportDropdown').classList.remove('open');
-});
-
-// ── Logout Modal ──────────────────────────────────────────────────────────
-function openLogoutModal(){ document.getElementById('logoutModal').classList.add('show'); }
-function closeLogoutModal(){ document.getElementById('logoutModal').classList.remove('show'); }
-document.getElementById('logoutModal').addEventListener('click', function(e){ if(e.target===this) closeLogoutModal(); });
 </script>
 </body>
 </html>

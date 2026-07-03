@@ -37,6 +37,7 @@
         .st-delivered { background:rgba(39,174,96,0.16); color:#1e8449; }
         .st-cancelled { background:rgba(231,76,60,0.14); color:#c0392b; }
         .st-returned { background:rgba(149,165,166,0.18); color:#7f8c8d; }
+        .st-payment_failed { background:rgba(231,76,60,0.14); color:#c0392b; }
     </style>
 </head>
 <body>
@@ -90,7 +91,12 @@
                     <div class="text-end">
                         <div class="fw-bold text-lux-black mb-2">₹{{ item.line_total }}</div>
                         <div class="d-flex gap-2 justify-content-end">
+                            {% if item.status == 'delivered' %}
+                            <a href="{% url 'write_review' item.variant.product.id %}" class="btn btn-outline-dark btn-sm" style="border-color:#1a1a1a;">Add Review</a>
+                            {% endif %}
+                            {% if item.status != 'payment_failed' %}
                             <a href="{% url 'order_detail' order.order_number %}#track-{{ item.id }}" class="btn btn-outline-secondary btn-sm">Track</a>
+                            {% endif %}
                             <a href="{% url 'order_detail' order.order_number %}#item-{{ item.id }}" class="luxury-btn text-white border-0 text-decoration-none px-3 py-1 small">View</a>
                         </div>
                     </div>
@@ -102,7 +108,14 @@
                 <div class="text-lux-gray small">
                     {{ order.get_payment_method_display }} · Total <span class="fw-bold text-lux-black">₹{{ order.total }}</span>
                 </div>
-                <a href="{% url 'order_detail' order.order_number %}" class="text-lux-gray small text-decoration-none hover-lux-gold">View full order →</a>
+                <div class="d-flex gap-3 align-items-center">
+                    {% if order.derived_status.0 == 'payment_failed' %}
+                        <a href="{% url 'payment_start' order.order_number %}" class="btn btn-dark btn-sm text-uppercase tracking-wider px-3 py-2 border-0" style="border-radius:6px; font-size:0.76rem; font-weight:600;">
+                            <i class="fa-solid fa-credit-card me-1"></i> Retry Payment
+                        </a>
+                    {% endif %}
+                    <a href="{% url 'order_detail' order.order_number %}" class="text-lux-gray small text-decoration-none hover-lux-gold">View full order →</a>
+                </div>
             </div>
         </div>
         {% empty %}

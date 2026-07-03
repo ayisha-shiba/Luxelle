@@ -24,8 +24,9 @@ def compute(subtotal, mrp_total=None, shipping=Decimal("0"), coupon_discount=Dec
     gst  = money(cgst + sgst)
 
     return {
-        "subtotal":        subtotal,
-        "discount":        money(mrp_total - subtotal),
+        "mrp_subtotal":    mrp_total,                     # MRP total before any discount
+        "subtotal":        subtotal,                      # post-offer price (taxable base)
+        "discount":        money(mrp_total - subtotal),   # offer discount
         "coupon_discount": coupon_discount,
         "taxable":         taxable,
         "cgst":            cgst,

@@ -398,7 +398,9 @@ class Review(models.Model):
     product    = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="reviews")
     user       = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="reviews")
     rating     = models.PositiveSmallIntegerField(choices=RATING_CHOICES)
+    title      = models.CharField(max_length=100, blank=True, null=True)
     comment    = models.TextField(blank=True)
+    is_hidden  = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -565,6 +567,8 @@ class Order(models.Model):
     coupon          = models.ForeignKey("coupons.Coupon", on_delete=models.SET_NULL, null=True, blank=True, related_name="orders")
     coupon_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
+    invoice_file = models.FileField(upload_to="invoices/", null=True, blank=True)
+
     cancellation_reason = models.TextField(blank=True)
     return_reason       = models.TextField(blank=True)
 
@@ -597,6 +601,10 @@ class Order(models.Model):
                 for value in self.ALLOWED_TRANSITIONS.get(self.status, [])]
 
     @property
+    def gross_amount(self):
+        return self.subtotal + self.discount
+
+    @property
     def cgst(self):
         from .pricing import money
         return money(self.tax / 2) if self.tax else self.tax
@@ -608,7 +616,18 @@ class Order(models.Model):
 
     @property
     def can_download_invoice(self):
-        return self.items.filter(status=OrderItem.STATUS_DELIVERED).exists()
+        derived_status, _ = self.derived_status
+        if derived_status in ["cancelled", "failed"]:
+            return False
+
+        if self.payment_method == self.PAYMENT_RAZORPAY:
+            from payments.models import Payment
+            return self.payments.filter(status=Payment.STATUS_PAID).exists()
+        elif self.payment_method == self.PAYMENT_WALLET:
+            return True
+        elif self.payment_method == self.PAYMENT_COD:
+            return derived_status == "delivered"
+        return False
 
     def item_status_summary(self):
         labels = dict(OrderItem.STATUS_CHOICES)
@@ -646,8 +665,15 @@ class Order(models.Model):
         self.coupon_discount = totals["coupon_discount"]
         self.tax      = totals["gst"]
         self.total    = totals["grand_total"]
+        
+        # Invalidate the cached invoice if the order composition changes
+        # so it regenerates with the correct 'Refunded/Returned' markings and amounts.
+        if self.invoice_file:
+            self.invoice_file.delete(save=False)
+            self.invoice_file = None
+
         if save:
-            self.save(update_fields=["subtotal", "discount", "coupon_discount", "tax", "total", "updated_at"])
+            self.save(update_fields=["subtotal", "discount", "coupon_discount", "tax", "total", "invoice_file", "updated_at"])
         return totals
 
     @property
@@ -666,6 +692,8 @@ class Order(models.Model):
 
         if not active:                                               # all cancelled
             return ("cancelled", "Cancelled")
+        if any(s == OrderItem.STATUS_PAYMENT_FAILED for s in active):
+            return ("payment_failed", "Payment Failed")
         if all(s == OrderItem.STATUS_RETURNED for s in active):
             return ("returned", "Returned")
         if all(s == OrderItem.STATUS_DELIVERED for s in active):
@@ -691,6 +719,7 @@ class OrderItem(models.Model):
     STATUS_RETURN_PICKED    = "return_picked"
     STATUS_RETURNED         = "returned"
     STATUS_RETURN_REPAIR    = "return_repair"
+    STATUS_PAYMENT_FAILED   = "payment_failed"
 
     STATUS_CHOICES = [
         (STATUS_PENDING,          "Pending"),
@@ -707,6 +736,7 @@ class OrderItem(models.Model):
         (STATUS_RETURN_PICKED,    "Return Picked"),
         (STATUS_RETURNED,         "Returned"),
         (STATUS_RETURN_REPAIR,    "Sent for Repair"),
+        (STATUS_PAYMENT_FAILED,   "Payment Failed"),
     ]
 
     RETURN_STATUSES = [
@@ -745,7 +775,7 @@ class OrderItem(models.Model):
         STATUS_SHIPPED, STATUS_OUT_FOR_DELIVERY, STATUS_DELIVERED,
     ]
     CANCELLABLE_STATUSES = [
-        STATUS_PENDING, STATUS_CONFIRMED, STATUS_PACKED,
+        STATUS_PENDING, STATUS_CONFIRMED, STATUS_PACKED, STATUS_PAYMENT_FAILED,
     ]
     # Statuses where the customer is no longer being charged for the item:
     # cancelled before fulfilment, or any approved/completed return (refund due).
@@ -806,6 +836,14 @@ class OrderItem(models.Model):
     def can_approve_return(self): return self.status == self.STATUS_RETURN_REQUESTED
     @property
     def can_decline_return(self): return self.status == self.STATUS_RETURN_REQUESTED
+
+    @property
+    def is_refunded(self):
+        """True if a wallet refund credit has been issued for this item."""
+        from wallet.models import WalletTransaction
+        return WalletTransaction.objects.filter(
+            order_item=self, txn_type=WalletTransaction.CREDIT
+        ).exists()
 
     def return_next_statuses(self):
         return [(v, self.RETURN_STEP_LABELS[v])

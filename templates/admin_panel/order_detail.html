@@ -136,9 +136,12 @@
                 <!-- Payment summary -->
                 <div class="info-card">
                     <h3>Payment Summary</h3>
-                    <div class="info-row"><span class="lbl">Subtotal</span><span>₹{{ order.subtotal }}</span></div>
-                    <div class="info-row"><span class="lbl">Discount</span><span>− ₹{{ order.discount }}</span></div>
-                    <div class="info-row"><span class="lbl">Delivery</span><span>₹{{ order.shipping }}</span></div>
+                    <div class="info-row"><span class="lbl">Subtotal (MRP)</span><span>₹{{ order.gross_amount }}</span></div>
+                    <div class="info-row"><span class="lbl">Offer Discount</span><span style="color:#4caf50;">{% if order.discount %}− ₹{{ order.discount }}{% else %}—{% endif %}</span></div>
+                    {% if order.coupon_discount %}
+                    <div class="info-row"><span class="lbl">Coupon Discount{% if order.coupon %} ({{ order.coupon.code }}){% endif %}</span><span style="color:#4caf50;">− ₹{{ order.coupon_discount }}</span></div>
+                    {% endif %}
+                    <div class="info-row"><span class="lbl">Delivery</span><span>{% if order.shipping %}₹{{ order.shipping }}{% else %}Free{% endif %}</span></div>
                     <div class="info-row"><span class="lbl">CGST (9%)</span><span>₹{{ order.cgst }}</span></div>
                     <div class="info-row"><span class="lbl">SGST (9%)</span><span>₹{{ order.sgst }}</span></div>
                     <hr style="border-color:rgba(255,255,255,0.1);">
@@ -147,6 +150,7 @@
                     </div>
                     <div class="info-row mt-2"><span class="lbl">Payment Method</span><span>{{ order.get_payment_method_display }}</span></div>
                 </div>
+
 
                 <!-- Per-item status hint -->
                 <div class="info-card">

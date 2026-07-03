@@ -26,6 +26,8 @@ urlpatterns = [
 
     path("profile/", views.profile_view, name="profile"),
     path("profile/reviews/", views.my_reviews_view, name="my_reviews"),
+    path("product/<int:product_id>/write-review/", views.write_review_view, name="write_review"),
+    path("product/<int:product_id>/delete-review/", views.delete_review_view, name="delete_review"),
     path("profile/edit/", views.profile_edit_view, name="profile_edit"),
     path("profile/change-password/", views.change_password_view, name="change_password"),
     path("profile/change-email/", views.change_email_view, name="change_email"),
@@ -63,6 +65,10 @@ urlpatterns = [
     path("admin-panel/", admin_views.admin_login_view, name="admin_login"),
     path("admin-panel/logout/", admin_views.admin_logout_view, name="admin_logout"),
     path("admin-panel/dashboard/", admin_views.admin_dashboard_view, name="admin_dashboard"),
+    path("admin-panel/dashboard/chart-data/", admin_views.admin_dashboard_chart_data, name="admin_dashboard_chart_data"),
+    path("admin-panel/dashboard/export/ledger/pdf/", admin_views.admin_ledger_pdf_view, name="admin_ledger_pdf"),
+    path("admin-panel/dashboard/export/ledger/excel/", admin_views.admin_ledger_excel_view, name="admin_ledger_excel"),
+    path("admin-panel/dashboard/export/ledger/csv/", admin_views.admin_ledger_csv_view, name="admin_ledger_csv"),
 
     path("admin-panel/users/", admin_views.admin_user_management_view, name="admin_users"),
     path("admin-panel/users/profile/", admin_views.admin_user_profile_view, name="admin_user_profile"),
@@ -102,6 +108,9 @@ urlpatterns = [
     path("admin-panel/returns/<int:item_id>/decline/", admin_views.admin_return_decline_view, name="admin_return_decline"),
     path("admin-panel/returns/<int:item_id>/step/", admin_views.admin_return_update_status_view, name="admin_return_update_status"),
     path("admin-panel/returns/<int:item_id>/reallow/", admin_views.admin_return_reallow_view, name="admin_return_reallow"),
+
+    path("admin-panel/reviews/", admin_views.admin_reviews_view, name="admin_reviews"),
+    path("admin-panel/reviews/<int:review_id>/toggle/", admin_views.admin_review_toggle_view, name="admin_review_toggle"),
 
     path("admin-panel/forgot-password/", admin_views.admin_forgot_password_view, name="admin_forgot_password"),
     path("admin-panel/forgot-password/otp/", admin_views.admin_forgot_password_otp_view, name="admin_forgot_password_otp"),

@@ -599,7 +599,7 @@
                             <div class="detail-label-dark mb-1">YOUR REFERRAL CODE</div>
                             <div class="ref-copy-row">
                                 <span class="code-pill-profile" id="refCode">{{ referral.code }}</span>
-                                <button type="button" class="btn-copy-ref" onclick="copyRef()"><i class="fa-regular fa-copy me-1"></i>Copy</button>
+                                <button type="button" class="btn-copy-ref" onclick="copyRef(this)"><i class="fa-regular fa-copy me-1"></i>Copy</button>
                             </div>
 
                             <div class="ref-stats">
@@ -686,15 +686,62 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        // Copy referral link to clipboard
-        function copyRef() {
-            const link = document.getElementById('refLink').value;
-            navigator.clipboard.writeText(link).then(function () {
-                const btn = event.target;
-                const original = btn.textContent;
-                btn.textContent = 'Copied!';
-                setTimeout(function () { btn.textContent = original; }, 1500);
-            });
+        // Copy referral link to clipboard. Accepts the button element as argument.
+        function copyRef(btn) {
+            try {
+                const codeEl = document.getElementById('refCode');
+                if (!codeEl) return;
+                const link = (codeEl.textContent || codeEl.innerText || '').trim();
+                // Normalize button element (in case an inner <i> was clicked)
+                let button = btn && (btn.tagName === 'BUTTON' ? btn : btn.closest && btn.closest('button')) || document.querySelector('.btn-copy-ref');
+                const original = button ? button.textContent : '';
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(link).then(function () {
+                        if (button) {
+                            button.textContent = 'Copied!';
+                            setTimeout(function () { button.textContent = original; }, 1500);
+                        }
+                    }).catch(function () {
+                        // Fallback to older method
+                        fallbackCopyTextToClipboard(link, button, original);
+                    });
+                } else {
+                    fallbackCopyTextToClipboard(link, button, original);
+                }
+            } catch (e) {
+                console.error('Copy failed', e);
+            }
+        }
+
+        function fallbackCopyTextToClipboard(text, button, original) {
+            var textArea = document.createElement('textarea');
+            textArea.value = text;
+            // Avoid scrolling to bottom
+            textArea.style.position = 'fixed';
+            textArea.style.top = 0;
+            textArea.style.left = 0;
+            textArea.style.width = '2em';
+            textArea.style.height = '2em';
+            textArea.style.padding = 0;
+            textArea.style.border = 'none';
+            textArea.style.outline = 'none';
+            textArea.style.boxShadow = 'none';
+            textArea.style.background = 'transparent';
+            document.body.appendChild(textArea);
+            textArea.select();
+
+            try {
+                var successful = document.execCommand('copy');
+                if (successful && button) {
+                    button.textContent = 'Copied!';
+                    setTimeout(function () { button.textContent = original; }, 1500);
+                }
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+            }
+
+            document.body.removeChild(textArea);
         }
     </script>
 

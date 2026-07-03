@@ -373,38 +373,120 @@
         <!-- =========================================
            Reviews
            ========================================= -->
-        <div class="row mt-5">
+        <div class="row mt-5" id="reviews-section">
             <div class="col-12">
-                <h2 class="font-playfair fw-bold text-lux-black mb-4">Customer Reviews</h2>
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+                    <h2 class="font-playfair fw-bold text-lux-black mb-0">Customer Reviews</h2>
 
-                {% if reviews %}
-                    <div class="row g-3">
-                        {% for review in reviews %}
-                            <div class="col-md-4">
-                                <div class="review-card p-3 h-100">
-                                    <div class="text-lux-gold mb-2">
-                                        {% for i in "12345" %}
-                                            {% if forloop.counter <= review.rating %}
-                                                <i class="fa-solid fa-star"></i>
-                                            {% else %}
-                                                <i class="fa-regular fa-star"></i>
-                                            {% endif %}
-                                        {% endfor %}
-                                    </div>
-                                    <p class="font-inter small text-lux-black mb-3">{{ review.comment }}</p>
-                                    <div class="text-lux-gray small">
-                                        — {{ review.user.first_name|default:"Verified Buyer" }}
-                                        <span class="d-block text-xxs">{{ review.created_at|date:"d M Y" }}</span>
-                                    </div>
-                                </div>
+                    {% if request.user.is_authenticated %}
+                        {% if has_purchased %}
+                            {% if not user_review %}
+                                <a href="{% url 'write_review' product.id %}" class="luxury-btn text-white border-0 text-decoration-none px-3 py-2 small text-uppercase tracking-wider">
+                                    <i class="fa-solid fa-star me-1"></i> Write a Review
+                                </a>
+                            {% else %}
+                                <span class="badge" style="background:rgba(197,160,89,0.12); color:#c5a059; font-size:0.78rem; padding:0.5rem 0.9rem; border-radius:6px;">
+                                    <i class="fa-solid fa-circle-check me-1"></i> Review Submitted
+                                </span>
+                            {% endif %}
+                        {% endif %}
+                    {% endif %}
+                </div>
+
+                {% if review_count %}
+                <!-- Rating summary + breakdown -->
+                <div class="d-flex gap-4 align-items-center mb-4 flex-wrap">
+                    <div class="text-center" style="min-width:90px;">
+                        <div class="font-playfair fw-bold" style="font-size:3.5rem; line-height:1; color:#c5a059;">{{ avg_rating|floatformat:1 }}</div>
+                        <div class="text-lux-gold mb-1">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= avg_rating %}
+                                    <i class="fa-solid fa-star fa-xs"></i>
+                                {% elif forloop.counter|add:"-1" < avg_rating %}
+                                    <i class="fa-solid fa-star-half-stroke fa-xs"></i>
+                                {% else %}
+                                    <i class="fa-regular fa-star fa-xs"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <div class="text-lux-gray small">{{ review_count }} review{{ review_count|pluralize }}</div>
+                    </div>
+                    <div class="flex-grow-1" style="max-width:320px;">
+                        {% for stars in "54321" %}
+                        {% with stars_int=forloop.counter|add:"0" pct=rating_percentages|default_if_none:0 count=rating_breakdown|default_if_none:0 %}
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="text-lux-gray small" style="min-width:28px;">{{ stars }}★</span>
+                            <div class="progress flex-grow-1" style="height:8px; border-radius:4px; background:#e2dfd9;">
+                                {% if stars == "5" %}
+                                <div class="progress-bar" style="width:{{ rating_percentages.5|floatformat:0 }}%; background:#c5a059; border-radius:4px;"></div>
+                                {% elif stars == "4" %}
+                                <div class="progress-bar" style="width:{{ rating_percentages.4|floatformat:0 }}%; background:#c5a059; border-radius:4px;"></div>
+                                {% elif stars == "3" %}
+                                <div class="progress-bar" style="width:{{ rating_percentages.3|floatformat:0 }}%; background:#c5a059; border-radius:4px;"></div>
+                                {% elif stars == "2" %}
+                                <div class="progress-bar" style="width:{{ rating_percentages.2|floatformat:0 }}%; background:#c5a059; border-radius:4px;"></div>
+                                {% else %}
+                                <div class="progress-bar" style="width:{{ rating_percentages.1|floatformat:0 }}%; background:#c5a059; border-radius:4px;"></div>
+                                {% endif %}
                             </div>
+                            <span class="text-lux-gray small" style="min-width:22px; text-align:right;">
+                                {% if stars == "5" %}{{ rating_breakdown.5 }}
+                                {% elif stars == "4" %}{{ rating_breakdown.4 }}
+                                {% elif stars == "3" %}{{ rating_breakdown.3 }}
+                                {% elif stars == "2" %}{{ rating_breakdown.2 }}
+                                {% else %}{{ rating_breakdown.1 }}{% endif %}
+                            </span>
+                        </div>
+                        {% endwith %}
                         {% endfor %}
                     </div>
+                </div>
+
+                <!-- Review cards -->
+                <div class="row g-3">
+                    {% for review in reviews %}
+                        <div class="col-md-4">
+                            <div class="review-card p-3 h-100 position-relative">
+                                <!-- Stars -->
+                                <div class="text-lux-gold mb-1">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= review.rating %}
+                                            <i class="fa-solid fa-star fa-sm"></i>
+                                        {% else %}
+                                            <i class="fa-regular fa-star fa-sm"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <!-- Title -->
+                                {% if review.title %}
+                                    <div class="fw-bold text-lux-black mb-1" style="font-size:0.92rem;">{{ review.title }}</div>
+                                {% endif %}
+                                <!-- Comment -->
+                                <p class="font-inter small text-lux-black mb-3" style="word-break:break-word;">{{ review.comment }}</p>
+                                <!-- Reviewer + Verified badge -->
+                                <div class="text-lux-gray small">
+                                    <span>— {{ review.user.first_name|default:"Customer" }} {{ review.user.last_name|slice:":1" }}.</span>
+                                    <span class="ms-2 badge" style="background:rgba(39,174,96,0.12); color:#1e8449; font-size:0.7rem; font-weight:600;">
+                                        <i class="fa-solid fa-circle-check me-1"></i>Verified Purchase
+                                    </span>
+                                    <span class="d-block text-xxs mt-1">{{ review.created_at|date:"d M Y" }}</span>
+                                </div>
+                                {% if request.user.is_authenticated and review.user == request.user %}
+                                <div class="position-absolute top-0 end-0 p-2">
+                                    <span class="badge text-lux-gold" style="background:rgba(197,160,89,0.1); font-size:0.7rem;">Your Review</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
                 {% else %}
-                    <p class="text-lux-gray">No reviews yet. Be the first to review this product.</p>
+                    <p class="text-lux-gray">No reviews yet.{% if has_purchased and not user_review %} Be the first to share your experience!{% endif %}</p>
                 {% endif %}
             </div>
         </div>
+
+
 
         <!-- =========================================
            Related Products

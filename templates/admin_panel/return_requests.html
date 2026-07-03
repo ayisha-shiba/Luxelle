@@ -68,8 +68,11 @@
             <a href="{% url 'admin_returns' %}" class="chip {% if status == 'all' %}active{% endif %}">All</a>
             <a href="?status=return_requested" class="chip {% if status == 'return_requested' %}active{% endif %}">Return Requested <span class="badge-n">({{ count_requested }})</span></a>
             <a href="?status=return_approved" class="chip {% if status == 'return_approved' %}active{% endif %}">Return Approved <span class="badge-n">({{ count_approved }})</span></a>
+            <a href="?status=pickup_scheduled" class="chip {% if status == 'pickup_scheduled' %}active{% endif %}">Pickup Scheduled <span class="badge-n">({{ count_pickup }})</span></a>
+            <a href="?status=return_picked" class="chip {% if status == 'return_picked' %}active{% endif %}">Return Picked <span class="badge-n">({{ count_picked }})</span></a>
+            <a href="?status=returned" class="chip {% if status == 'returned' %}active{% endif %}">Returned to Stock <span class="badge-n">({{ count_returned }})</span></a>
+            <a href="?status=return_repair" class="chip {% if status == 'return_repair' %}active{% endif %}">Sent for Repair <span class="badge-n">({{ count_repair }})</span></a>
             <a href="?status=return_rejected" class="chip {% if status == 'return_rejected' %}active{% endif %}">Return Rejected <span class="badge-n">({{ count_rejected }})</span></a>
-            <a href="?status=returned" class="chip {% if status == 'returned' %}active{% endif %}">Returned <span class="badge-n">({{ count_returned }})</span></a>
         </div>
 
         <div class="panel">
@@ -82,6 +85,7 @@
                         <th>Requested</th>
                         <th>Reason</th>
                         <th>Status</th>
+                        <th>Refund</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -113,6 +117,19 @@
                                     {% endif %}
                                 </td>
                                 <td><span class="st-badge st-{{ item.status }}">{{ item.get_status_display }}</span></td>
+                                <td>
+                                    {% if item.is_refunded %}
+                                        <span style="background:rgba(39,174,96,0.15); color:#27ae60; padding:0.28rem 0.6rem; border-radius:20px; font-size:0.73rem; font-weight:600; white-space:nowrap;">
+                                            <i class="fa-solid fa-circle-check me-1"></i>Refunded
+                                        </span>
+                                    {% elif item.status in 'return_rejected cancelled' %}
+                                        <span style="color:#888; font-size:0.76rem;">—</span>
+                                    {% else %}
+                                        <span style="background:rgba(241,196,15,0.15); color:#f1c40f; padding:0.28rem 0.6rem; border-radius:20px; font-size:0.73rem; font-weight:600; white-space:nowrap;">
+                                            <i class="fa-regular fa-clock me-1"></i>Pending
+                                        </span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     <div class="act-row">
                                         {% if item.can_approve_return %}

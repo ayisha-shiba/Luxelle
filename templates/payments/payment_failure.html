@@ -39,9 +39,11 @@
             <a href="{% url 'payment_start' order.order_number %}" class="luxury-btn text-white text-uppercase tracking-wider px-4 py-3 border-0 text-decoration-none">
                 Retry Payment
             </a>
+            {% if not order.is_pending_only %}
             <a href="{% url 'order_detail' order.order_number %}" class="btn-outline-lux text-uppercase tracking-wider px-4 py-3 text-decoration-none d-inline-flex align-items-center">
                 View Order
             </a>
+            {% endif %}
             <a href="{% url 'product_list' %}" class="btn-outline-lux text-uppercase tracking-wider px-4 py-3 text-decoration-none d-inline-flex align-items-center">
                 Continue Shopping
             </a>

@@ -1,0 +1,242 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Reviews | Admin Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/admin_common.css' %}" rel="stylesheet">
+    <style>
+        .alert { margin-bottom: 1.5rem; border-radius: 8px; padding: 1rem 1.25rem; }
+        .alert-success { background-color: rgba(39,174,96,0.1); border:1px solid rgba(39,174,96,0.3); color:#27ae60; }
+        .alert-error { background-color: rgba(231,76,60,0.1); border:1px solid rgba(231,76,60,0.3); color:#e74c3c; }
+    </style>
+</head>
+<body>
+    {% include 'admin_panel/partials/sidebar.html' with active='reviews' %}
+
+    <main class="main">
+        <div class="top-bar">
+            <div class="page-title">
+                <h1>Product Reviews</h1>
+                <p>Manage and moderate customer product reviews.</p>
+            </div>
+        </div>
+
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fa-solid fa-star"></i></div>
+        <div class="stat-info">
+            <div class="stat-value">{{ total_reviews }}</div>
+            <div class="stat-label">Total Reviews</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fa-solid fa-star-half-stroke"></i></div>
+        <div class="stat-info">
+            <div class="stat-value">{{ avg_rating|default:"0"|floatformat:1 }}</div>
+            <div class="stat-label">Average Rating</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="panel mb-4">
+    <form method="get" class="filter-bar">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" name="q" value="{{ q }}" placeholder="Search by product, customer..." autocomplete="off">
+        </div>
+        
+        <select name="rating" class="fm-select">
+            <option value="">All Ratings</option>
+            <option value="5" {% if rating_filter == '5' %}selected{% endif %}>5 Stars</option>
+            <option value="4" {% if rating_filter == '4' %}selected{% endif %}>4 Stars</option>
+            <option value="3" {% if rating_filter == '3' %}selected{% endif %}>3 Stars</option>
+            <option value="2" {% if rating_filter == '2' %}selected{% endif %}>2 Stars</option>
+            <option value="1" {% if rating_filter == '1' %}selected{% endif %}>1 Star</option>
+        </select>
+
+        <select name="visibility" class="fm-select">
+            <option value="">All Status</option>
+            <option value="visible" {% if visibility == 'visible' %}selected{% endif %}>Visible</option>
+            <option value="hidden" {% if visibility == 'hidden' %}selected{% endif %}>Hidden</option>
+        </select>
+        
+        <button type="submit" class="mbtn mbtn-gold">Filter</button>
+        {% if q or rating_filter or visibility %}
+        <a href="{% url 'admin_reviews' %}" class="mbtn mbtn-cancel">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Reviews Table -->
+<div class="panel">
+    <div class="table-responsive">
+        <table class="orders-table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Customer</th>
+                    <th>Rating</th>
+                    <th style="min-width: 250px;">Review</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for review in reviews %}
+                <tr>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:0.75rem;">
+                            <img src="{% if review.product.variants.first.images.first %}{{ review.product.variants.first.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}"
+                                 alt="{{ review.product.name }}"
+                                 style="width: 40px; height: 40px; border-radius: 6px; object-fit: cover;">
+                            <div>
+                                <div style="font-weight:600;">{{ review.product.name }}</div>
+                                <div style="font-size:0.8rem; color:#888;">{{ review.product.brand.name }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-weight:600;">{{ review.user.first_name }} {{ review.user.last_name }}</div>
+                        <div style="font-size:0.8rem; color:#888;">{{ review.user.email }}</div>
+                    </td>
+                    <td>
+                        <div style="color:#c5a059;">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= review.rating %}
+                                    <i class="fa-solid fa-star fa-sm"></i>
+                                {% else %}
+                                    <i class="fa-regular fa-star fa-sm"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </td>
+                    <td>
+                        {% if review.title %}
+                            <div style="font-weight:600; margin-bottom:0.25rem;">{{ review.title }}</div>
+                        {% endif %}
+                        <div style="font-size:0.85rem; color:#aaa; line-height:1.4;">
+                            {{ review.comment|truncatechars:80 }}
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-weight:500;">{{ review.created_at|date:"d M Y" }}</div>
+                        <div style="font-size:0.8rem; color:#888;">{{ review.created_at|time:"H:i" }}</div>
+                    </td>
+                    <td>
+                        {% if review.is_hidden %}
+                            <span class="status-badge status-cancelled">Hidden</span>
+                        {% else %}
+                            <span class="status-badge status-delivered">Visible</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button type="button" class="action-btn" data-bs-toggle="modal" data-bs-target="#reviewModal{{ review.id }}" title="View / Manage">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+
+                <!-- Review Details Modal -->
+                <div class="modal fade" id="reviewModal{{ review.id }}" tabindex="-1" aria-hidden="true" style="z-index:1060;">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content" style="background:#0b0b0b; border:1px solid rgba(255,255,255,0.1); border-radius:12px;">
+                            <div class="modal-header border-0 pb-0">
+                                <h5 class="modal-title font-playfair fw-bold text-white">Review Details</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body text-light">
+                                <!-- Info -->
+                                <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom border-secondary">
+                                    <img src="{% if review.product.variants.first.images.first %}{{ review.product.variants.first.images.first.image.url }}{% else %}{% static 'image/default_product.svg' %}{% endif %}"
+                                         alt="{{ review.product.name }}" style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover;">
+                                    <div>
+                                        <div class="fw-bold">{{ review.product.name }}</div>
+                                        <div class="small text-muted">Reviewed by {{ review.user.first_name }} {{ review.user.last_name }} on {{ review.created_at|date:"d M Y" }}</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Content -->
+                                <div class="mb-3" style="color:#c5a059; font-size:1.1rem;">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= review.rating %}
+                                            <i class="fa-solid fa-star"></i>
+                                        {% else %}
+                                            <i class="fa-regular fa-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                
+                                {% if review.title %}
+                                    <h6 class="fw-bold text-white mb-2">{{ review.title }}</h6>
+                                {% endif %}
+                                <p class="small text-muted" style="line-height:1.6; white-space:pre-wrap;">{{ review.comment }}</p>
+                                
+                                <div class="mt-4 pt-3 border-top border-secondary text-end">
+                                    <form method="POST" action="{% url 'admin_review_toggle' review.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        {% if review.is_hidden %}
+                                            <button type="submit" class="mbtn" style="background:#28a745; color:#fff;">
+                                                <i class="fa-solid fa-eye me-2"></i> Restore Review
+                                            </button>
+                                        {% else %}
+                                            <button type="submit" class="mbtn" style="background:#dc3545; color:#fff;">
+                                                <i class="fa-solid fa-eye-slash me-2"></i> Hide Review
+                                            </button>
+                                        {% endif %}
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 3rem; color: #888;">
+                        <i class="fa-solid fa-star-half-stroke" style="font-size: 2rem; color: #444; margin-bottom: 1rem;"></i>
+                        <p>No reviews found matching your criteria.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if paginator.num_pages > 1 %}
+    <div class="pagination-bar mt-4">
+        <div style="color: #888; font-size: 0.9rem;">
+            Showing {{ reviews.start_index }} to {{ reviews.end_index }} of {{ total_reviews }} reviews
+        </div>
+        <div class="page-numbers">
+            {% if reviews.has_previous %}
+                <a href="?page={{ reviews.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if rating_filter %}&rating={{ rating_filter }}{% endif %}{% if visibility %}&visibility={{ visibility }}{% endif %}" class="page-btn"><i class="fa-solid fa-chevron-left"></i></a>
+            {% endif %}
+
+            {% for num in paginator.page_range %}
+                {% if reviews.number == num %}
+                    <span class="page-btn active">{{ num }}</span>
+                {% elif num > reviews.number|add:'-3' and num < reviews.number|add:'3' %}
+                    <a href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if rating_filter %}&rating={{ rating_filter }}{% endif %}{% if visibility %}&visibility={{ visibility }}{% endif %}" class="page-btn">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if reviews.has_next %}
+                <a href="?page={{ reviews.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if rating_filter %}&rating={{ rating_filter }}{% endif %}{% if visibility %}&visibility={{ visibility }}{% endif %}" class="page-btn"><i class="fa-solid fa-chevron-right"></i></a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

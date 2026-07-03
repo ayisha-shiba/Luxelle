@@ -91,27 +91,400 @@ def admin_logout_view(request):
 
 # ADMIN DASHBOARD
 
+# ADMIN DASHBOARD
+
 @admin_required
 def admin_dashboard_view(request):
+    import datetime as dt
+    import json
+    from decimal import Decimal
     from django.utils import timezone
+    from django.db.models import (
+        Sum, Count, Avg, Q, F, ExpressionWrapper, DecimalField
+    )
+    from django.db.models.functions import TruncDate, Coalesce
 
-    non_superusers = CustomUser.objects.filter(is_staff=False)
-    first_of_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    _D0 = Decimal("0")
+    now  = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    orders        = Order.objects.all()
-    total_revenue = (orders.exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
-                     .aggregate(s=Sum("total"))["s"] or 0)
+    # ── Customers ─────────────────────────────────────────────────────────────
+    non_staff = CustomUser.objects.filter(is_staff=False)
+    total_customers   = non_staff.count()
+    active_customers  = non_staff.filter(is_active=True).count()
+    blocked_customers = non_staff.filter(is_active=False).count()
+    new_this_month    = non_staff.filter(date_joined__gte=first_of_month).count()
+    recent_users      = non_staff.order_by("-date_joined")[:5]
+
+    # ── Catalogue counts ──────────────────────────────────────────────────────
+    total_products   = Product.objects.filter(is_deleted=False).count()
+    total_categories = Category.objects.filter(is_deleted=False).count()
+    total_brands     = Brand.objects.count()
+
+    # ── Orders — aggregate by item status (each item moves independently) ─────
+    all_orders = Order.objects.all()
+    total_orders = all_orders.count()
+
+    # Statuses that make an order "revenue-generating"
+    billable_statuses = [
+        OrderItem.STATUS_CONFIRMED, OrderItem.STATUS_PACKED,
+        OrderItem.STATUS_SHIPPED,   OrderItem.STATUS_OUT_FOR_DELIVERY,
+        OrderItem.STATUS_DELIVERED,
+    ]
+
+    # Summary card counts (by item, which is the real unit of fulfilment)
+    item_qs = OrderItem.objects.all()
+    pending_orders    = item_qs.filter(status=OrderItem.STATUS_PENDING).values("order").distinct().count()
+    processing_orders = item_qs.filter(status__in=[OrderItem.STATUS_CONFIRMED, OrderItem.STATUS_PACKED]).values("order").distinct().count()
+    shipped_orders    = item_qs.filter(status__in=[OrderItem.STATUS_SHIPPED, OrderItem.STATUS_OUT_FOR_DELIVERY]).values("order").distinct().count()
+    delivered_orders  = item_qs.filter(status=OrderItem.STATUS_DELIVERED).values("order").distinct().count()
+    cancelled_orders  = item_qs.filter(status=OrderItem.STATUS_CANCELLED).values("order").distinct().count()
+    returned_orders   = item_qs.filter(status=OrderItem.STATUS_RETURNED).values("order").distinct().count()
+
+    # ── Revenue statistics ────────────────────────────────────────────────────
+    # Only include orders whose status is NOT cancelled / returned at order level
+    revenue_qs = all_orders.exclude(
+        status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED]
+    )
+    rev_agg = revenue_qs.aggregate(
+        gross_revenue   = Coalesce(Sum("subtotal"),       _D0),
+        net_revenue     = Coalesce(Sum("total"),          _D0),
+        total_discounts = Coalesce(Sum("discount"),       _D0),
+        coupon_discounts= Coalesce(Sum("coupon_discount"),_D0),
+        total_tax       = Coalesce(Sum("tax"),            _D0),
+        total_shipping  = Coalesce(Sum("shipping"),       _D0),
+        order_count_rev = Count("id"),
+    )
+    gross_revenue    = rev_agg["gross_revenue"]
+    net_revenue      = rev_agg["net_revenue"]
+    total_discounts  = rev_agg["total_discounts"]
+    coupon_discounts = rev_agg["coupon_discounts"]
+    total_tax        = rev_agg["total_tax"]
+    total_shipping   = rev_agg["total_shipping"]
+
+    # Referral wallet credits — treat as a marketing discount
+    try:
+        from wallet.models import WalletTransaction
+        referral_credits = (
+            WalletTransaction.objects
+            .filter(txn_type="credit", reason__icontains="referral")
+            .aggregate(s=Coalesce(Sum("amount"), _D0))["s"]
+        )
+    except Exception:
+        referral_credits = _D0
+
+    aov = revenue_qs.aggregate(a=Avg("total"))["a"] or _D0
+
+    # ── Today's snapshot ──────────────────────────────────────────────────────
+    today_orders  = all_orders.filter(created_at__gte=today_start)
+    today_revenue = today_orders.exclude(
+        status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED]
+    ).aggregate(s=Coalesce(Sum("total"), _D0))["s"]
+
+    # ── Best-selling products (top 10 by units sold — excludes cancelled/returned items) ──
+    top_products = list(
+        OrderItem.objects
+        .filter(status__in=billable_statuses)
+        .filter(variant__isnull=False)
+        .values(
+            "variant__product__name",
+            "variant__product__category__name",
+            "variant__product__brand__name",
+        )
+        .annotate(
+            units_sold=Sum("quantity"),
+            revenue=Sum("line_total"),
+        )
+        .order_by("-units_sold")[:10]
+    )
+    # Append current stock from the variant with the most units sold
+    from core.models import ProductVariant as _PV
+    for p in top_products:
+        name = p["variant__product__name"]
+        stock = (
+            _PV.objects
+            .filter(product__name=name, is_deleted=False)
+            .aggregate(s=Coalesce(Sum("stock"), 0))["s"]
+        )
+        p["stock"] = stock
+
+    # ── Best-selling categories (top 10) ──────────────────────────────────────
+    top_categories = list(
+        OrderItem.objects
+        .filter(status__in=billable_statuses)
+        .filter(variant__product__category__isnull=False)
+        .values("variant__product__category__name")
+        .annotate(units_sold=Sum("quantity"), revenue=Sum("line_total"))
+        .order_by("-units_sold")[:10]
+    )
+
+    # ── Best-selling brands (top 10) ──────────────────────────────────────────
+    top_brands = list(
+        OrderItem.objects
+        .filter(status__in=billable_statuses)
+        .filter(variant__product__brand__isnull=False)
+        .values("variant__product__brand__name")
+        .annotate(units_sold=Sum("quantity"), revenue=Sum("line_total"))
+        .order_by("-units_sold")[:10]
+    )
+
+    # ── Recent orders (last 10) ───────────────────────────────────────────────
+    recent_orders = (
+        all_orders
+        .select_related("user")
+        .prefetch_related("items")
+        .order_by("-created_at")[:10]
+    )
+
+    # ── Daily Revenue Trend (Last 15 Days) ────────────────────────────────────
+    trend_start = now - dt.timedelta(days=14)
+    daily_revenue_qs = (
+        all_orders
+        .exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
+        .filter(created_at__date__gte=trend_start.date())
+        .annotate(day=TruncDate("created_at"))
+        .values("day")
+        .annotate(revenue=Coalesce(Sum("total"), _D0))
+        .order_by("day")
+    )
+    trend_map = {d["day"]: d["revenue"] for d in daily_revenue_qs}
+    trend_labels = []
+    trend_revenue = []
+    for i in range(14, -1, -1):
+        day_date = (now - dt.timedelta(days=i)).date()
+        trend_labels.append(day_date.strftime("%Y-%m-%d"))
+        trend_revenue.append(float(trend_map.get(day_date, _D0)))
+
+    # ── Order Status Counts for Doughnut Chart (all statuses) ─────────────────
+    status_counter = {
+        "pending":    0,
+        "processing": 0,
+        "shipped":    0,
+        "delivered":  0,
+        "cancelled":  0,
+        "returned":   0,
+    }
+    for o in all_orders:
+        ds_val, _ds_label = o.derived_status
+        if ds_val in status_counter:
+            status_counter[ds_val] += 1
+        else:
+            status_counter["processing"] += 1   # fallback for confirmed/packed/out-for-delivery
+
+    delivered_count = status_counter["delivered"]
+    cancelled_count = status_counter["cancelled"]
+    returned_count  = status_counter["returned"]
+    pending_count   = status_counter["pending"]
+
+    status_labels = ["Pending", "Processing", "Shipped", "Delivered", "Cancelled", "Returned"]
+    status_counts = [
+        status_counter["pending"],
+        status_counter["processing"],
+        status_counter["shipped"],
+        status_counter["delivered"],
+        status_counter["cancelled"],
+        status_counter["returned"],
+    ]
 
     context = {
-        "total_users":       non_superusers.count(),
-        "active_count":      non_superusers.filter(is_active=True).count(),
-        "blocked_count":     non_superusers.filter(is_active=False).count(),
-        "this_month_count":  non_superusers.filter(date_joined__gte=first_of_month).count(),
-        "recent_users":      non_superusers.order_by("-date_joined")[:5],
-        "total_orders":      orders.count(),
-        "total_revenue":     total_revenue,
+        "active": "dashboard",
+        # Customers
+        "total_customers":   total_customers,
+        "active_customers":  active_customers,
+        "blocked_customers": blocked_customers,
+        "this_month_count":  new_this_month,
+        "recent_users":      recent_users,
+        # Catalogue
+        "total_products":    total_products,
+        "total_categories":  total_categories,
+        "total_brands":      total_brands,
+        # Orders
+        "total_orders":      total_orders,
+        "pending_orders":    pending_orders,
+        "processing_orders": processing_orders,
+        "shipped_orders":    shipped_orders,
+        "delivered_orders":  delivered_orders,
+        "cancelled_orders":  cancelled_orders,
+        "returned_orders":   returned_orders,
+        "returned_count":    returned_count,
+        "delivered_count":   delivered_count,
+        "cancelled_count":   cancelled_count,
+        "pending_count":     pending_count,
+        # Revenue
+        "gross_revenue":     gross_revenue,
+        "net_revenue":       net_revenue,
+        "total_discounts":   total_discounts,
+        "coupon_discounts":  coupon_discounts,
+        "referral_credits":  referral_credits,
+        "total_tax":         total_tax,
+        "total_shipping":    total_shipping,
+        "aov":               aov,
+        "today_orders":      today_orders.count(),
+        "today_revenue":     today_revenue,
+        # Tables
+        "top_products":   top_products,
+        "top_categories": top_categories,
+        "top_brands":     top_brands,
+        "recent_orders":  recent_orders,
+        # Chart Data
+        "trend_labels_json":  json.dumps(trend_labels),
+        "trend_revenue_json": json.dumps(trend_revenue),
+        "status_labels_json": json.dumps(status_labels),
+        "status_counts_json": json.dumps(status_counts),
     }
     return render(request, "admin_panel/dashboard.html", context)
+
+
+def _build_dashboard_sales_chart(request):
+    import datetime as dt
+    from decimal import Decimal
+    from django.utils import timezone
+    from django.db.models import Sum, Count, DecimalField
+    from django.db.models.functions import TruncDate, TruncHour, TruncMonth, Coalesce
+
+    _D0 = Decimal("0")
+    now = timezone.now()
+    period = request.GET.get("period", "month")
+
+    if period == "today":
+        start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_dt = now
+        granularity = "hour"
+        period_label = "Today"
+
+    elif period == "week":
+        start_dt = (now - dt.timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+        end_dt = now
+        granularity = "day"
+        period_label = "Last 7 Days"
+
+    elif period == "year":
+        start_dt = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        end_dt = now
+        granularity = "month"
+        period_label = "This Year"
+
+    elif period == "custom":
+        try:
+            s = request.GET.get("start_date", "")
+            e = request.GET.get("end_date", "")
+            import datetime
+            sd = datetime.date.fromisoformat(s)
+            ed = datetime.date.fromisoformat(e)
+            if sd > ed:
+                sd, ed = ed, sd
+            start_dt = timezone.make_aware(datetime.datetime.combine(sd, datetime.time.min))
+            end_dt = timezone.make_aware(datetime.datetime.combine(ed, datetime.time.max))
+            delta_days = (ed - sd).days
+            if delta_days == 0:
+                granularity = "hour"
+            elif delta_days <= 90:
+                granularity = "day"
+            else:
+                granularity = "month"
+            period_label = f"{sd.strftime('%d %b %Y')} – {ed.strftime('%d %b %Y')}"
+        except Exception:
+            period = "month"
+            start_dt = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_dt = now
+            granularity = "day"
+            period_label = "This Month"
+
+    else:
+        start_dt = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end_dt = now
+        granularity = "day"
+        period_label = "This Month"
+
+    base_qs = (
+        Order.objects
+        .filter(created_at__gte=start_dt, created_at__lte=end_dt)
+        .exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
+    )
+
+    labels = []
+    revenues = []
+    order_counts = []
+
+    if granularity == "hour":
+        grouped = (
+            base_qs
+            .annotate(bucket=TruncHour("created_at"))
+            .values("bucket")
+            .annotate(
+                rev=Coalesce(Sum("total"), _D0, output_field=DecimalField()),
+                cnt=Count("id"),
+            )
+            .order_by("bucket")
+        )
+        rev_map = {r["bucket"].hour: (float(r["rev"]), r["cnt"]) for r in grouped}
+        for h in range(24):
+            suffix = "AM" if h < 12 else "PM"
+            display_h = h if h <= 12 else h - 12
+            display_h = 12 if display_h == 0 else display_h
+            labels.append(f"{display_h}{suffix}")
+            rev, cnt = rev_map.get(h, (0.0, 0))
+            revenues.append(rev)
+            order_counts.append(cnt)
+
+    elif granularity == "day":
+        grouped = (
+            base_qs
+            .annotate(bucket=TruncDate("created_at"))
+            .values("bucket")
+            .annotate(
+                rev=Coalesce(Sum("total"), _D0, output_field=DecimalField()),
+                cnt=Count("id"),
+            )
+            .order_by("bucket")
+        )
+        rev_map = {r["bucket"]: (float(r["rev"]), r["cnt"]) for r in grouped}
+        current = start_dt.date()
+        end_date = end_dt.date()
+        while current <= end_date:
+            labels.append(current.strftime("%d %b"))
+            rev, cnt = rev_map.get(current, (0.0, 0))
+            revenues.append(rev)
+            order_counts.append(cnt)
+            current += dt.timedelta(days=1)
+
+    else:
+        grouped = (
+            base_qs
+            .annotate(bucket=TruncMonth("created_at"))
+            .values("bucket")
+            .annotate(
+                rev=Coalesce(Sum("total"), _D0, output_field=DecimalField()),
+                cnt=Count("id"),
+            )
+            .order_by("bucket")
+        )
+        rev_map = {(r["bucket"].year, r["bucket"].month): (float(r["rev"]), r["cnt"]) for r in grouped}
+        MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+        year = start_dt.year
+        end_month = end_dt.month
+        for m in range(1, end_month + 1):
+            labels.append(MONTHS[m - 1])
+            rev, cnt = rev_map.get((year, m), (0.0, 0))
+            revenues.append(rev)
+            order_counts.append(cnt)
+
+    return labels, revenues, order_counts, period_label, granularity
+
+
+# ── Dashboard Bar Chart AJAX Data ─────────────────────────────────────────────
+
+@admin_required
+def admin_dashboard_chart_data(request):
+    labels, revenues, order_counts, period_label, granularity = _build_dashboard_sales_chart(request)
+    return JsonResponse({
+        "labels": labels,
+        "revenue": revenues,
+        "orders": order_counts,
+        "period_label": period_label,
+        "granularity": granularity,
+    })
 
 
 # USER MANAGEMENT
@@ -189,15 +562,22 @@ def admin_toggle_user_status_view(request, user_id):
 def admin_delete_user_view(request, user_id):
     if request.method not in ("POST", "GET"):
         return redirect('admin_users')
+    from django.db.models import ProtectedError
     try:
         user = CustomUser.objects.get(id=user_id, is_staff=False)
-        user_name = user.get_full_name()
+        user_name = user.get_full_name() or user.email
         user.delete()
         messages.success(request, f"User {user_name} has been permanently deleted.")
         admin_email = request.session.get('_admin_email', 'unknown')
         logger.info(f"[ADMIN] User {user_name} deleted by {admin_email}")
     except CustomUser.DoesNotExist:
         messages.error(request, "User not found.")
+    except ProtectedError:
+        messages.error(
+            request,
+            "This user cannot be deleted because they have existing orders. "
+            "Please handle the user's orders before deleting the account."
+        )
     return redirect('admin_users')
 
 
@@ -1231,8 +1611,11 @@ def admin_order_item_update_status_view(request, item_id):
 RETURN_FILTERS = [
     (OrderItem.STATUS_RETURN_REQUESTED, "Return Requested"),
     (OrderItem.STATUS_RETURN_APPROVED,  "Return Approved"),
+    (OrderItem.STATUS_PICKUP_SCHEDULED, "Pickup Scheduled"),
+    (OrderItem.STATUS_RETURN_PICKED,    "Return Picked"),
+    (OrderItem.STATUS_RETURNED,         "Returned to Stock"),
+    (OrderItem.STATUS_RETURN_REPAIR,    "Sent for Repair"),
     (OrderItem.STATUS_RETURN_REJECTED,  "Return Rejected"),
-    (OrderItem.STATUS_RETURNED,         "Returned"),
 ]
 
 
@@ -1271,8 +1654,11 @@ def admin_return_requests_view(request):
         "filters":         RETURN_FILTERS,
         "count_requested": count(OrderItem.STATUS_RETURN_REQUESTED),
         "count_approved":  count(OrderItem.STATUS_RETURN_APPROVED),
-        "count_rejected":  count(OrderItem.STATUS_RETURN_REJECTED),
+        "count_pickup":    count(OrderItem.STATUS_PICKUP_SCHEDULED),
+        "count_picked":    count(OrderItem.STATUS_RETURN_PICKED),
         "count_returned":  count(OrderItem.STATUS_RETURNED),
+        "count_repair":    count(OrderItem.STATUS_RETURN_REPAIR),
+        "count_rejected":  count(OrderItem.STATUS_RETURN_REJECTED),
     }
     return render(request, "admin_panel/return_requests.html", context)
 
@@ -1285,29 +1671,18 @@ def admin_return_approve_view(request, item_id):
         messages.error(request, "This return cannot be approved.")
         return redirect("admin_returns")
 
-    from wallet import services as wallet_services
-
     with transaction.atomic():
         item.status = OrderItem.STATUS_RETURN_APPROVED
         item.save(update_fields=["status"])
         OrderStatusEvent.objects.create(
             order_item=item, status=OrderItem.STATUS_RETURN_APPROVED,
-            note="Return approved by admin.",
+            note="Return approved by admin. Awaiting product pickup and inspection.",
         )
-        # Approved return → item is being refunded → drop it from the payable total.
-        total_before = item.order.total
-        item.order.recalculate_totals()
-        refund = total_before - item.order.total
+        # NOTE: No refund here. The wallet credit is issued only after the admin
+        # confirms the inventory action (Returned to Stock or Sent for Repair)
+        # in admin_return_update_status_view below.
 
-        # Returns are only possible on delivered items, which were always paid
-        # for (cash or online), so an approved return always refunds to wallet.
-        if refund > 0:
-            wallet_services.refund_item(
-                item, refund, f"Refund for returned item: {item.product_name}"
-            )
-
-    note = f" Rs. {refund} refunded to the customer's wallet." if refund > 0 else ""
-    messages.success(request, f"Return approved for {item.product_name}.{note}")
+    messages.success(request, f"Return approved for {item.product_name}. Proceed to schedule pickup.")
     return redirect(request.POST.get("next") or "admin_returns")
 
 
@@ -1340,7 +1715,7 @@ def admin_return_decline_view(request, item_id):
 @admin_required
 @require_POST
 def admin_return_update_status_view(request, item_id):
-    item = OrderItem.objects.select_related("variant").filter(pk=item_id).first()
+    item = OrderItem.objects.select_related("order", "variant").filter(pk=item_id).first()
     if not item:
         messages.error(request, "Item not found.")
         return redirect("admin_returns")
@@ -1351,7 +1726,10 @@ def admin_return_update_status_view(request, item_id):
         messages.error(request, "That return step isn't allowed.")
         return redirect(request.POST.get("next") or "admin_returns")
 
+    from wallet import services as wallet_services
+
     with transaction.atomic():
+        # ── Restock: only when item is physically returned to inventory ──────────
         if new_status == OrderItem.STATUS_RETURNED and item.variant:
             item.variant.stock += item.quantity
             item.variant.save(update_fields=["stock"])
@@ -1359,15 +1737,49 @@ def admin_return_update_status_view(request, item_id):
         item.status = new_status
         item.save(update_fields=["status"])
 
+        # ── Build the audit note ─────────────────────────────────────────────────
         if new_status == OrderItem.STATUS_RETURNED:
-            note = "Item inspected — returned to stock. Refund to be processed."
+            note = "Item inspected — returned to stock."
         elif new_status == OrderItem.STATUS_RETURN_REPAIR:
             note = "Item inspected — sent for repair (not restocked)."
         else:
             note = f"Return step updated to {allowed[new_status]} by admin."
         OrderStatusEvent.objects.create(order_item=item, status=new_status, note=note)
 
-        item.order.recalculate_totals()
+        # ── Issue refund at the terminal inventory action ────────────────────────
+        # Refund is due when the product is either restocked OR sent for repair.
+        # In both cases the customer no longer holds the item, so the refund is
+        # always warranted. The already_refunded() guard prevents double-credits.
+        refund_statuses = {OrderItem.STATUS_RETURNED, OrderItem.STATUS_RETURN_REPAIR}
+        if new_status in refund_statuses:
+            # Drop the item from the payable total first so `refund` is exact.
+            total_before = item.order.total
+            item.order.recalculate_totals()
+            refund = total_before - item.order.total
+
+            prepaid = (
+                item.order.payment_method == item.order.PAYMENT_WALLET
+                or item.order.payments.filter(status="paid").exists()
+            )
+
+            if prepaid and refund > 0 and not wallet_services.already_refunded(item):
+                wallet_services.refund_item(
+                    item, refund,
+                    f"Refund for returned item: {item.product_name}"
+                )
+                refund_note = f" ₹{refund} refunded to customer wallet."
+                OrderStatusEvent.objects.create(
+                    order_item=item, status=new_status,
+                    note=f"Wallet refund of ₹{refund} processed for {item.product_name}.",
+                )
+                messages.success(request, f"{item.product_name}: {allowed[new_status]}.{refund_note}")
+                return redirect(request.POST.get("next") or "admin_returns")
+            elif wallet_services.already_refunded(item):
+                messages.warning(request, f"{item.product_name}: status updated but refund was already processed.")
+                return redirect(request.POST.get("next") or "admin_returns")
+        else:
+            # Non-terminal step (e.g. pickup_scheduled, return_picked) — no totals change yet.
+            pass
 
     messages.success(request, f"{item.product_name}: {allowed[new_status]}.")
     return redirect(request.POST.get("next") or "admin_returns")
@@ -1401,62 +1813,105 @@ def admin_return_reallow_view(request, item_id):
 
 def _get_analytics_period(request):
     """Parse GET params and return (period, period_label, start, end, prev_start, prev_end,
-    start_date_str, end_date_str)."""
+    start_date_str, end_date_str).
+
+    Variable contract: every variable is guaranteed to be assigned before return,
+    regardless of the period value or URL parameters.  Invalid / missing custom
+    dates fall back to "This Month" without raising any exception.
+    """
     import datetime as dt
     from django.utils import timezone
 
     today  = timezone.now().date()
     now    = timezone.now()
-    period = request.GET.get("period", "month")
     start_date_str = request.GET.get("start_date", "")
-    end_date_str   = request.GET.get("end_date", "")
+    end_date_str   = request.GET.get("end_date",   "")
+    requested      = request.GET.get("period", "month")
 
     def make_aware(d):
         return timezone.make_aware(dt.datetime.combine(d, dt.time.min))
 
-    if period == "today":
+    # ── Safe defaults (This Month) ─────────────────────────────────────────
+    prev_m     = today.month - 1 or 12
+    prev_y     = today.year if today.month > 1 else today.year - 1
+    start      = make_aware(dt.date(today.year, today.month, 1))
+    end        = now
+    prev_start = make_aware(dt.date(prev_y, prev_m, 1))
+    prev_end   = start
+    label      = "This Month"
+    period     = "month"
+
+    # ── Map recognised periods ─────────────────────────────────────────────
+    if requested == "today":
         start      = make_aware(today)
         end        = now
         prev_start = make_aware(today - dt.timedelta(days=1))
         prev_end   = start
         label      = "Today"
+        period     = "today"
 
-    elif period == "week":
+    elif requested == "week":
         week_start = today - dt.timedelta(days=today.weekday())
         start      = make_aware(week_start)
         end        = now
         prev_start = make_aware(week_start - dt.timedelta(weeks=1))
         prev_end   = start
         label      = "This Week"
+        period     = "week"
 
-    elif period == "year":
+    elif requested == "7days":
+        start      = make_aware(today - dt.timedelta(days=7))
+        end        = now
+        prev_start = make_aware(today - dt.timedelta(days=14))
+        prev_end   = start
+        label      = "Last 7 Days"
+
+    elif requested == "30days":
+        start      = make_aware(today - dt.timedelta(days=30))
+        end        = now
+        prev_start = make_aware(today - dt.timedelta(days=60))
+        prev_end   = start
+        label      = "Last 30 Days"
+        period     = "30days"
+
+    elif requested == "month":
+        pass   # already set to defaults above
+
+    elif requested == "year":
         start      = make_aware(dt.date(today.year, 1, 1))
         end        = now
         prev_start = make_aware(dt.date(today.year - 1, 1, 1))
         prev_end   = start
         label      = "This Year"
+        period     = "year"
 
-    elif period == "custom" and start_date_str and end_date_str:
-        try:
-            _s = dt.datetime.strptime(start_date_str, "%Y-%m-%d").date()
-            _e = dt.datetime.strptime(end_date_str, "%Y-%m-%d").date()
-            start      = make_aware(_s)
-            end        = make_aware(_e + dt.timedelta(days=1))
-            delta      = end - start
-            prev_start = start - delta
-            prev_end   = start
-            label      = f"{start_date_str} – {end_date_str}"
-        except ValueError:
-            period = "month"
-
-    if period == "month":
-        start = make_aware(dt.date(today.year, today.month, 1))
-        end   = now
-        prev_m = today.month - 1 or 12
-        prev_y = today.year if today.month > 1 else today.year - 1
-        prev_start = make_aware(dt.date(prev_y, prev_m, 1))
-        prev_end   = start
-        label      = "This Month"
+    elif requested == "custom":
+        # Both dates must be present and parseable; otherwise fall back quietly.
+        if start_date_str and end_date_str:
+            try:
+                _s = dt.datetime.strptime(start_date_str, "%Y-%m-%d").date()
+                _e = dt.datetime.strptime(end_date_str,   "%Y-%m-%d").date()
+                # If inverted, swap so the range is always valid
+                if _s > _e:
+                    _s, _e = _e, _s
+                    start_date_str = str(_s)
+                    end_date_str   = str(_e)
+                start      = make_aware(_s)
+                end        = make_aware(_e + dt.timedelta(days=1))
+                delta      = end - start
+                prev_start = start - delta
+                prev_end   = start
+                label      = f"{_s.strftime('%d %b %Y')} – {_e.strftime('%d %b %Y')}"
+                period     = "custom"
+            except (ValueError, OverflowError):
+                # Bad date format → fall back to This Month (defaults already set)
+                start_date_str = ""
+                end_date_str   = ""
+        else:
+            # One or both dates empty → fall back to This Month
+            start_date_str = ""
+            end_date_str   = ""
+    # Any other unknown period value falls back to This Month (defaults already set)
 
     return period, label, start, end, prev_start, prev_end, start_date_str, end_date_str
 
@@ -1466,343 +1921,96 @@ def admin_analytics_view(request):
     import json
     import datetime as dt
     from decimal import Decimal
-    from django.db.models import Sum, Count, Avg, Q
-    from django.db.models.functions import TruncDate, TruncMonth
-    from .models import ProductVariant
+    from django.db.models import Sum, Count, F
+    from django.db.models.functions import TruncDate, TruncMonth, TruncHour
+    from .models import Order, OrderItem
 
     period, period_label, start, end, prev_start, prev_end, start_date_str, end_date_str = (
         _get_analytics_period(request)
     )
 
-    # ── Base querysets ────────────────────────────────────────────────────────
-    all_orders    = Order.objects.all()
+    # Base querysets
+    all_orders = Order.objects.all()
     period_orders = all_orders.filter(created_at__gte=start, created_at__lte=end)
-    prev_orders   = all_orders.filter(created_at__gte=prev_start, created_at__lte=prev_end)
-    all_items     = OrderItem.objects.select_related("order", "variant__product__category", "variant__product__brand")
-    period_items  = all_items.filter(order__created_at__gte=start, order__created_at__lte=end)
 
-    _D0 = Decimal("0")
+    # Only include completed/delivered (successful) orders in revenue/sales calculations.
+    # Use item-level delivery status because order.status may not track individual item fulfilment.
+    delivered_orders = period_orders.filter(items__status=OrderItem.STATUS_DELIVERED).distinct()
 
-    # ── Overview KPIs ─────────────────────────────────────────────────────────
-    total_revenue = (
-        all_orders
-        .exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
-        .aggregate(s=Sum("total"))["s"] or _D0
-    )
-    total_orders    = all_orders.count()
-    total_customers = CustomUser.objects.filter(is_staff=False).count()
-    total_products  = Product.objects.filter(is_deleted=False).count()
+    # Metrics
+    order_count = delivered_orders.count()
+    net_revenue = delivered_orders.aggregate(s=Sum("total"))["s"] or Decimal("0.00")
+    product_discounts = delivered_orders.aggregate(s=Sum("discount"))["s"] or Decimal("0.00")
+    coupon_discounts = delivered_orders.aggregate(s=Sum("coupon_discount"))["s"] or Decimal("0.00")
+    referral_discounts = Decimal("0.00")
+    total_discount = product_discounts + coupon_discounts + referral_discounts
+    
+    # Products Sold
+    delivered_items = OrderItem.objects.filter(order__in=delivered_orders)
+    products_sold = delivered_items.aggregate(s=Sum("quantity"))["s"] or 0
+    
+    # Gross Sales Amount: sum of original_price * quantity for all delivered items
+    gross_sales = delivered_items.aggregate(s=Sum(F("original_price") * F("quantity")))["s"] or Decimal("0.00")
+    
+    # Average Order Value (AOV)
+    average_order_value = net_revenue / order_count if order_count > 0 else Decimal("0.00")
 
-    delivered_count = OrderItem.objects.filter(status=OrderItem.STATUS_DELIVERED).values("order").distinct().count()
-    pending_count   = OrderItem.objects.filter(status=OrderItem.STATUS_PENDING).values("order").distinct().count()
-    cancelled_count = OrderItem.objects.filter(status=OrderItem.STATUS_CANCELLED).values("order").distinct().count()
-    returned_count  = OrderItem.objects.filter(status=OrderItem.STATUS_RETURNED).values("order").distinct().count()
+    # ── Sales Analytics Chart ────────────────────────────────────────────────
+    chart_labels, chart_revenue, chart_items, _, _ = _build_dashboard_sales_chart(request)
 
-    try:
-        from wallet.models import Wallet
-        total_wallet_balance = Wallet.objects.aggregate(s=Sum("balance"))["s"] or _D0
-    except Exception:
-        total_wallet_balance = _D0
+    # Sales Report Table — paginated (20 rows per page)
+    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
-    aov = (
-        all_orders
-        .exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
-        .aggregate(a=Avg("total"))["a"] or _D0
-    )
-
-    # ── Sales Analytics (period) ──────────────────────────────────────────────
-    agg = period_orders.aggregate(
-        gross_sales  = Sum("subtotal"),
-        net_revenue  = Sum("total"),
-        discounts    = Sum("discount"),
-        coupon_disc  = Sum("coupon_discount"),
-        taxes        = Sum("tax"),
-        delivery     = Sum("shipping"),
-        order_count  = Count("id"),
-    )
-    gross_sales  = agg["gross_sales"]  or _D0
-    net_revenue  = agg["net_revenue"]  or _D0
-    discounts    = agg["discounts"]    or _D0
-    coupon_disc  = agg["coupon_disc"]  or _D0
-    taxes        = agg["taxes"]        or _D0
-    delivery     = agg["delivery"]     or _D0
-    order_count  = agg["order_count"]  or 0
-
-    prev_net = prev_orders.aggregate(s=Sum("total"))["s"] or _D0
-    if prev_net > 0:
-        growth_pct = round(float((net_revenue - prev_net) / prev_net * 100), 1)
-    else:
-        growth_pct = 100.0 if net_revenue > 0 else 0.0
-
-    # ── Chart Data ────────────────────────────────────────────────────────────
-    daily_qs = (
+    report_orders_qs = (
         period_orders
-        .annotate(day=TruncDate("created_at"))
-        .values("day")
-        .annotate(revenue=Sum("total"), orders=Count("id"))
-        .order_by("day")
-    )
-    chart_labels  = [str(d["day"]) for d in daily_qs]
-    chart_revenue = [float(d["revenue"] or 0) for d in daily_qs]
-    chart_orders  = [int(d["orders"] or 0) for d in daily_qs]
-
-    today_dt = dt.date.today()
-    twelve_ago = dt.date(
-        today_dt.year - 1 if today_dt.month > 1 else today_dt.year - 2,
-        today_dt.month - 1 if today_dt.month > 1 else 12,
-        1,
-    )
-    from django.utils import timezone as tz
-    monthly_qs = (
-        all_orders
-        .filter(created_at__gte=tz.make_aware(dt.datetime(twelve_ago.year, twelve_ago.month, 1)))
-        .annotate(month=TruncMonth("created_at"))
-        .values("month")
-        .annotate(revenue=Sum("total"))
-        .order_by("month")
-    )
-    monthly_labels  = [d["month"].strftime("%b %Y") for d in monthly_qs]
-    monthly_revenue = [float(d["revenue"] or 0) for d in monthly_qs]
-
-    cat_qs = (
-        period_items
-        .filter(variant__product__category__isnull=False)
-        .values("variant__product__category__name")
-        .annotate(revenue=Sum("line_total"))
-        .order_by("-revenue")[:8]
-    )
-    cat_labels  = [d["variant__product__category__name"] for d in cat_qs]
-    cat_revenue = [float(d["revenue"] or 0) for d in cat_qs]
-
-    brand_qs = (
-        period_items
-        .filter(variant__product__brand__isnull=False)
-        .values("variant__product__brand__name")
-        .annotate(revenue=Sum("line_total"))
-        .order_by("-revenue")[:8]
-    )
-    brand_labels  = [d["variant__product__brand__name"] for d in brand_qs]
-    brand_revenue = [float(d["revenue"] or 0) for d in brand_qs]
-
-    pay_qs = (
-        period_orders
-        .values("payment_method")
-        .annotate(count=Count("id"))
-        .order_by("-count")
-    )
-    pm_map          = dict(Order.PAYMENT_CHOICES)
-    payment_labels  = [pm_map.get(d["payment_method"], d["payment_method"]) for d in pay_qs]
-    payment_counts  = [d["count"] for d in pay_qs]
-
-    stat_qs = (
-        period_items
-        .values("status")
-        .annotate(count=Count("id"))
-        .order_by("-count")[:8]
-    )
-    st_map        = dict(OrderItem.STATUS_CHOICES)
-    status_labels = [st_map.get(d["status"], d["status"]) for d in stat_qs]
-    status_counts = [d["count"] for d in stat_qs]
-
-    # ── Product Analytics ─────────────────────────────────────────────────────
-    raw_top = (
-        period_items
-        .filter(variant__isnull=False)
-        .values("variant__id", "variant__product__name", "sku")
-        .annotate(units_sold=Sum("quantity"), revenue=Sum("line_total"))
-        .order_by("-units_sold")[:10]
-    )
-    top_products_list = []
-    for p in raw_top:
-        try:
-            v     = ProductVariant.objects.prefetch_related("images").get(id=p["variant__id"])
-            img   = v.images.filter(is_primary=True).first() or v.images.first()
-            stock = v.stock
-            img_url = img.image.url if img else None
-        except ProductVariant.DoesNotExist:
-            stock = 0; img_url = None
-        top_products_list.append({
-            "name":       p["variant__product__name"],
-            "sku":        p["sku"],
-            "units_sold": p["units_sold"],
-            "revenue":    p["revenue"] or _D0,
-            "stock":      stock,
-            "image":      img_url,
-        })
-
-    # ── Category & Brand tables ───────────────────────────────────────────────
-    top_categories = list(
-        period_items
-        .filter(variant__product__category__isnull=False)
-        .values("variant__product__category__name")
-        .annotate(units=Sum("quantity"), revenue=Sum("line_total"))
-        .order_by("-revenue")[:10]
-    )
-    top_brands = list(
-        period_items
-        .filter(variant__product__brand__isnull=False)
-        .values("variant__product__brand__name")
-        .annotate(units=Sum("quantity"), revenue=Sum("line_total"))
-        .order_by("-revenue")[:10]
+        .select_related("user")
+        .order_by("-created_at")
     )
 
-    # ── Customer Analytics ────────────────────────────────────────────────────
-    total_cust  = CustomUser.objects.filter(is_staff=False).count()
-    new_cust    = CustomUser.objects.filter(is_staff=False, date_joined__gte=start, date_joined__lte=end).count()
-    active_cust = period_orders.values("user").distinct().count()
-    repeat_cust = (
-        Order.objects
-        .values("user")
-        .annotate(c=Count("id"))
-        .filter(c__gt=1)
-        .count()
-    )
-    top_spenders = list(
-        period_orders
-        .values("user__email", "user__full_name")
-        .annotate(total_spent=Sum("total"), order_count=Count("id"))
-        .order_by("-total_spent")[:10]
-    )
-
-    # ── Order Analytics ───────────────────────────────────────────────────────
-    order_statuses = [
-        ("pending",          "Pending"),
-        ("confirmed",        "Confirmed"),
-        ("packed",           "Packed"),
-        ("shipped",          "Shipped"),
-        ("out_for_delivery", "Out for Delivery"),
-        ("delivered",        "Delivered"),
-        ("cancelled",        "Cancelled"),
-        ("return_requested", "Return Requested"),
-        ("returned",         "Returned"),
-    ]
-    order_status_counts = []
-    for st_val, st_label in order_statuses:
-        cnt = OrderItem.objects.filter(
-            order__created_at__gte=start,
-            order__created_at__lte=end,
-            status=st_val,
-        ).count()
-        order_status_counts.append({"label": st_label, "count": cnt})
-
+    paginator    = Paginator(report_orders_qs, 20)
+    page_number  = request.GET.get("page", 1)
     try:
-        from payments.models import Payment
-        failed_payments     = Payment.objects.filter(status=Payment.STATUS_FAILED).count()
-        successful_payments = Payment.objects.filter(status=Payment.STATUS_PAID).count()
-    except Exception:
-        failed_payments = successful_payments = 0
+        report_orders = paginator.page(page_number)
+    except (PageNotAnInteger, EmptyPage):
+        report_orders = paginator.page(1)
 
-    # ── Inventory Analytics ───────────────────────────────────────────────────
-    active_products_count   = Product.objects.filter(is_deleted=False, is_listed=True).count()
-    inactive_products_count = Product.objects.filter(is_deleted=False, is_listed=False).count()
-    low_stock_count         = ProductVariant.objects.filter(is_deleted=False, stock__gt=0, stock__lte=10).count()
-    out_of_stock_count      = ProductVariant.objects.filter(is_deleted=False, stock=0).count()
-    recent_products         = (
-        Product.objects
-        .filter(is_deleted=False)
-        .select_related("category", "brand")
-        .prefetch_related("variants__images")
-        .order_by("-created_at")[:8]
-    )
-
-    # ── Coupon Analytics ──────────────────────────────────────────────────────
-    try:
-        from coupons.models import Coupon, CouponUsage
-        coupons_created       = Coupon.objects.count()
-        coupons_used          = CouponUsage.objects.filter(used_at__gte=start, used_at__lte=end).values("coupon").distinct().count()
-        total_coupon_discount = period_orders.aggregate(s=Sum("coupon_discount"))["s"] or _D0
-        most_used             = (
-            CouponUsage.objects
-            .filter(used_at__gte=start, used_at__lte=end)
-            .values("coupon__code")
-            .annotate(uses=Count("id"))
-            .order_by("-uses")
-            .first()
-        )
-        most_used_coupon = most_used["coupon__code"] if most_used else "—"
-    except Exception:
-        coupons_created = coupons_used = 0
-        total_coupon_discount = _D0
-        most_used_coupon = "—"
-
-    # ── Payment Analytics ─────────────────────────────────────────────────────
-    razorpay_orders = period_orders.filter(payment_method=Order.PAYMENT_RAZORPAY).count()
-    cod_orders      = period_orders.filter(payment_method=Order.PAYMENT_COD).count()
-    wallet_orders   = period_orders.filter(payment_method=Order.PAYMENT_WALLET).count()
+    # Build a query-string fragment that keeps period/date params when paginating
+    qs_parts = [f"period={period}"]
+    if start_date_str:
+        qs_parts.append(f"start_date={start_date_str}")
+    if end_date_str:
+        qs_parts.append(f"end_date={end_date_str}")
+    base_qs = "&".join(qs_parts)
 
     context = {
-        "active":        "analytics",
-        "period":        period,
-        "period_label":  period_label,
-        "start_date":    start_date_str,
-        "end_date":      end_date_str,
-        # Overview
-        "total_revenue":       total_revenue,
-        "total_orders":        total_orders,
-        "total_customers":     total_customers,
-        "total_products":      total_products,
-        "delivered_count":     delivered_count,
-        "pending_count":       pending_count,
-        "cancelled_count":     cancelled_count,
-        "returned_count":      returned_count,
-        "total_wallet_balance":total_wallet_balance,
-        "aov":                 aov,
-        # Sales
-        "gross_sales":    gross_sales,
-        "net_revenue":    net_revenue,
-        "discounts":      discounts,
-        "coupon_disc":    coupon_disc,
-        "taxes":          taxes,
-        "delivery":       delivery,
-        "order_count":    order_count,
-        "growth_pct":     growth_pct,
-        # Charts (JSON-safe)
-        "chart_labels":    json.dumps(chart_labels),
-        "chart_revenue":   json.dumps(chart_revenue),
-        "chart_orders":    json.dumps(chart_orders),
-        "monthly_labels":  json.dumps(monthly_labels),
-        "monthly_revenue": json.dumps(monthly_revenue),
-        "cat_labels":      json.dumps(cat_labels),
-        "cat_revenue":     json.dumps(cat_revenue),
-        "brand_labels":    json.dumps(brand_labels),
-        "brand_revenue":   json.dumps(brand_revenue),
-        "payment_labels":  json.dumps(payment_labels),
-        "payment_counts":  json.dumps(payment_counts),
-        "status_labels":   json.dumps(status_labels),
-        "status_counts":   json.dumps(status_counts),
-        # Products
-        "top_products_list": top_products_list,
-        "top_products_labels": json.dumps([p["name"] for p in top_products_list[:8]]),
-        "top_products_units":  json.dumps([float(p["units_sold"]) for p in top_products_list[:8]]),
-        "top_products_rev":    json.dumps([float(p["revenue"]) for p in top_products_list[:8]]),
-        # Category & Brand
-        "top_categories": top_categories,
-        "top_brands":     top_brands,
-        # Customers
-        "total_cust":    total_cust,
-        "new_cust":      new_cust,
-        "active_cust":   active_cust,
-        "repeat_cust":   repeat_cust,
-        "top_spenders":  top_spenders,
-        # Orders
-        "order_status_counts":  order_status_counts,
-        "failed_payments":      failed_payments,
-        "successful_payments":  successful_payments,
-        # Inventory
-        "active_products_count":   active_products_count,
-        "inactive_products_count": inactive_products_count,
-        "low_stock_count":         low_stock_count,
-        "out_of_stock_count":      out_of_stock_count,
-        "recent_products":         recent_products,
-        # Coupons
-        "coupons_created":       coupons_created,
-        "coupons_used":          coupons_used,
-        "total_coupon_discount": total_coupon_discount,
-        "most_used_coupon":      most_used_coupon,
-        # Payments
-        "razorpay_orders": razorpay_orders,
-        "cod_orders":      cod_orders,
-        "wallet_orders":   wallet_orders,
+        "active": "analytics",
+        "period": period,
+        "period_label": period_label,
+        "start_date": start_date_str,
+        "end_date": end_date_str,
+
+        # KPI Metrics
+        "gross_sales": gross_sales,
+        "order_count": order_count,
+        "products_sold": products_sold,
+        "total_discount": total_discount,
+        "net_revenue": net_revenue,
+        "average_order_value": average_order_value,
+
+        # Details
+        "product_discounts": product_discounts,
+        "coupon_discounts": coupon_discounts,
+        "referral_discounts": referral_discounts,
+
+        # Chart
+        "chart_labels": chart_labels,
+        "chart_revenue": chart_revenue,
+        "chart_items": chart_items,
+
+        # Paginated report
+        "report_orders": report_orders,
+        "paginator": paginator,
+        "base_qs": base_qs,
     }
     return render(request, "admin_panel/analytics.html", context)
 
@@ -1895,6 +2103,164 @@ def admin_analytics_pdf_view(request):
     return response
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# LEDGER BOOK EXPORTS  (PDF / Excel / CSV)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _build_ledger_rows(start, end):
+    """Return a list of ledger dicts sorted by created_at, with running balance."""
+    from decimal import Decimal
+    try:
+        from wallet.models import WalletTransaction
+        txns = (
+            WalletTransaction.objects
+            .select_related("wallet__user", "order")
+            .filter(wallet__isnull=False)
+        )
+        if start:
+            txns = txns.filter(created_at__gte=start)
+        if end:
+            txns = txns.filter(created_at__lte=end)
+        txns = txns.order_by("created_at")
+    except Exception:
+        return []
+
+    rows = []
+    running = Decimal("0")
+    pm_map = dict(Order.PAYMENT_CHOICES)
+    for t in txns:
+        credit = t.amount if t.txn_type == "credit" else Decimal("0")
+        debit  = t.amount if t.txn_type == "debit"  else Decimal("0")
+        running += credit - debit
+        order = t.order
+        rows.append({
+            "date":     t.created_at,
+            "order_id": order.order_number if order else "—",
+            "customer": t.wallet.user.get_full_name() or t.wallet.user.email,
+            "debit":    debit,
+            "credit":   credit,
+            "payment":  pm_map.get(order.payment_method, order.payment_method) if order else "—",
+            "status":   order.get_status_display() if order else "—",
+            "balance":  running,
+        })
+    return rows
+
+
+def _ledger_period(request):
+    """Parse start_date/end_date from GET; default to current month."""
+    import datetime as dt
+    from django.utils import timezone
+    today = timezone.now().date()
+    sd = request.GET.get("start_date", "")
+    ed = request.GET.get("end_date", "")
+    try:
+        start = timezone.make_aware(dt.datetime.strptime(sd, "%Y-%m-%d"))
+    except (ValueError, TypeError):
+        start = timezone.make_aware(dt.datetime(today.year, today.month, 1))
+    try:
+        end = timezone.make_aware(dt.datetime.strptime(ed, "%Y-%m-%d") + dt.timedelta(days=1))
+    except (ValueError, TypeError):
+        end = timezone.now()
+    return start, end, sd, ed
+
+
+@admin_required
+def admin_ledger_pdf_view(request):
+    from django.http import HttpResponse
+    from django.template.loader import render_to_string
+    from io import BytesIO
+    from xhtml2pdf import pisa
+
+    start, end, sd, ed = _ledger_period(request)
+    rows = _build_ledger_rows(start, end)
+    html = render_to_string("admin_panel/ledger_pdf.html", {
+        "rows": rows,
+        "start_date": sd or start.strftime("%Y-%m-%d"),
+        "end_date":   ed or end.strftime("%Y-%m-%d"),
+    })
+    buf = BytesIO()
+    pisa.CreatePDF(html, dest=buf)
+    buf.seek(0)
+    filename = f"luxelle_ledger_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}.pdf"
+    response = HttpResponse(buf.getvalue(), content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@admin_required
+def admin_ledger_excel_view(request):
+    from django.http import HttpResponse
+    from io import BytesIO
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    start, end, sd, ed = _ledger_period(request)
+    rows = _build_ledger_rows(start, end)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Ledger"
+    GOLD_FILL   = PatternFill("solid", fgColor="C5A059")
+    HEADER_FONT = Font(bold=True, color="0B0B0B", size=11)
+    thin = Side(style="thin", color="DDDDDD")
+    thin_border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    headers = ["Date", "Order ID", "Customer", "Debit (INR)", "Credit (INR)",
+               "Payment Method", "Order Status", "Running Balance (INR)"]
+    ws.append(headers)
+    for c in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=c)
+        cell.fill = GOLD_FILL
+        cell.font = HEADER_FONT
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = thin_border
+
+    for r in rows:
+        ws.append([
+            r["date"].strftime("%d %b %Y %H:%M"),
+            r["order_id"], r["customer"],
+            float(r["debit"]), float(r["credit"]),
+            r["payment"], r["status"], float(r["balance"]),
+        ])
+
+    for col in ws.columns:
+        max_len = max((len(str(c.value or "")) for c in col), default=10)
+        ws.column_dimensions[get_column_letter(col[0].column)].width = min(max_len + 4, 40)
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"luxelle_ledger_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}.xlsx"
+    response = HttpResponse(
+        buf.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@admin_required
+def admin_ledger_csv_view(request):
+    import csv
+    from django.http import HttpResponse
+
+    start, end, sd, ed = _ledger_period(request)
+    rows = _build_ledger_rows(start, end)
+    filename = f"luxelle_ledger_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}.csv"
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    writer = csv.writer(response)
+    writer.writerow(["Date", "Order ID", "Customer", "Debit (INR)", "Credit (INR)",
+                     "Payment Method", "Order Status", "Running Balance (INR)"])
+    for r in rows:
+        writer.writerow([
+            r["date"].strftime("%d %b %Y %H:%M"),
+            r["order_id"], r["customer"],
+            float(r["debit"]), float(r["credit"]),
+            r["payment"], r["status"], float(r["balance"]),
+        ])
+    return response
 @admin_required
 def admin_analytics_excel_view(request):
     """Generate and stream a multi-sheet Excel analytics report using openpyxl."""
@@ -2069,3 +2435,74 @@ def admin_analytics_excel_view(request):
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
 
+
+# ── Admin Reviews ────────────────────────────────────────────────────────────
+
+@admin_required
+@never_cache
+def admin_reviews_view(request):
+    from .models import Review
+    from django.db.models import Avg
+
+    qs = Review.objects.select_related("product", "user").order_by("-created_at")
+
+    q = request.GET.get("q", "").strip()
+    if q:
+        qs = qs.filter(
+            Q(product__name__icontains=q)
+            | Q(user__first_name__icontains=q)
+            | Q(user__last_name__icontains=q)
+            | Q(user__email__icontains=q)
+        )
+
+    rating_filter = request.GET.get("rating", "").strip()
+    if rating_filter.isdigit() and 1 <= int(rating_filter) <= 5:
+        qs = qs.filter(rating=int(rating_filter))
+
+    visibility = request.GET.get("visibility", "").strip()
+    if visibility == "hidden":
+        qs = qs.filter(is_hidden=True)
+    elif visibility == "visible":
+        qs = qs.filter(is_hidden=False)
+
+    total_reviews = qs.count()
+    avg = qs.aggregate(avg=Avg("rating"))["avg"]
+
+    paginator = Paginator(qs, 20)
+    page_number = request.GET.get("page")
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    return render(request, "admin_panel/reviews.html", {
+        "active": "reviews",
+        "reviews": page_obj,
+        "paginator": paginator,
+        "q": q,
+        "rating_filter": rating_filter,
+        "visibility": visibility,
+        "total_reviews": total_reviews,
+        "avg_rating": avg,
+    })
+
+
+@admin_required
+@require_POST
+def admin_review_toggle_view(request, review_id):
+    from .models import Review
+    review = Review.objects.filter(pk=review_id).first()
+    if not review:
+        messages.error(request, "Review not found.")
+    else:
+        review.is_hidden = not review.is_hidden
+        review.save(update_fields=["is_hidden"])
+        action = "hidden" if review.is_hidden else "restored"
+        messages.success(request, f"Review has been {action} successfully.")
+    # preserve filters in redirect
+    next_url = request.POST.get("next", "")
+    if next_url:
+        return HttpResponseRedirect(next_url)
+    return redirect("admin_reviews")

@@ -1,0 +1,209 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Write Review - {{ product.name }} | Luxelle</title>
+    <link rel="icon" type="image/svg+xml" href="{% static 'image/favicon.svg' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="{% static 'css/styles.css' %}" rel="stylesheet">
+    <style>
+        .review-container { max-width: 600px; margin: 40px auto; background: #fff; padding: 2rem; border-radius: 12px; border: 1px solid #e2dfd9; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .review-header { text-align: center; margin-bottom: 1.5rem; }
+        .review-header h1 { font-family: 'Playfair Display', serif; color: #c5a059; font-weight: 700; margin-bottom: 0.5rem; }
+        .review-header p { color: #666; font-size: 0.95rem; }
+        
+        .product-info { display: flex; align-items: center; gap: 1rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e2dfd9; margin-bottom: 1.5rem; }
+        .product-info img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; }
+        .product-info .name { font-weight: 600; color: #1a1a1a; }
+        .product-info .brand { font-size: 0.85rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+        
+        .star-rating { display: flex; flex-direction: row-reverse; justify-content: center; gap: 0.5rem; margin-bottom: 1rem; }
+        .star-rating input { display: none; }
+        .star-rating label { font-size: 2rem; color: #ddd; cursor: pointer; transition: color 0.2s ease-in-out; }
+        .star-rating label:hover,
+        .star-rating label:hover ~ label,
+        .star-rating input:checked ~ label { color: #c5a059; }
+        
+        .form-group { margin-bottom: 1.5rem; }
+        .form-label { font-weight: 600; color: #333; margin-bottom: 0.5rem; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .form-control { border: 1px solid #e2dfd9; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.95rem; }
+        .form-control:focus { border-color: #c5a059; box-shadow: 0 0 0 0.2rem rgba(197, 160, 89, 0.25); }
+        .char-counter { font-size: 0.8rem; color: #888; text-align: right; margin-top: 0.3rem; }
+        
+        .submit-btn { width: 100%; background: #c5a059; color: #fff; border: none; padding: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; border-radius: 8px; transition: background 0.3s; }
+        .submit-btn:hover { background: #b08d45; }
+        .submit-btn:disabled { background: #d4d0c8; cursor: not-allowed; }
+        
+        .error-feedback { color: #dc3545; font-size: 0.85rem; margin-top: 0.25rem; display: none; }
+    </style>
+</head>
+<body>
+    {% include 'partials/navbar.html' %}
+
+    <div class="container">
+        <div class="review-container">
+            <div class="review-header">
+                <h1>{% if rating %}Edit{% else %}Add{% endif %} Review</h1>
+                <p>Please rate and review this product.</p>
+            </div>
+            
+            <div class="product-info">
+                {% if product.default_variant and product.default_variant.images.first %}
+                    <img src="{{ product.default_variant.images.first.image.url }}" alt="{{ product.name }}">
+                {% else %}
+                    <img src="{% static 'image/default_product.svg' %}" alt="{{ product.name }}">
+                {% endif %}
+                <div>
+                    <div class="name">{{ product.name }}</div>
+                    {% if product.brand %}<div class="brand">{{ product.brand.name }}</div>{% endif %}
+                </div>
+            </div>
+
+            <form method="POST" id="reviewForm" onsubmit="return validateReviewForm()">
+                {% csrf_token %}
+                
+                <div class="form-group text-center">
+                    <div class="form-label">Rating (1-5)*</div>
+                    <div class="star-rating">
+                        <input type="radio" id="star5" name="rating" value="5" {% if rating == '5' or rating == 5 %}checked{% endif %} />
+                        <label for="star5" title="5 stars"><i class="fa-solid fa-star"></i></label>
+                        <input type="radio" id="star4" name="rating" value="4" {% if rating == '4' or rating == 4 %}checked{% endif %} />
+                        <label for="star4" title="4 stars"><i class="fa-solid fa-star"></i></label>
+                        <input type="radio" id="star3" name="rating" value="3" {% if rating == '3' or rating == 3 %}checked{% endif %} />
+                        <label for="star3" title="3 stars"><i class="fa-solid fa-star"></i></label>
+                        <input type="radio" id="star2" name="rating" value="2" {% if rating == '2' or rating == 2 %}checked{% endif %} />
+                        <label for="star2" title="2 stars"><i class="fa-solid fa-star"></i></label>
+                        <input type="radio" id="star1" name="rating" value="1" {% if rating == '1' or rating == 1 %}checked{% endif %} />
+                        <label for="star1" title="1 star"><i class="fa-solid fa-star"></i></label>
+                    </div>
+                    <div id="ratingError" class="error-feedback">Please select a star rating.</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="title" class="form-label">Review Title (Optional)</label>
+                    <input type="text" class="form-control" id="title" name="title" value="{{ title|default:'' }}" maxlength="100" placeholder="Summarize your review...">
+                    <div id="titleError" class="error-feedback">Review title must contain valid text.</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="comment" class="form-label">Review Comment*</label>
+                    <textarea class="form-control" id="comment" name="comment" rows="5" maxlength="1000" placeholder="Write your honest review (e.g. Good quality, beautiful design)...">{{ comment|default:'' }}</textarea>
+                    <div class="d-flex justify-content-between">
+                        <div id="commentError" class="error-feedback">Review must be meaningful and contain valid text.</div>
+                        <div class="char-counter"><span id="charCount">0</span>/1000</div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                    <a href="{% url 'product_detail' product.slug %}" class="btn btn-outline-secondary w-50 py-2 text-uppercase tracking-wider fw-bold">Cancel</a>
+                    <button type="submit" id="submitBtn" class="submit-btn w-50">Submit Review</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const commentArea = document.getElementById('comment');
+        const charCount = document.getElementById('charCount');
+        
+        function updateCharCount() {
+            const len = commentArea.value.trim().length;
+            charCount.textContent = len;
+        }
+        
+        commentArea.addEventListener('input', updateCharCount);
+        updateCharCount(); // initial
+
+        function getReviewCommentError(comment) {
+            const trimmed = comment.trim();
+            if (!trimmed) {
+                return 'Please enter a meaningful review.';
+            }
+            const alnumMatches = trimmed.match(/[A-Za-z0-9]/g) || [];
+            const alphaMatches = trimmed.match(/[A-Za-z]/g) || [];
+            const plainAlnum = trimmed.replace(/[^A-Za-z0-9]/g, '');
+
+            if (!/[A-Za-z0-9]/.test(trimmed)) {
+                return 'Review cannot contain only special characters.';
+            }
+            if (plainAlnum && new Set(plainAlnum).size === 1) {
+                return 'Review must contain valid text.';
+            }
+            if (alnumMatches.length < 10) {
+                return 'Review must be at least 10 characters long.';
+            }
+            if (alphaMatches.length < 2) {
+                return 'Review must contain valid text.';
+            }
+            if (trimmed.length > 1000) {
+                return 'Review must be at most 1000 characters long.';
+            }
+            return null;
+        }
+
+        function getReviewTitleError(title) {
+            const trimmed = title.trim();
+            if (!trimmed) {
+                return null;
+            }
+            if (trimmed.length > 100) {
+                return 'Review title cannot exceed 100 characters.';
+            }
+            if (!/[A-Za-z0-9]/.test(trimmed)) {
+                return 'Review title must contain valid text.';
+            }
+            return null;
+        }
+
+        function validateReviewForm() {
+            let isValid = true;
+            const ratingChecked = document.querySelector('input[name="rating"]:checked');
+            const commentVal = commentArea.value;
+            const titleVal = document.getElementById('title').value;
+            const ratingError = document.getElementById('ratingError');
+            const commentError = document.getElementById('commentError');
+            const titleError = document.getElementById('titleError');
+            const submitBtn = document.getElementById('submitBtn');
+
+            ratingError.style.display = 'none';
+            commentError.style.display = 'none';
+            titleError.style.display = 'none';
+
+            if (!ratingChecked) {
+                ratingError.style.display = 'block';
+                isValid = false;
+            }
+
+            const commentValidationMessage = getReviewCommentError(commentVal);
+            if (commentValidationMessage) {
+                commentError.textContent = commentValidationMessage;
+                commentError.style.display = 'block';
+                isValid = false;
+            }
+
+            const titleValidationMessage = getReviewTitleError(titleVal);
+            if (titleValidationMessage) {
+                titleError.textContent = titleValidationMessage;
+                titleError.style.display = 'block';
+                isValid = false;
+            }
+
+            if (isValid) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Submitting...';
+            }
+
+            return isValid;
+        }
+    </script>
+    {% include 'partials/toast.html' %}
+</body>
+</html>

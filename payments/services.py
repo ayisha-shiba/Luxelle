@@ -77,3 +77,43 @@ def verify_payment(params):
         "razorpay_payment_id", "razorpay_signature", "status", "updated_at",
     ])
     return payment, True
+
+
+def create_pending_razorpay_order(user, checkout_data, total_amount):
+    """Phase 1: Create a Razorpay order without saving a local Order yet.
+    We save a PendingRazorpayOrder to persist the checkout context.
+    """
+    client = get_client()
+
+    from core.models import Order
+    order_number = checkout_data.get("order_number")
+    if not order_number:
+        temp_order = Order(user=user)
+        order_number = temp_order._generate_order_number()
+        checkout_data["order_number"] = order_number
+
+    rzp_order = client.order.create({
+        "amount":   to_paise(total_amount),
+        "currency": "INR",
+        "receipt":  order_number,
+        "payment_capture": 1,
+    })
+
+    from .models import PendingRazorpayOrder
+    return PendingRazorpayOrder.objects.create(
+        razorpay_order_id=rzp_order["id"],
+        user=user,
+        checkout_data=checkout_data,
+        amount=total_amount,
+    )
+
+
+def verify_razorpay_signature(params):
+    """Verify signature returned by Razorpay."""
+    client = get_client()
+    try:
+        client.utility.verify_payment_signature(params)
+        return True
+    except razorpay.errors.SignatureVerificationError:
+        return False
+

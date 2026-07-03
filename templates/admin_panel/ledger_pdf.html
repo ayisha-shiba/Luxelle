@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Luxelle Ledger Report</title>
+    <style>
+        @page { margin: 1.5cm 2cm; }
+        body { font-family: Helvetica, Arial, sans-serif; color: #1a1a1a; font-size: 9.5pt; margin: 0; }
+        .header-bar { border-bottom: 2px solid #c5a059; padding-bottom: 8pt; margin-bottom: 14pt; }
+        .brand { font-size: 10pt; color: #555; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
+        h1 { font-size: 17pt; color: #c5a059; margin: 2pt 0 2pt; }
+        .subtitle { font-size: 8pt; color: #777; margin-bottom: 12pt; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 10pt; }
+        th { background: #c5a059; color: #fff; padding: 5pt 7pt; font-size: 8pt; text-align: left; font-weight: bold; }
+        td { padding: 4pt 7pt; font-size: 8.5pt; border-bottom: 1px solid #f0f0f0; }
+        tr:nth-child(even) td { background: #fafafa; }
+        .num { text-align: right; }
+        .footer { margin-top: 16pt; border-top: 1px solid #ddd; padding-top: 6pt; font-size: 7pt; color: #aaa; text-align: center; }
+        .cr { color: #1e8449; }
+        .dr { color: #c0392b; }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <div class="brand">Luxelle Admin Panel</div>
+        <h1>Ledger Book</h1>
+        <div class="subtitle">
+            Period: <strong>{{ start_date }}</strong> – <strong>{{ end_date }}</strong> &nbsp;|&nbsp;
+            Generated: <strong>{% now "d M Y, H:i" %}</strong> &nbsp;|&nbsp;
+            Total Entries: <strong>{{ rows|length }}</strong>
+        </div>
+    </div>
+
+    {% if rows %}
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Order ID</th>
+                <th>Customer</th>
+                <th class="num">Debit (₹)</th>
+                <th class="num">Credit (₹)</th>
+                <th>Payment Method</th>
+                <th>Order Status</th>
+                <th class="num">Balance (₹)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td>{{ r.date|date:"d M Y H:i" }}</td>
+                <td>{{ r.order_id }}</td>
+                <td>{{ r.customer }}</td>
+                <td class="num dr">{% if r.debit %}{{ r.debit|floatformat:2 }}{% else %}—{% endif %}</td>
+                <td class="num cr">{% if r.credit %}{{ r.credit|floatformat:2 }}{% else %}—{% endif %}</td>
+                <td>{{ r.payment }}</td>
+                <td>{{ r.status }}</td>
+                <td class="num"><strong>{{ r.balance|floatformat:2 }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:#999; font-size:9pt;">No transactions found for the selected period.</p>
+    {% endif %}
+
+    <div class="footer">
+        Luxelle Admin &mdash; Confidential Ledger Report &mdash; Generated {% now "d M Y, H:i" %}
+    </div>
+</body>
+</html>

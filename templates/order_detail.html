@@ -36,6 +36,7 @@
         .st-cancelled { background:rgba(231,76,60,0.14); color:#c0392b; }
         .st-returned { background:rgba(149,165,166,0.18); color:#7f8c8d; }
         .st-mixed { background:rgba(52,152,219,0.14); color:#2c7fb8; }
+        .st-payment_failed { background:rgba(231,76,60,0.14); color:#c0392b; }
 
         .timeline { list-style:none; margin:0; padding:0; }
         .timeline-item { position:relative; padding:0 0 1.5rem 1.8rem; border-left:2px solid #e2dfd9; }
@@ -86,7 +87,25 @@
                 <h1 class="font-playfair fw-bold text-lux-black mb-1">Order Details</h1>
                 <p class="text-lux-gray mb-0">Order ID: <span class="fw-bold text-lux-black">#{{ order.order_number }}</span> &nbsp;|&nbsp; Placed on {{ order.created_at|date:"d F Y" }}</p>
             </div>
-            <span class="st-badge st-{{ status_value }}">{{ status_label }}</span>
+            <div class="d-flex align-items-center gap-3">
+                <span class="st-badge st-{{ status_value }}">{{ status_label }}</span>
+                {% if status_value == 'payment_failed' %}
+                    <a href="{% url 'payment_start' order.order_number %}" class="btn btn-dark btn-sm rounded-pill px-4 fw-semibold shadow-sm">
+                        <i class="fa-solid fa-credit-card me-2"></i>Retry Payment
+                    </a>
+                {% endif %}
+                {% if order.can_download_invoice %}
+                    <a href="{% url 'order_invoice' order.order_number %}" class="btn btn-outline-dark btn-sm rounded-pill px-4 fw-semibold shadow-sm">
+                        <i class="fa-solid fa-file-pdf me-2"></i>Download Invoice
+                    </a>
+                {% else %}
+                    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="{% if order.payment_method == 'COD' %}Invoice will be available after your order is delivered.{% else %}Invoice will be available after successful payment.{% endif %}">
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-4 fw-semibold shadow-sm disabled" style="pointer-events: none;" type="button">
+                            <i class="fa-solid fa-file-pdf me-2"></i>Download Invoice
+                        </button>
+                    </span>
+                {% endif %}
+            </div>
         </div>
 
         <div class="row g-4 mb-4">
@@ -118,14 +137,18 @@
             <div class="col-lg-4">
                 <div class="info-card">
                     <h3><i class="fa-solid fa-receipt"></i> Order Summary</h3>
-                    <div class="info-row"><span>Subtotal</span><span>₹{{ order.subtotal }}</span></div>
-                    <div class="info-row"><span>Discount</span><span>− ₹{{ order.discount }}</span></div>
-                    <div class="info-row"><span>Delivery Charge</span><span>₹{{ order.shipping }}</span></div>
+                    <div class="info-row"><span>Subtotal (MRP)</span><span>₹{{ order.gross_amount }}</span></div>
+                    <div class="info-row"><span>Offer Discount</span><span class="text-success">{% if order.discount %}− ₹{{ order.discount }}{% else %}—{% endif %}</span></div>
+                    {% if order.coupon_discount %}
+                    <div class="info-row"><span>Coupon Discount{% if order.coupon %} <span class="small">({{ order.coupon.code }})</span>{% endif %}</span><span class="text-success">− ₹{{ order.coupon_discount }}</span></div>
+                    {% endif %}
+                    <div class="info-row"><span>Delivery Charge</span><span>{% if order.shipping %}₹{{ order.shipping }}{% else %}Free{% endif %}</span></div>
                     <div class="info-row"><span>CGST (9%)</span><span>₹{{ order.cgst }}</span></div>
                     <div class="info-row"><span>SGST (9%)</span><span>₹{{ order.sgst }}</span></div>
                     <hr>
                     <div class="info-row fw-bold" style="font-size:1.05rem; color:#c5a059;"><span>Total</span><span>₹{{ order.total }}</span></div>
                 </div>
+
             </div>
         </div>
 
@@ -140,13 +163,18 @@
                     <div class="text-lux-gray small mb-1">SKU: {{ item.sku }} · Qty: {{ item.quantity }}</div>
 
                     <span class="st-badge st-{{ item.status }} d-inline-block">{{ item.get_status_display }}</span>
+                    {% if item.status != 'payment_failed' %}
                     <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 ms-2 hover-lux-gold" style="color:#c5a059;" onclick="toggleItemTimeline('{{ item.id }}')">
                         <i class="fa-solid fa-route"></i> Track Order
                     </button>
+                    {% endif %}
 
-                    {% if item.can_cancel or item.can_return %}
-                    <div class="mt-2 d-flex gap-2">
-                        {% if item.can_cancel %}
+                    {% if item.can_cancel or item.can_return or item.status == 'delivered' %}
+                    <div class="mt-2 d-flex gap-2 flex-wrap">
+                        {% if item.status == 'delivered' %}
+                        <a href="{% url 'write_review' item.variant.product.id %}" class="btn btn-outline-dark btn-sm" style="border-color:#1a1a1a;"><i class="fa-solid fa-star text-warning"></i> Add Review</a>
+                        {% endif %}
+                        {% if item.can_cancel and item.status != 'payment_failed' %}
                         <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#cancelModal{{ item.id }}">Cancel Item</button>
                         {% endif %}
                         {% if item.can_return %}
@@ -262,6 +290,11 @@
 
         // Arriving from a "Track"/"View" link on the orders list — open & scroll to that product.
         document.addEventListener('DOMContentLoaded', function () {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+
             var h = window.location.hash;
             if (!h) return;
             var id = null, openTimeline = false;

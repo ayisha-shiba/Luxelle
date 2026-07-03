@@ -107,13 +107,15 @@
             <td style="width:55%;"></td>
             <td style="width:45%;">
                 <table class="totals">
-                    <tr><td>Subtotal</td><td class="num">Rs. {{ order.subtotal }}</td></tr>
-                    {% if order.discount %}<tr><td>Discount</td><td class="num">- Rs. {{ order.discount }}</td></tr>{% endif %}
-                    <tr><td>Delivery</td><td class="num">Rs. {{ order.shipping }}</td></tr>
+                    <tr><td>Subtotal (MRP)</td><td class="num">Rs. {{ order.gross_amount }}</td></tr>
+                    {% if order.discount %}<tr><td>Offer Discount</td><td class="num">- Rs. {{ order.discount }}</td></tr>{% endif %}
+                    {% if order.coupon_discount %}<tr><td>Coupon Discount{% if order.coupon %} ({{ order.coupon.code }}){% endif %}</td><td class="num">- Rs. {{ order.coupon_discount }}</td></tr>{% endif %}
+                    <tr><td>Delivery</td><td class="num">{% if order.shipping %}Rs. {{ order.shipping }}{% else %}Free{% endif %}</td></tr>
                     <tr><td>CGST (9%)</td><td class="num">Rs. {{ order.cgst }}</td></tr>
                     <tr><td>SGST (9%)</td><td class="num">Rs. {{ order.sgst }}</td></tr>
                     <tr class="grand"><td>Total</td><td class="num">Rs. {{ order.total }}</td></tr>
                 </table>
+
             </td>
         </tr>
     </table>

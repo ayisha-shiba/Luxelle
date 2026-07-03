@@ -454,7 +454,7 @@
             </div>
             
             <div class="cm-body">
-                <form id="offerForm" method="POST" action="{% url 'admin_offer_add' %}">
+                <form id="offerForm" method="POST" action="{% url 'admin_offer_add' %}" onsubmit="return validateOfferForm(event);">
                     {% csrf_token %}
                     <!-- We include a dummy form that represents the screenshot exactly -->
                     
@@ -463,7 +463,19 @@
                         <div class="cm-row">
                             <div class="cm-group">
                                 <label class="cm-label">Offer Name <span class="req">*</span></label>
-                                <input type="text" name="name" id="off_name" class="cm-input" required>
+                                <input
+                                    type="text"
+                                    name="name"
+                                    id="off_name"
+                                    class="cm-input"
+                                    maxlength="120"
+                                    placeholder="e.g. Summer Sale 20%"
+                                    autocomplete="off"
+                                    oninput="validateOfferName()"
+                                    onblur="validateOfferName()"
+                                >
+                                <div id="err_off_name" style="color:#e74c3c; font-size:0.75rem; display:none; margin-top:4px;"></div>
+                                <div id="hint_off_name" style="color:#888; font-size:0.72rem; margin-top:3px;">Max 120 characters</div>
                             </div>
                             <div class="cm-group">
                                 <label class="cm-label">Offer Badge Text <span class="opt">(optional)</span></label>
@@ -482,15 +494,13 @@
                         <div class="cm-section-title"><i class="fa-solid fa-percent"></i> B) DISCOUNT CONFIGURATION</div>
                         <div class="cm-row">
                             <div class="cm-group">
-                                <label class="cm-label">Discount Type <span class="req">*</span></label>
-                                <select class="cm-select" name="dummy_discount_type">
-                                    <option>Fixed Amount (₹)</option>
-                                    <option>Percentage (%)</option>
-                                </select>
+                                <label class="cm-label">Discount Type</label>
+                                <input type="text" class="cm-input" value="Percentage (%)" disabled style="opacity:0.6; cursor:not-allowed;">
                             </div>
                             <div class="cm-group">
-                                <label class="cm-label">Discount Value <span class="req">*</span></label>
-                                <input type="number" name="discount_percent" id="off_discount" class="cm-input" required>
+                                <label class="cm-label" id="lbl_discount">Discount Value (%) <span class="req">*</span></label>
+                                <input type="number" name="discount_percent" id="off_discount" class="cm-input" min="1" max="100" step="1" placeholder="1 – 100">
+                                <div id="err_off_discount" style="color:#e74c3c; font-size:0.75rem; display:none; margin-top:4px;"></div>
                             </div>
                         </div>
                         <div class="cm-row">
@@ -522,6 +532,7 @@
                                     <option value="">-- select product --</option>
                                     {% for p in products %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
                                 </select>
+                                <div id="err_of_product" style="color:#e74c3c; font-size:0.75rem; display:none; margin-top:4px;"></div>
                             </div>
                             <div class="cm-group" id="panel_category" style="display:none;">
                                 <label class="cm-label">Select Category <span class="req">*</span></label>
@@ -529,6 +540,7 @@
                                     <option value="">-- select category --</option>
                                     {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
                                 </select>
+                                <div id="err_of_category" style="color:#e74c3c; font-size:0.75rem; display:none; margin-top:4px;"></div>
                             </div>
                         </div>
                         <div class="cm-row">
@@ -582,10 +594,12 @@
                             <div class="cm-group">
                                 <label class="cm-label">Start Date <span class="req">*</span></label>
                                 <input type="date" name="valid_from" id="off_start" class="cm-input" required>
+                                <div id="err_off_start" style="color:#e74c3c; font-size:0.75rem; display:none; margin-top:4px;"></div>
                             </div>
                             <div class="cm-group">
                                 <label class="cm-label">Expiry Date <span class="req">*</span></label>
                                 <input type="date" name="valid_to" id="off_end" class="cm-input" required>
+                                <div id="err_off_end" style="color:#e74c3c; font-size:0.75rem; display:none; margin-top:4px;"></div>
                             </div>
                         </div>
                     </div>
@@ -607,8 +621,8 @@
                 <div style="flex-grow:1;"></div>
                 <div style="display:flex; gap:1rem;">
                     <button type="button" class="cm-btn cm-btn-cancel" onclick="closeOfferModal()">Cancel</button>
-                    <!-- Form submits native attributes to backend. Extraneous fields are ignored. -->
-                    <button type="button" class="cm-btn cm-btn-save" onclick="document.getElementById('offerForm').submit()"><i class="fa-solid fa-check"></i> Save Offer</button>
+                    <!-- Button uses HTML5 form attribute to natively trigger submission -->
+                    <button type="submit" form="offerForm" class="cm-btn cm-btn-save" id="btnSaveOffer"><i class="fa-solid fa-check"></i> Save Offer</button>
                 </div>
             </div>
         </div>
@@ -637,6 +651,148 @@
             const t = document.getElementById('of_type').value;
             document.getElementById('panel_product').style.display  = (t === 'product')  ? 'block' : 'none';
             document.getElementById('panel_category').style.display = (t === 'category') ? 'block' : 'none';
+        }
+
+        function clearErrors() {
+            const errs = ['err_off_name', 'err_off_discount', 'err_off_start', 'err_off_end', 'err_of_product', 'err_of_category'];
+            errs.forEach(e => {
+                const el = document.getElementById(e);
+                if(el) { el.style.display = 'none'; el.innerText = ''; }
+            });
+            document.querySelectorAll('.cm-input, .cm-select').forEach(el => el.style.borderColor = '');
+        }
+
+        function showError(id, errId, msg) {
+            const el = document.getElementById(errId);
+            const input = document.getElementById(id);
+            if(el) { el.innerText = msg; el.style.display = 'block'; }
+            if(input) { input.style.borderColor = '#e74c3c'; }
+        }
+
+        function validateOfferName() {
+            const input = document.getElementById('off_name');
+            const errEl = document.getElementById('err_off_name');
+            const hint  = document.getElementById('hint_off_name');
+            const raw   = input.value;
+            const trimmed = raw.trim();
+
+            if (!raw || raw.length === 0) {
+                errEl.innerText = 'Offer name is required.';
+                errEl.style.display = 'block';
+                input.style.borderColor = '#e74c3c';
+                if(hint) hint.style.display = 'none';
+                return false;
+            }
+            if (!trimmed) {
+                errEl.innerText = 'Offer name cannot consist of only spaces.';
+                errEl.style.display = 'block';
+                input.style.borderColor = '#e74c3c';
+                if(hint) hint.style.display = 'none';
+                return false;
+            }
+            if (trimmed.length < 3) {
+                errEl.innerText = 'Offer name must be at least 3 characters.';
+                errEl.style.display = 'block';
+                input.style.borderColor = '#e74c3c';
+                if(hint) hint.style.display = 'none';
+                return false;
+            }
+            if (!/[a-zA-Z0-9]/.test(trimmed)) {
+                errEl.innerText = 'Offer name must contain at least one letter or number.';
+                errEl.style.display = 'block';
+                input.style.borderColor = '#e74c3c';
+                if(hint) hint.style.display = 'none';
+                return false;
+            }
+            // valid
+            errEl.style.display = 'none';
+            errEl.innerText = '';
+            input.style.borderColor = '#27ae60';
+            if(hint) {
+                hint.innerText = trimmed.length + ' / 120 characters';
+                hint.style.color = trimmed.length > 100 ? '#e67e22' : '#888';
+                hint.style.display = 'block';
+            }
+            return true;
+        }
+
+        function validateOfferForm(e) {
+            clearErrors();
+            let isValid = true;
+
+            // 1. Offer Name
+            if (!validateOfferName()) {
+                isValid = false;
+            }
+
+            // 2. Discount — percentage only
+            const discountRaw = document.getElementById('off_discount').value;
+            const discount = parseFloat(discountRaw);
+            if (!discountRaw || discountRaw.trim() === '') {
+                showError('off_discount', 'err_off_discount', 'Percentage discount is required.');
+                isValid = false;
+            } else if (isNaN(discount) || discount <= 0) {
+                showError('off_discount', 'err_off_discount', 'Percentage discount must be between 1 and 100.');
+                isValid = false;
+            } else if (discount > 100) {
+                showError('off_discount', 'err_off_discount', 'Percentage discount must be between 1 and 100.');
+                isValid = false;
+            }
+
+            // 3. Applicability
+            const type = document.getElementById('of_type').value;
+            if (type === 'product' && !document.getElementById('of_product').value) {
+                showError('of_product', 'err_of_product', 'Please select a product.');
+                isValid = false;
+            }
+            if (type === 'category' && !document.getElementById('of_category').value) {
+                showError('of_category', 'err_of_category', 'Please select a category.');
+                isValid = false;
+            }
+
+            // 4. Dates
+            const startVal = document.getElementById('off_start').value;
+            const endVal = document.getElementById('off_end').value;
+
+            if (!startVal) {
+                showError('off_start', 'err_off_start', 'Start date is required.');
+                isValid = false;
+            }
+            if (!endVal) {
+                showError('off_end', 'err_off_end', 'Expiry date is required.');
+                isValid = false;
+            }
+
+            if (startVal && endVal) {
+                const startObj = new Date(startVal);
+                const endObj   = new Date(endVal);
+                const now = new Date();
+                now.setHours(0,0,0,0);
+
+                if (startObj < now && document.getElementById('offerForm').action === ADD_URL) {
+                    showError('off_start', 'err_off_start', 'Start date cannot be in the past.');
+                    isValid = false;
+                }
+                if (endObj <= startObj) {
+                    showError('off_end', 'err_off_end', 'Expiry date must be after the start date.');
+                    isValid = false;
+                }
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+                return false;
+            }
+
+            // Disable submit button to prevent double submit
+            const btn = document.getElementById('btnSaveOffer');
+            if (btn) {
+                setTimeout(() => {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+                }, 10);
+            }
+            return true;
         }
 
         function openOfferModal(mode, id, name, discount, start, end, type, productId, categoryId) {
@@ -675,6 +831,57 @@
         function closeDeleteModal() {
             document.getElementById('deleteModal').style.display = 'none';
         }
+
+        {% if open_modal %}
+        document.addEventListener("DOMContentLoaded", function() {
+            {% if edit_offer %}
+                openOfferModal('edit', '{{ edit_offer.id }}', '{{ edit_form.data.name|default:edit_offer.name|escapejs }}', '{{ edit_form.data.discount_percent|default:edit_offer.discount_percent }}', '{{ edit_form.data.valid_from|default:edit_offer.valid_from|date:"Y-m-d" }}', '{{ edit_form.data.valid_to|default:edit_offer.valid_to|date:"Y-m-d" }}', '{{ edit_form.data.offer_type|default:edit_offer.offer_type }}', '{{ edit_form.data.product|default:edit_offer.product_id|default:"" }}', '{{ edit_form.data.category|default:edit_offer.category_id|default:"" }}');
+            {% else %}
+                openOfferModal('add');
+                {% if add_form.data %}
+                document.getElementById('off_name').value = '{{ add_form.data.name|escapejs }}';
+                document.getElementById('off_discount').value = '{{ add_form.data.discount_percent }}';
+                document.getElementById('off_start').value = '{{ add_form.data.valid_from }}';
+                document.getElementById('off_end').value = '{{ add_form.data.valid_to }}';
+                document.getElementById('of_type').value = '{{ add_form.data.offer_type }}';
+                document.getElementById('of_product').value = '{{ add_form.data.product }}';
+                document.getElementById('of_category').value = '{{ add_form.data.category }}';
+                toggleTarget();
+                {% endif %}
+            {% endif %}
+
+            {% if add_form %}
+                {% for field in add_form %}
+                    {% for error in field.errors %}
+                        {% if field.name == "name" %}showError('off_name', 'err_off_name', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "discount_percent" %}showError('off_discount', 'err_off_discount', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "valid_from" %}showError('off_start', 'err_off_start', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "valid_to" %}showError('off_end', 'err_off_end', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "product" %}showError('of_product', 'err_of_product', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "category" %}showError('of_category', 'err_of_category', '{{ error|escapejs }}');{% endif %}
+                    {% endfor %}
+                {% endfor %}
+                {% for error in add_form.non_field_errors %}
+                    alert("{{ error|escapejs }}");
+                {% endfor %}
+            {% endif %}
+            {% if edit_form %}
+                {% for field in edit_form %}
+                    {% for error in field.errors %}
+                        {% if field.name == "name" %}showError('off_name', 'err_off_name', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "discount_percent" %}showError('off_discount', 'err_off_discount', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "valid_from" %}showError('off_start', 'err_off_start', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "valid_to" %}showError('off_end', 'err_off_end', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "product" %}showError('of_product', 'err_of_product', '{{ error|escapejs }}');{% endif %}
+                        {% if field.name == "category" %}showError('of_category', 'err_of_category', '{{ error|escapejs }}');{% endif %}
+                    {% endfor %}
+                {% endfor %}
+                {% for error in edit_form.non_field_errors %}
+                    alert("{{ error|escapejs }}");
+                {% endfor %}
+            {% endif %}
+        });
+        {% endif %}
     </script>
 </body>
 </html>
