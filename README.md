@@ -11,10 +11,10 @@
 <!-- Replace these placeholder paths with your actual screenshot filenames inside the /screenshots folder -->
 
 ### 🏠 Homepage
-<img src="screenshots/homepage.png" width="700"/>
+<img src="screenshots/Homepage.png" width="700"/>
 
 ### 🛍️ Product Listing & Filtering
-<img src="screenshots/shop.png" width="700"/>
+<img src="screenshots/Shop.png" width="700"/>
 <!-- 
 ### 📄 Product Detail Page
 <img src="screenshots/product-detail.png" width="700"/>
@@ -26,7 +26,7 @@
 <img src="screenshots/order-tracking.png" width="700"/> -->
  
 ### 🧑‍💼 Admin Dashboard
-<img src="screenshots/admin-dashboard.png" width="700"/>
+<img src="screenshots/Admin-dashboard.png" width="700"/>
 
 <!-- ### 📊 Sales Analytics
 <img src="screenshots/sales-analytics.png" width="700"/> -->
