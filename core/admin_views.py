@@ -346,7 +346,7 @@ def _build_dashboard_sales_chart(request):
 
     if period == "today":
         start_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_dt = now
+        end_dt = now.replace(hour=23, minute=59, second=59, microsecond=999999)
         granularity = "hour"
         period_label = "Today"
 
@@ -1813,7 +1813,7 @@ def _get_analytics_period(request):
     # Map recognized periods to start/end ranges
     if requested == "today":
         start      = make_aware(today)
-        end        = now
+        end        = timezone.make_aware(dt.datetime.combine(today, dt.time.max))
         prev_start = make_aware(today - dt.timedelta(days=1))
         prev_end   = start
         label      = "Today"
@@ -1897,7 +1897,10 @@ def admin_analytics_view(request):
     all_orders = Order.objects.all()
     period_orders = all_orders.filter(created_at__gte=start, created_at__lte=end)
 
-    delivered_orders = period_orders.filter(items__status=OrderItem.STATUS_DELIVERED).distinct()
+    if period == "today":
+        delivered_orders = period_orders.exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
+    else:
+        delivered_orders = period_orders.filter(items__status=OrderItem.STATUS_DELIVERED).distinct()
 
     # Metrics
     order_count = delivered_orders.count()
@@ -1908,7 +1911,10 @@ def admin_analytics_view(request):
     total_discount = product_discounts + coupon_discounts + referral_discounts
     
     # Products Sold
-    delivered_items = OrderItem.objects.filter(order__in=delivered_orders)
+    if period == "today":
+        delivered_items = OrderItem.objects.filter(order__in=delivered_orders).exclude(status__in=[OrderItem.STATUS_CANCELLED, OrderItem.STATUS_RETURNED])
+    else:
+        delivered_items = OrderItem.objects.filter(order__in=delivered_orders)
     products_sold = delivered_items.aggregate(s=Sum("quantity"))["s"] or 0
     
     # Gross Sales Amount: sum of original_price * quantity for all delivered items
@@ -1997,6 +2003,10 @@ def admin_analytics_pdf_view(request):
     period_items  = OrderItem.objects.select_related(
         "order", "variant__product__category", "variant__product__brand"
     ).filter(order__created_at__gte=start, order__created_at__lte=end)
+
+    if period == "today":
+        period_orders = period_orders.exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
+        period_items = period_items.exclude(status__in=[OrderItem.STATUS_CANCELLED, OrderItem.STATUS_RETURNED])
 
     agg = period_orders.aggregate(
         gross_sales  = Sum("subtotal"),
@@ -2238,6 +2248,10 @@ def admin_analytics_excel_view(request):
     period_items  = OrderItem.objects.select_related(
         "order", "variant__product__category", "variant__product__brand"
     ).filter(order__created_at__gte=start, order__created_at__lte=end)
+
+    if period == "today":
+        period_orders = period_orders.exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
+        period_items = period_items.exclude(status__in=[OrderItem.STATUS_CANCELLED, OrderItem.STATUS_RETURNED])
 
     wb = openpyxl.Workbook()
 

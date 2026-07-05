@@ -1,9 +1,3 @@
-"""Razorpay integration logic, kept out of the views.
-
-Two public functions mirror the two phases of a Razorpay payment:
-  - create_razorpay_order(order)  -> Phase 1 (before the user pays)
-  - verify_payment(params)        -> Phase 2 (after the user pays)
-"""
 from decimal import Decimal
 
 import razorpay
@@ -13,26 +7,18 @@ from .models import Payment
 
 
 class RazorpayOrderError(Exception):
-    """Raised when Razorpay rejects order creation for the given amount."""
     pass
 
 
 def get_client():
-    """Build an authenticated Razorpay client from the settings keys."""
     return razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
 
 def to_paise(amount):
-    """Razorpay works in the smallest currency unit. Rs. 1 == 100 paise (integer)."""
     return int(Decimal(amount) * 100)
 
 
 def create_razorpay_order(order):
-    """Phase 1: create a Razorpay order and a local Payment row to track it.
-
-    Returns the saved Payment instance (which holds the razorpay_order_id the
-    browser checkout needs).
-    """
     client = get_client()
 
     try:
@@ -40,7 +26,7 @@ def create_razorpay_order(order):
             "amount":   to_paise(order.total),
             "currency": "INR",
             "receipt":  str(order.order_number),
-            "payment_capture": 1,   # auto-capture once paid; no separate capture step
+            "payment_capture": 1,   
         })
     except razorpay.errors.BadRequestError as exc:
         raise RazorpayOrderError(
@@ -57,14 +43,6 @@ def create_razorpay_order(order):
 
 
 def verify_payment(params):
-    """Phase 2: verify the signature Razorpay sent back and settle the Payment.
-
-    `params` is the dict the browser posts to our callback:
-        razorpay_order_id, razorpay_payment_id, razorpay_signature
-
-    Returns (payment, ok). On a bad signature we mark the Payment failed and
-    return ok=False instead of trusting the client.
-    """
     payment = Payment.objects.filter(
         razorpay_order_id=params.get("razorpay_order_id")
     ).first()
@@ -73,8 +51,6 @@ def verify_payment(params):
 
     client = get_client()
     try:
-        # Recomputes HMAC(order_id|payment_id, key_secret) and compares to the
-        # signature. Raises SignatureVerificationError if it doesn't match.
         client.utility.verify_payment_signature(params)
     except razorpay.errors.SignatureVerificationError:
         payment.status = Payment.STATUS_FAILED
@@ -91,9 +67,6 @@ def verify_payment(params):
 
 
 def create_pending_razorpay_order(user, checkout_data, total_amount):
-    """Phase 1: Create a Razorpay order without saving a local Order yet.
-    We save a PendingRazorpayOrder to persist the checkout context.
-    """
     client = get_client()
 
     from core.models import Order

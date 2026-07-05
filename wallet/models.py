@@ -5,8 +5,6 @@ from django.db import models
 
 
 class Wallet(models.Model):
-    """One wallet per user. Balance is the single source of truth; every change
-    to it is mirrored by a WalletTransaction row for an auditable history."""
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="wallet"
@@ -21,8 +19,19 @@ class Wallet(models.Model):
 
 
 class WalletTransaction(models.Model):
-    """An immutable ledger entry. CREDIT adds to the wallet (refunds),
-    DEBIT removes from it (paying with wallet)."""
+
+    # Sub-type: lets us filter by refund / top-up / order-payment without
+    # doing fragile LIKE queries on the reason text field.
+    SUB_REFUND  = "refund"
+    SUB_TOPUP   = "topup"
+    SUB_ORDER   = "order"   # debit: order payment via wallet
+    SUB_OTHER   = "other"
+    SUB_CHOICES = [
+        (SUB_REFUND, "Refund"),
+        (SUB_TOPUP,  "Top Up"),
+        (SUB_ORDER,  "Order"),
+        (SUB_OTHER,  "Other"),
+    ]
 
     CREDIT = "credit"
     DEBIT  = "debit"
@@ -33,12 +42,15 @@ class WalletTransaction(models.Model):
 
     wallet   = models.ForeignKey(Wallet, on_delete=models.CASCADE, related_name="transactions")
     txn_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    sub_type = models.CharField(max_length=10, choices=SUB_CHOICES, default=SUB_OTHER, db_index=True)
     amount   = models.DecimalField(max_digits=12, decimal_places=2)
     reason   = models.CharField(max_length=255)
 
-    # Link back to what caused this entry, for traceability / de-duping refunds.
-    order      = models.ForeignKey("core.Order", on_delete=models.SET_NULL, null=True, blank=True, related_name="wallet_transactions")
+    order      = models.ForeignKey("core.Order",     on_delete=models.SET_NULL, null=True, blank=True, related_name="wallet_transactions")
     order_item = models.ForeignKey("core.OrderItem", on_delete=models.SET_NULL, null=True, blank=True, related_name="wallet_transactions")
+
+    # Razorpay payment ID stored for top-up idempotency guard
+    razorpay_payment_id = models.CharField(max_length=100, blank=True, db_index=True)
 
     balance_after = models.DecimalField(max_digits=12, decimal_places=2)
     created_at    = models.DateTimeField(auto_now_add=True)

@@ -7,10 +7,6 @@ from django.utils import timezone
 
 
 class Offer(models.Model):
-    """A percentage discount applied on top of a variant's sale_price.
-    Either a product offer or a category offer; for any product the larger
-    of the two (by rupee value) wins."""
-
     GLOBAL   = "global"
     PRODUCT  = "product"
     CATEGORY = "category"
@@ -52,9 +48,6 @@ class Offer(models.Model):
 
 
 class ReferralProfile(models.Model):
-    """Per-user referral code + who referred them. Reward (wallet credit to both)
-    is granted once, on the referred user's first completed order."""
-
     user        = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="referral_profile")
     code        = models.CharField(max_length=12, unique=True, db_index=True)
     referred_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="referrals_made")
@@ -67,7 +60,6 @@ class ReferralProfile(models.Model):
 
     @staticmethod
     def generate_code():
-        """A short, unambiguous, URL-safe code."""
         while True:
             code = secrets.token_urlsafe(6)[:8].upper().replace("_", "").replace("-", "")
             if len(code) >= 6 and not ReferralProfile.objects.filter(code=code).exists():

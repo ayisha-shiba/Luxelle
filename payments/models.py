@@ -4,13 +4,6 @@ from core.models import Order
 
 
 class Payment(models.Model):
-    """One online payment attempt against an Order.
-
-    Razorpay payments happen in two phases:
-      1. Server creates a Razorpay order  -> we store `razorpay_order_id`, status="created".
-      2. Browser pays and returns the payment id + signature -> we verify and
-         update `razorpay_payment_id`, `razorpay_signature`, status="paid"/"failed".
-    """
 
     STATUS_CREATED = "created"
     STATUS_PAID    = "paid"
@@ -23,9 +16,7 @@ class Payment(models.Model):
 
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="payments")
 
-    # Phase 1: created by our server before the user pays.
     razorpay_order_id   = models.CharField(max_length=100, db_index=True)
-    # Phase 2: returned by Razorpay's checkout after a successful payment.
     razorpay_payment_id = models.CharField(max_length=100, blank=True)
     razorpay_signature  = models.CharField(max_length=255, blank=True)
 

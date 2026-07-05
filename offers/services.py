@@ -1,9 +1,4 @@
-"""Offer pricing + referral rewards.
 
-`best_offer_for` is the single source of truth for the effective price, called
-from product listing, detail, cart and checkout so the number is consistent
-everywhere.
-"""
 from decimal import Decimal
 
 from django.conf import settings
@@ -20,8 +15,6 @@ def _live_filter():
 
 
 def best_offer_percent(variant):
-    """Largest live discount % applicable to this variant — the bigger of its
-    product offer and its category offer."""
     product = variant.product
     offers = Offer.objects.filter(_live_filter()).filter(
         Q(offer_type=Offer.PRODUCT,  product=product)
@@ -32,12 +25,7 @@ def best_offer_percent(variant):
 
 
 def best_offer_for(variant):
-    """Return pricing for a variant after the best offer.
-
-    {percent, discount_amount, effective_price}. Both offers are percentages on
-    the same base (sale_price), so the largest percent is also the largest rupee
-    saving — no separate comparison needed.
-    """
+    
     percent = best_offer_percent(variant)
     sale_price = Decimal(variant.sale_price)
     if percent <= 0:
@@ -51,9 +39,7 @@ def best_offer_for(variant):
     }
 
 
-# ---------------------------------------------------------------------------
 # Referral
-# ---------------------------------------------------------------------------
 
 import logging
 from django.db import transaction
@@ -73,8 +59,6 @@ def get_or_create_profile(user):
 
 @transaction.atomic
 def apply_referral_code(new_user, code):
-    """Record who referred `new_user` and automatically credit the referral
-    rewards to both the referrer and referee wallets upon account activation."""
     code = (code or "").strip().upper()
     if not code:
         return False
@@ -91,7 +75,6 @@ def apply_referral_code(new_user, code):
 
     profile = get_or_create_profile(new_user)
     
-    # Lock the ReferralProfile row to prevent race conditions & duplicate rewards
     profile = ReferralProfile.objects.select_for_update().get(pk=profile.pk)
     
     if profile.referred_by_id:
@@ -102,9 +85,6 @@ def apply_referral_code(new_user, code):
     profile.reward_granted = True
     profile.save(update_fields=["referred_by", "reward_granted"])
 
-    # Credit rewards:
-    # Referrer: ₹200 wallet credit
-    # Referred user: ₹100 wallet credit
     referrer_reward_amount = Decimal("200.00")
     referee_reward_amount = Decimal("100.00")
 
@@ -128,9 +108,6 @@ def apply_referral_code(new_user, code):
 
 
 def grant_referral_reward_if_due(order):
-    """Called when an order completes. If the buyer was referred and hasn't been
-    rewarded yet, credit both the buyer and the referrer's wallets, once.
-    (This is now mostly a fallback/no-op as rewards are granted immediately upon verification)."""
     from wallet import services as wallet_services
 
     profile = ReferralProfile.objects.filter(user=order.user).select_related("referred_by").first()

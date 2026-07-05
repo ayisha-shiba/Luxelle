@@ -24,7 +24,7 @@ class Coupon(models.Model):
         (SPECIFIC_CATEGORIES, "Specific Categories"),
     ]
 
-    # Payment method choices (stored as comma-separated)
+    # Payment method choices
     PM_ALL    = "all"
     PM_COD    = "cod"
     PM_WALLET = "wallet"
@@ -36,9 +36,7 @@ class Coupon(models.Model):
 
     discount_type  = models.CharField(max_length=10, choices=TYPE_CHOICES, default=PERCENTAGE)
     discount_value = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
-    # Cap on a percentage coupon's rupee value (ignored for flat coupons).
     max_discount_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    # Smallest cart subtotal the coupon can be used on.
     min_order_amount    = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
 
     # Applicability
@@ -74,7 +72,6 @@ class Coupon(models.Model):
 
     @property
     def status(self):
-        """Return human-readable status."""
         now = timezone.now()
         if not self.is_active:
             return "disabled"
@@ -95,7 +92,6 @@ class Coupon(models.Model):
 
 
 class CouponUsage(models.Model):
-    """One redemption. Enforces once-per-user and feeds the total usage count."""
 
     coupon  = models.ForeignKey(Coupon, on_delete=models.CASCADE, related_name="usages")
     user    = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="coupon_usages")

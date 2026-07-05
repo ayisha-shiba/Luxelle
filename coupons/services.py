@@ -1,9 +1,4 @@
-"""Coupon validation, discount math and redemption recording.
 
-`validate_coupon` is the gatekeeper (used both when applying at checkout and
-when finalising the order); `compute_discount` is pure math so totals can be
-recomputed any time (e.g. after a cancellation).
-"""
 from decimal import Decimal
 
 from core.pricing import money

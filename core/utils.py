@@ -153,7 +153,7 @@ def send_otp_email(user, otp_code: str, purpose: str) -> bool:
         logger.error(f"Failed to send OTP email to {user.email}: {exc}")
         return False
 
-       
+
 
 def set_pending_user_session(request, user_id, purpose: str):
     

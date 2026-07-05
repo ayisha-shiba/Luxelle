@@ -600,12 +600,10 @@ def profile_view(request):
     user      = request.user.__class__.objects.select_related("profile").get(pk=request.user.pk)
     profile   = user.profile
     addresses = user.addresses.all()
-
     referral = offers_services.get_or_create_profile(user)
     referral_link = request.build_absolute_uri(f"{reverse('register')}?ref={referral.code}")
     referred_qs = ReferralProfile.objects.filter(referred_by=user)
     referred_count = referred_qs.count()
-    # Earnings are only released once a referred user completes their first order.
     rewards_released = referred_qs.filter(reward_granted=True).count()
     referral_earnings = rewards_released * offers_services.REFERRAL_REWARD
 
@@ -1265,7 +1263,6 @@ def order_invoice_view(request, order_number):
             response["Content-Disposition"] = f'attachment; filename="Luxelle-Invoice-{order.order_number}.pdf"'
             return response
         except Exception:
-            # Fallback to regeneration if the file is missing from disk for some reason
             pass
 
     billed = [i for i in order.items.all() if i.is_billable]
@@ -1963,7 +1960,6 @@ def checkout_view(request):
     from wallet import services as wallet_services
     summary = pricing.summarize_items(items, coupon_discount=coupon_discount)
 
-    # Fetch available coupons for the dropdown
     from coupons.models import Coupon, CouponUsage
     from django.db.models import Count
     now = timezone.now()

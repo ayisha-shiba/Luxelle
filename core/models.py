@@ -563,7 +563,6 @@ class Order(models.Model):
     tax      = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total    = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
-    # Coupon applied to this order (re-evaluated in recalculate_totals).
     coupon          = models.ForeignKey("coupons.Coupon", on_delete=models.SET_NULL, null=True, blank=True, related_name="orders")
     coupon_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
@@ -638,12 +637,6 @@ class Order(models.Model):
         return [(s, labels.get(s, s.title())) for s in seen]
 
     def recalculate_totals(self, save=True):
-        """Recompute money fields from billable items only and persist.
-
-        Items are fulfilled independently, so cancelled / returned items must
-        drop out of the subtotal, discount, GST and grand total. Call this from
-        every place an item's status changes so all pages stay consistent.
-        """
         from decimal import Decimal
         from . import pricing
 
@@ -651,8 +644,6 @@ class Order(models.Model):
         products_total = sum((Decimal(i.line_total) for i in billable), Decimal("0"))
         mrp_total      = sum((Decimal(i.original_price) * i.quantity for i in billable), Decimal("0"))
 
-        # Re-evaluate the coupon against what's left billable. If items were
-        # cancelled below the minimum, the coupon simply yields 0 now.
         coupon_discount = Decimal("0")
         if self.coupon_id and products_total > 0:
             from coupons.services import compute_discount
@@ -666,8 +657,6 @@ class Order(models.Model):
         self.tax      = totals["gst"]
         self.total    = totals["grand_total"]
         
-        # Invalidate the cached invoice if the order composition changes
-        # so it regenerates with the correct 'Refunded/Returned' markings and amounts.
         if self.invoice_file:
             self.invoice_file.delete(save=False)
             self.invoice_file = None
@@ -678,11 +667,6 @@ class Order(models.Model):
 
     @property
     def derived_status(self):
-        """A single (css_value, label) for the order, derived from its items.
-
-        The order-level ``status`` field isn't moved when items change one by
-        one, so badges read from here instead to reflect the real state.
-        """
         statuses = list(self.items.values_list("status", flat=True))
         if not statuses:
             return (self.status, self.get_status_display())
@@ -777,9 +761,6 @@ class OrderItem(models.Model):
     CANCELLABLE_STATUSES = [
         STATUS_PENDING, STATUS_CONFIRMED, STATUS_PACKED, STATUS_PAYMENT_FAILED,
     ]
-    # Statuses where the customer is no longer being charged for the item:
-    # cancelled before fulfilment, or any approved/completed return (refund due).
-    # A *requested* or *rejected* return still counts — the customer keeps & pays.
     NON_BILLABLE_STATUSES = [
         STATUS_CANCELLED,
         STATUS_RETURN_APPROVED, STATUS_PICKUP_SCHEDULED,
@@ -793,7 +774,7 @@ class OrderItem(models.Model):
     variant_name = models.CharField(max_length=200)
     sku          = models.CharField(max_length=50)
     unit_price   = models.DecimalField(max_digits=10, decimal_places=2)
-    original_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # MRP snapshot for discount recalculation
+    original_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)   
     quantity     = models.PositiveIntegerField()
     line_total   = models.DecimalField(max_digits=10, decimal_places=2)
 
@@ -817,7 +798,6 @@ class OrderItem(models.Model):
 
     @property
     def is_billable(self):
-        """True when this item still contributes to the order's payable total."""
         return self.status not in self.NON_BILLABLE_STATUSES
 
     @property
@@ -839,7 +819,6 @@ class OrderItem(models.Model):
 
     @property
     def is_refunded(self):
-        """True if a wallet refund credit has been issued for this item."""
         from wallet.models import WalletTransaction
         return WalletTransaction.objects.filter(
             order_item=self, txn_type=WalletTransaction.CREDIT

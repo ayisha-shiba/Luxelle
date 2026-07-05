@@ -31,12 +31,11 @@ class OfferForm(forms.ModelForm):
         valid_from = cleaned.get("valid_from")
         valid_to   = cleaned.get("valid_to")
 
-        # Detect discount type from UI (not a model field, just for message context)
         discount_type = "percentage"
         if self.data:
             discount_type = self.data.get("dummy_discount_type", "percentage")
 
-        # 1. Name validation — required, no whitespace-only, min 3 chars, alphanumeric required
+        # 1. Name validation 
         import re
         if not name or not name.strip():
             if name and len(name) > 0:
@@ -52,7 +51,7 @@ class OfferForm(forms.ModelForm):
             elif not re.search(r'[a-zA-Z0-9]', name):
                 self.add_error("name", "Offer name must contain at least one letter or number.")
 
-            # 2. Duplicate Name check among active offers
+            
             if cleaned.get("is_active"):
                 dup_qs = Offer.objects.filter(name__iexact=name, is_active=True)
                 if self.instance.pk:
@@ -60,7 +59,7 @@ class OfferForm(forms.ModelForm):
                 if dup_qs.exists():
                     self.add_error("name", "An active offer with this name already exists.")
 
-        # 3. Discount Validation — type-aware error messages
+        # 3. Discount Validation 
         if discount is not None:
             if discount <= 0:
                 if discount_type == "percentage":
@@ -103,7 +102,7 @@ class OfferForm(forms.ModelForm):
             cleaned["product"] = None
             cleaned["category"] = None
 
-        # 6. Competing offer validation (no two active offers for same target)
+        # 6. Competing offer validation 
         target = product if offer_type == Offer.PRODUCT else category
         if offer_type != Offer.GLOBAL and target and cleaned.get("is_active"):
             dup = Offer.objects.filter(offer_type=offer_type, is_active=True)
