@@ -1,5 +1,11 @@
 # 👜 Luxelle
 
+![Python](https://img.shields.io/badge/Python-3.12-blue)
+![Django](https://img.shields.io/badge/Django-6.0-success)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue)
+![AWS](https://img.shields.io/badge/AWS-EC2-orange)
+![License](https://img.shields.io/badge/License-Educational-lightgrey)
+
 ## Overview
 
 **Luxelle** is a full-stack luxury handbag e-commerce platform built with **Django**, designed to deliver a seamless and secure online shopping experience. Customers can browse premium handbags, discover products through advanced filtering, securely place orders, manage their accounts, and track purchases. The platform also provides a powerful admin dashboard for managing products, inventory, customers, orders, and business operations efficiently.
@@ -136,8 +142,14 @@
 
 ## Cloud Storage
 
-* AWS S3 (Product Images)
+* AWS EC2
+* AWS S3
+* Nginx
+* Gunicorn
+* PostgreSQL
+* Let's Encrypt SSL
 
+  
 ## Dashboard
 
 * Jazzmin Admin
@@ -149,28 +161,29 @@
 
 ```text
 Luxelle/
-├── accounts/              # Authentication & user profiles
-├── admin_panel/           # Admin dashboard and management
-├── cart/                  # Shopping cart functionality
-├── orders/                # Order processing
-├── payments/               # Razorpay integration
-├── products/               # Products, categories & variants
-├── users/                  # User profiles & address management
-├── wishlist/                # Wishlist functionality
-├── static/                 # CSS, JavaScript & Images
-├── media/                   # Uploaded product images
-├── templates/               # HTML templates
-├── screenshots/             # README preview images
-├── config/                  # Django project configuration
+├── core/                 # Core application (users, products, orders, cart, wishlist)
+├── coupons/              # Coupon management
+├── offers/               # Promotional offers
+├── payments/             # Razorpay payment integration
+├── wallet/               # Wallet & refund management
+├── myproject/            # Django project configuration
+│   ├── __init__.py
 │   ├── settings.py
 │   ├── urls.py
 │   ├── wsgi.py
 │   └── asgi.py
-├── manage.py
-├── requirements.txt
-└── README.md
+├── static/               # Static assets (CSS, JS, Images)
+├── staticfiles/          # Collected static files for production
+├── media/                # Uploaded media files
+├── templates/            # HTML templates
+├── screenshots/          # README screenshots
+├── avatars/              # Default profile images
+├── venv/                 # Virtual environment (not pushed to GitHub)
+├── manage.py             # Django management script
+├── requirements.txt      # Project dependencies
+├── README.md             # Project documentation
+└── .env.example          # Example environment variables
 ```
-
 ---
 
 # 🚀 Getting Started
@@ -188,7 +201,7 @@ Luxelle/
 ### Clone Repository
 
 ```bash
-git clone https://github.com/your-username/Luxelle.git
+git clone https://github.com/ayisha-shiba/Luxelle.git
 cd Luxelle
 ```
 
@@ -241,10 +254,9 @@ python manage.py runserver
 
 ## Access the Application
 
-**Frontend:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+**Website:** https://luxelle.ayishashibapk.in
 
-**Admin Panel:** [http://127.0.0.1:8000/admin-panel/](http://127.0.0.1:8000/admin-panel/)
-
+**Admin Panel:** https://luxelle.ayishashibapk.in/admin-panel/
 ---
 
 # 🔒 Security Features
@@ -262,8 +274,19 @@ python manage.py runserver
 
 # 🌐 Deployment
 
-The application is deployed on **AWS EC2**, with **AWS S3** used for secure storage of product images.
+The application is deployed on **AWS Cloud** using a production-ready setup.
 
+### Infrastructure
+
+- AWS EC2 (Ubuntu)
+- Nginx (Reverse Proxy)
+- Gunicorn (WSGI Server)
+- PostgreSQL Database
+- AWS S3 (Product Images)
+- Let's Encrypt SSL
+- Custom Domain & HTTPS
+
+**Live URL:** https://luxelle.ayishashibapk.in
 ---
 
 # 🚀 Future Enhancements
