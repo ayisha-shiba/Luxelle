@@ -12,7 +12,7 @@ SECRET_KEY = os.environ.get(
     "django-insecure-CHANGE-THIS-IN-PRODUCTION",
 )
 
-DEBUG = os.environ.get("DEBUG", "True").lower() == "true"
+DEBUG=False
 
 ALLOWED_HOSTS = os.environ.get(
     "ALLOWED_HOSTS", "localhost,127.0.0.1,testserver"
@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "wallet",
     "offers",
     "coupons",
+    "storages",
 ]
 
 MIDDLEWARE = [
@@ -95,13 +96,14 @@ ACCOUNT_USER_MODEL_USERNAME_FIELD  = None
 ACCOUNT_EMAIL_VERIFICATION         = "optional"
 ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 3
 ACCOUNT_SESSION_REMEMBER           = True
-ACCOUNT_LOGOUT_ON_GET              = True
+ACCOUNT_LOGOUT_ON_GET              = False
 ACCOUNT_ALLOW_REGISTRATION         = True
 
-SOCIALACCOUNT_AUTO_SIGNUP    = True
-SOCIALACCOUNT_STORE_TOKENS   = True
-SOCIALACCOUNT_QUERY_EMAIL    = True
-SOCIALACCOUNT_LOGIN_ON_GET   = True
+SOCIALACCOUNT_AUTO_SIGNUP         = True
+SOCIALACCOUNT_STORE_TOKENS        = True
+SOCIALACCOUNT_QUERY_EMAIL         = True
+SOCIALACCOUNT_LOGIN_ON_GET        = True
+SOCIALACCOUNT_EMAIL_VERIFICATION  = "none"
 SOCIALACCOUNT_PROVIDERS = {
     "google": {
         "SCOPE":             ["profile", "email"],
@@ -134,7 +136,13 @@ SESSION_ENGINE           = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_AGE       = 1209600    
 SESSION_COOKIE_HTTPONLY  = True        
 SESSION_COOKIE_SAMESITE  = "Lax"      
-SESSION_COOKIE_SECURE    = not DEBUG  
+SESSION_COOKIE_SECURE    = not DEBUG
+
+# Tell Django it's behind an HTTPS-terminating proxy (AWS ALB / Nginx).
+# Without this, SESSION_COOKIE_SECURE=True blocks session cookies in production
+# because Django sees plain HTTP from the load balancer, causing new OAuth
+# users to lose their session immediately after login (HTTP 405 symptom).
+SECURE_PROXY_SSL_HEADER  = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_SAVE_EVERY_REQUEST = False
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
@@ -183,7 +191,9 @@ STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT     = BASE_DIR / "staticfiles"   # For collectstatic in production
 
-MEDIA_URL  = "/media/"
+STATIC_URL = "/static/"
+STATICFILES_DIRS = [BASE_DIR / "static"]
+STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -247,3 +257,32 @@ LOGOUT_REDIRECT_URL = 'login'
 
 from decimal import Decimal as _Decimal
 REFERRAL_REWARD_AMOUNT = _Decimal(os.environ.get("REFERRAL_REWARD_AMOUNT", "100"))
+
+
+
+# AWS S3 Configuration
+
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME")
+
+AWS_S3_SIGNATURE_VERSION = "s3v4"
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = False
+
+AWS_S3_CUSTOM_DOMAIN = (
+    f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+)
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
