@@ -137,11 +137,6 @@ SESSION_COOKIE_AGE       = 1209600
 SESSION_COOKIE_HTTPONLY  = True        
 SESSION_COOKIE_SAMESITE  = "Lax"      
 SESSION_COOKIE_SECURE    = not DEBUG
-
-# Tell Django it's behind an HTTPS-terminating proxy (AWS ALB / Nginx).
-# Without this, SESSION_COOKIE_SECURE=True blocks session cookies in production
-# because Django sees plain HTTP from the load balancer, causing new OAuth
-# users to lose their session immediately after login (HTTP 405 symptom).
 SECURE_PROXY_SSL_HEADER  = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_SAVE_EVERY_REQUEST = False
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
@@ -187,14 +182,10 @@ USE_TZ        = True
 
 # Static & Media
 
-STATIC_URL = "/static/"
+STATIC_URL       = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-STATIC_ROOT     = BASE_DIR / "staticfiles"   # For collectstatic in production
-
-STATIC_URL = "/static/"
-STATICFILES_DIRS = [BASE_DIR / "static"]
-STATIC_ROOT = BASE_DIR / "staticfiles"
-MEDIA_ROOT = BASE_DIR / "media"
+STATIC_ROOT      = BASE_DIR / "staticfiles"   
+MEDIA_ROOT       = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -209,12 +200,8 @@ EMAIL_HOST_USER     = os.environ.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL  = EMAIL_HOST_USER
 
-# Razorpay (test keys live in .env, never commit real keys)
 RAZORPAY_KEY_ID     = os.environ.get("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
-
-# Wallet credit granted to both users on a successful referral
-REFERRAL_REWARD_AMOUNT = os.environ.get("REFERRAL_REWARD_AMOUNT", "100.00")
 
 # Logging
 
