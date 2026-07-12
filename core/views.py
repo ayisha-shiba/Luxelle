@@ -378,6 +378,12 @@ def resend_otp_view(request):
         messages.error(request, "Session expired. Please register again.")
         return redirect("register")
 
+    # Invalidate the previous OTP immediately
+    request.session.pop("pending_otp", None)
+    request.session.pop("pending_otp_expires_at", None)
+    request.session.pop("pending_otp_sent_at", None)
+    request.session.save()
+
     otp_code = generate_otp()
     expires_at = timezone.now() + timedelta(minutes=OTP_EXPIRY_MINUTES)
 

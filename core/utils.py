@@ -9,7 +9,7 @@ from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
-OTP_EXPIRY_MINUTES   = 10
+OTP_EXPIRY_MINUTES   = 1
 OTP_RESEND_COOLDOWN  = 60   # seconds
 SESSION_EXPIRY_MINUTES = 15 
 
@@ -107,7 +107,7 @@ def send_otp_email(user, otp_code: str, purpose: str) -> bool:
             f"Hi {user.first_name or 'there'},\n\n"
             f"Welcome to Luxelle! Use the OTP below to verify your email address.\n\n"
             f"OTP: {otp_code}\n\n"
-            f"This OTP is valid for {OTP_EXPIRY_MINUTES} minutes.\n\n"
+            f"This OTP is valid for 1 minute.\n\n"
             f"If you did not create an account, please ignore this email.\n\n"
             f"- The Luxelle Team"
         )
@@ -116,7 +116,7 @@ def send_otp_email(user, otp_code: str, purpose: str) -> bool:
             f"Hi {user.first_name or 'there'},\n\n"
             f"We received a request to change the email address on your Luxelle account.\n\n"
             f"OTP: {otp_code}\n\n"
-            f"This OTP is valid for {OTP_EXPIRY_MINUTES} minutes.\n\n"
+            f"This OTP is valid for 1 minute.\n\n"
             f"If you did not request this change, please ignore this email.\n\n"
             f"- The Luxelle Team"
         )
@@ -125,7 +125,7 @@ def send_otp_email(user, otp_code: str, purpose: str) -> bool:
             f"Hi {user.first_name or 'there'},\n\n"
             f"We received a request to permanently delete your Luxelle account.\n\n"
             f"OTP: {otp_code}\n\n"
-            f"This OTP is valid for {OTP_EXPIRY_MINUTES} minutes.\n\n"
+            f"This OTP is valid for 1 minute.\n\n"
             f"WARNING: Entering this code will permanently erase your account and all data. "
             f"If you did not request this, please ignore this email and change your password.\n\n"
             f"- The Luxelle Team"
@@ -135,7 +135,7 @@ def send_otp_email(user, otp_code: str, purpose: str) -> bool:
             f"Hi {user.first_name or 'there'},\n\n"
             f"We received a request to reset your Luxelle password.\n\n"
             f"OTP: {otp_code}\n\n"
-            f"This OTP is valid for {OTP_EXPIRY_MINUTES} minutes.\n\n"
+            f"This OTP is valid for 1 minute.\n\n"
             f"If you did not request this, please ignore this email.\n\n"
             f"- The Luxelle Team"
         )

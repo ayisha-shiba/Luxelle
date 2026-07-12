@@ -661,6 +661,11 @@ def admin_resend_forgot_password_otp_view(request):
     email_sent = send_otp_email(user, otp_obj.otp, purpose="password_reset")
 
     if email_sent:
+        set_pending_user_session(request, user.id, purpose="password_reset")
+        request.session["pending_otp"] = otp_obj.otp
+        request.session["pending_otp_expires_at"] = (otp_obj.created_at + timedelta(minutes=OTP_EXPIRY_MINUTES)).isoformat()
+        request.session["pending_otp_sent_at"] = otp_obj.created_at.isoformat()
+        request.session.save()
         messages.success(request, f"A new OTP has been sent to {user.email}.")
     else:
         messages.error(request, "Failed to resend OTP. Please try again.")

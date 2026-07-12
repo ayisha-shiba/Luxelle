@@ -215,6 +215,34 @@ class RegistrationFlowTest(TestCase):
 
         self.assertContains(response, 'OTP resent successfully.')
 
+    def test_otp_expiry_enforcement_registration(self):
+        form_data = {
+            'full_name': 'Test User',
+            'email': 'expirycheck@example.com',
+            'phone': '9876543210',
+            'password1': 'StrongPass!123',
+            'password2': 'StrongPass!123',
+        }
+        self.client.post(self.register_url, data=form_data)
+        otp = self.client.session['pending_otp']
+        
+        # 1. Wrong OTP within 1 minute -> "Invalid OTP."
+        response = self.client.post(self.verify_url, data={'otp': '000000'})
+        self.assertContains(response, 'Invalid OTP. Please try again.')
+        
+        # 2. Correct OTP after 1 minute -> "OTP has expired. Please request a new OTP."
+        session = self.client.session
+        past_time = (timezone.now() - timedelta(seconds=61)).isoformat()
+        session['pending_otp_expires_at'] = past_time
+        session.save()
+        
+        response = self.client.post(self.verify_url, data={'otp': otp})
+        self.assertContains(response, 'OTP has expired. Please request a new OTP.')
+        
+        # 3. Wrong OTP after 1 minute -> "OTP has expired. Please request a new OTP."
+        response = self.client.post(self.verify_url, data={'otp': '000000'})
+        self.assertContains(response, 'OTP has expired. Please request a new OTP.')
+
     def test_write_review_allowed_for_item_delivered_order(self):
         user = get_user_model().objects.create_user(
             email='buyer@example.com',
