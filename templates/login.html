@@ -53,7 +53,7 @@
     </div>
 {% endif %}
 {% if messages %} {% for message in messages %}<div class="alert alert-{{ message.tags }}">{{ message }}</div>{% endfor %} {% endif %}
-<form id="loginForm" method="POST" action="{% url 'login' %}" class="font-inter">
+<form id="loginForm" method="POST" action="{% url 'login' %}{% if request.GET.next %}?next={{ request.GET.next|urlencode }}{% endif %}" class="font-inter">
     {% csrf_token %}
     <!-- Email Input -->
     <div class="form-floating mb-4 custom-input-group">
@@ -89,8 +89,8 @@
                                 <span class="line flex-grow-1"></span>
                             </div>
 
-                            {% provider_login_url 'google' process='login' as google_login_url %}
-                            <a href="{{ google_login_url|default:'/accounts/google/login/?process=login' }}" class="google-btn w-100 py-3 mb-4 d-flex align-items-center justify-content-center gap-3" title="Continue with Google" aria-label="Continue with Google sign in">
+                            {% provider_login_url 'google' process='login' next=request.GET.next as google_login_url %}
+                            <a href="{% if google_login_url %}{{ google_login_url }}{% else %}/accounts/google/login/?process=login{% if request.GET.next %}&next={{ request.GET.next|urlencode }}{% endif %}{% endif %}" class="google-btn w-100 py-3 mb-4 d-flex align-items-center justify-content-center gap-3" title="Continue with Google" aria-label="Continue with Google sign in">
                                 <span class="google-icon d-flex align-items-center justify-content-center" aria-hidden="true">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" role="img" focusable="false">
                                         <path fill="#4285F4" d="M23.745 12.27c0-.79-.07-1.54-.19-2.27h-11.3v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82Z"/>

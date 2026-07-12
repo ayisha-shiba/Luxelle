@@ -65,9 +65,7 @@ def verify_otp(user, otp_input: str, purpose: str) -> tuple[bool, str]:
 
     from .models import OTPVerification
 
-
-    OTPVerification.objects.filter(expires_at__lt=timezone.now()).delete()
-
+    # 1. Check whether an OTP exists
     try:
         otp_obj = OTPVerification.objects.filter(
             user=user,
@@ -77,12 +75,16 @@ def verify_otp(user, otp_input: str, purpose: str) -> tuple[bool, str]:
     except OTPVerification.DoesNotExist:
         return False, "No active OTP found. Please request a new one."
 
-    if not otp_obj.is_valid():
-        return False, "OTP has expired. Please request a new one."
+    # 2. Check whether it has expired
+    if timezone.now() > otp_obj.expires_at:
+        otp_obj.delete()
+        return False, "OTP has expired. Please request a new OTP."
 
+    # 3. Check whether it matches the stored OTP
     if otp_obj.otp != otp_input:
         return False, "Invalid OTP. Please try again."
 
+    # 4. Only then complete verification/authentication (and delete the OTP record so it cannot be reused)
     OTPVerification.objects.filter(user=user, purpose=purpose).delete()
 
     return True, ""

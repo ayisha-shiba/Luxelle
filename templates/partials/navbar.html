@@ -41,7 +41,7 @@
                 <i class="fa-regular fa-user fs-5 {% if active == 'profile' %}text-lux-gold{% endif %}"></i>
             </a>
 {% else %}
-            <a href="{% url 'login' %}" class="btn-login-lux d-inline-flex align-items-center">Login</a>
+            <a href="{% url 'login' %}{% if request.path != '/login/' and request.path != '/register/' %}?next={{ request.path|urlencode }}{% endif %}" class="btn-login-lux d-inline-flex align-items-center">Login</a>
 {% endif %}
         </div>
     </div>

@@ -304,6 +304,9 @@ def verify_otp_view(request):
             otp_input = form.cleaned_data["otp"]
 
             if timezone.now() > expires_at:
+                request.session.pop("pending_otp", None)
+                request.session.pop("pending_otp_expires_at", None)
+                request.session.save()
                 messages.error(request, "OTP has expired. Please request a new OTP.")
                 return render(request, "verify_otp.html", {
                     "form": form,
@@ -507,6 +510,18 @@ def forgot_password_otp_view(request):
     if not user or request.session.get("otp_purpose") != "password_reset":
         messages.error(request, "Session expired. Please request a new OTP.")
         return redirect("forgot_password")
+
+    # Block access entirely if OTP has already expired in the DB
+    latest_otp = OTPVerification.objects.filter(
+        user=user, purpose="password_reset", is_used=False
+    ).order_by("-created_at").first()
+    if not latest_otp or timezone.now() > latest_otp.expires_at:
+        if latest_otp:
+            latest_otp.delete()
+        clear_pending_user_session(request)
+        messages.error(request, "OTP has expired. Please request a new OTP.")
+        return redirect("forgot_password")
+
     form = OTPVerificationForm(request.POST or None)
     seconds_remaining = _get_pending_otp_resend_seconds_remaining(request)
 
@@ -735,6 +750,18 @@ def verify_email_otp_view(request):
         messages.error(request, "Session expired. Please start the email change process again.")
         return redirect("profile")
 
+    # Block access entirely if OTP has already expired in the DB
+    latest_otp = OTPVerification.objects.filter(
+        user=user, purpose="email_change", is_used=False
+    ).order_by("-created_at").first()
+    if not latest_otp or timezone.now() > latest_otp.expires_at:
+        if latest_otp:
+            latest_otp.delete()
+        clear_pending_user_session(request)
+        request.session.pop("pending_new_email", None)
+        messages.error(request, "OTP has expired. Please start the email change process again.")
+        return redirect("profile")
+
     new_email = request.session.get("pending_new_email")
     form      = OTPVerificationForm(request.POST or None)
 
@@ -785,6 +812,7 @@ def resend_email_otp_view(request):
 
     otp_obj = create_otp_for_user(user, purpose="email_change")
     send_otp_email(user, otp_obj.otp, purpose="email_change")
+    set_pending_user_session(request, user.pk, purpose="email_change")
     messages.success(request, f"A new OTP has been sent to {user.email}.")
     return redirect("verify_email_otp")
 
