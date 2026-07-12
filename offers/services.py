@@ -117,6 +117,6 @@ def grant_referral_reward_if_due(order):
     profile.reward_granted = True
     profile.save(update_fields=["reward_granted"])
 
-    wallet_services.credit(order.user, REFERRAL_REWARD, "Referral reward (welcome bonus)")
-    wallet_services.credit(profile.referred_by, REFERRAL_REWARD, "Referral reward (friend's first order)")
+    wallet_services.credit(order.user, Decimal("100.00"), "Referral reward (welcome bonus)")
+    wallet_services.credit(profile.referred_by, Decimal("200.00"), "Referral reward (friend's first order)")
 
