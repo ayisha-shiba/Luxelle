@@ -581,13 +581,17 @@ def set_new_password_view(request):
 
     if request.method == "POST":
         if form.is_valid():
-            user.set_password(form.cleaned_data["new_password"])
-            user.save(update_fields=["password"])
-            request.session.pop("password_reset_verified", None)
-            request.session.pop("password_reset_user_id",  None)
+            new_password = form.cleaned_data["new_password"]
+            if user.check_password(new_password):
+                form.add_error("new_password", "Your new password cannot be the same as your current password.")
+            else:
+                user.set_password(new_password)
+                user.save(update_fields=["password"])
+                request.session.pop("password_reset_verified", None)
+                request.session.pop("password_reset_user_id",  None)
 
-            messages.success(request, "Password updated successfully. Please log in.")
-            return redirect("login")
+                messages.success(request, "Password updated successfully. Please log in.")
+                return redirect("login")
 
     return render(request, "set_new_password.html", {"form": form})
 

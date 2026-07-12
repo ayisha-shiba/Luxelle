@@ -693,21 +693,25 @@ def admin_reset_password_view(request):
 
     if request.method == "POST":
         if form.is_valid():
-            user.set_password(form.cleaned_data["new_password"])
-            user.save(update_fields=["password"])
+            new_password = form.cleaned_data["new_password"]
+            if user.check_password(new_password):
+                form.add_error("new_password", "Your new password cannot be the same as your current password.")
+            else:
+                user.set_password(new_password)
+                user.save(update_fields=["password"])
 
-            for key in (
-                "password_reset_verified",
-                "password_reset_user_id",
-                "_is_admin",
-                "_admin_user_id",
-                "_admin_pw_hash",
-            ):
-                request.session.pop(key, None)
-            request.session.cycle_key()
+                for key in (
+                    "password_reset_verified",
+                    "password_reset_user_id",
+                    "_is_admin",
+                    "_admin_user_id",
+                    "_admin_pw_hash",
+                ):
+                    request.session.pop(key, None)
+                request.session.cycle_key()
 
-            messages.success(request, "Password updated successfully. Please log in with your new password.")
-            return redirect("admin_login")
+                messages.success(request, "Password updated successfully. Please log in with your new password.")
+                return redirect("admin_login")
 
     return render(request, "admin_panel/reset_password.html", {"form": form})
 
