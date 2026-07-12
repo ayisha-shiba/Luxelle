@@ -605,18 +605,48 @@ def set_new_password_view(request):
 def profile_view(request):
     from decimal import Decimal
     from django.urls import reverse
+    from django.db.models import Sum
     from offers import services as offers_services
     from offers.models import ReferralProfile
+    from wallet.models import WalletTransaction
 
     user      = request.user.__class__.objects.select_related("profile").get(pk=request.user.pk)
     profile   = user.profile
     addresses = user.addresses.all()
     referral = offers_services.get_or_create_profile(user)
     referral_link = request.build_absolute_uri(f"{reverse('register')}?ref={referral.code}")
-    referred_qs = ReferralProfile.objects.filter(referred_by=user)
-    referred_count = referred_qs.count()
-    rewards_released = referred_qs.filter(reward_granted=True).count()
-    referral_earnings = rewards_released * offers_services.REFERRAL_REWARD
+
+    # Count only referrals that satisfy the success criteria (reward_granted=True)
+    referred_count = ReferralProfile.objects.filter(referred_by=user, reward_granted=True).count()
+
+    # Determine reward amount based on role
+    has_referrals = ReferralProfile.objects.filter(referred_by=user).exists()
+    is_referred_friend = referral.referred_by_id is not None
+
+    if has_referrals:
+        rewards_released = "₹200 per successful referral"
+    elif is_referred_friend:
+        rewards_released = "₹100 (signup reward)"
+    else:
+        rewards_released = 0
+
+    # Earnings calculation
+    txns = WalletTransaction.objects.filter(
+        wallet__user=user,
+        txn_type=WalletTransaction.CREDIT,
+        reason__icontains="referral"
+    )
+    txns_sum = txns.aggregate(total=Sum("amount"))["total"]
+
+    if txns_sum is not None:
+        referral_earnings = txns_sum
+    else:
+        referral_earnings = referred_count * Decimal("200.00")
+        if is_referred_friend and referral.reward_granted:
+            referral_earnings += Decimal("100.00")
+
+    if isinstance(referral_earnings, Decimal) and referral_earnings % 1 == 0:
+        referral_earnings = int(referral_earnings)
 
     return render(request, "profile.html", {
         "user":      user,

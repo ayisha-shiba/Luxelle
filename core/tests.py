@@ -408,3 +408,172 @@ class ReviewValidationTest(TestCase):
         # Ensure there's one visible review for this user & product
         visible = Review.objects.filter(user=self.user, product=self.product, is_hidden=False)
         self.assertEqual(visible.count(), 1)
+
+
+class ReferralStatsTest(TestCase):
+    def setUp(self):
+        self.user_model = get_user_model()
+        self.client = Client()
+
+    def test_profile_referral_stats_user_with_no_referrals(self):
+        user = self.user_model.objects.create_user(
+            email='noreferrals@example.com',
+            password='password123',
+            is_active=True,
+            is_verified=True,
+        )
+        self.client.force_login(user)
+        response = self.client.get(reverse('profile'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['referred_count'], 0)
+        self.assertEqual(response.context['rewards_released'], 0)
+        self.assertEqual(response.context['referral_earnings'], 0)
+
+    def test_profile_referral_stats_referred_friend(self):
+        from decimal import Decimal
+        from wallet.models import WalletTransaction
+
+        referrer = self.user_model.objects.create_user(
+            email='referrer@example.com',
+            password='password123',
+            is_active=True,
+            is_verified=True,
+        )
+        friend = self.user_model.objects.create_user(
+            email='friend@example.com',
+            password='password123',
+            is_active=True,
+            is_verified=True,
+        )
+
+        friend_profile = ReferralProfile.objects.create(
+            user=friend,
+            code=ReferralProfile.generate_code(),
+            referred_by=referrer,
+            reward_granted=True
+        )
+
+        wallet, _ = Wallet.objects.get_or_create(user=friend)
+        WalletTransaction.objects.create(
+            wallet=wallet,
+            txn_type=WalletTransaction.CREDIT,
+            amount=Decimal("100.00"),
+            reason="Referral bonus for signing up",
+            balance_after=Decimal("100.00")
+        )
+
+        self.client.force_login(friend)
+        response = self.client.get(reverse('profile'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['referred_count'], 0)
+        self.assertEqual(response.context['rewards_released'], '₹100 (signup reward)')
+        self.assertEqual(response.context['referral_earnings'], 100)
+
+    def test_profile_referral_stats_referrer_one_successful(self):
+        from decimal import Decimal
+        from wallet.models import WalletTransaction
+
+        referrer = self.user_model.objects.create_user(
+            email='referrer2@example.com',
+            password='password123',
+            is_active=True,
+            is_verified=True,
+        )
+        friend = self.user_model.objects.create_user(
+            email='friend2@example.com',
+            password='password123',
+            is_active=True,
+            is_verified=True,
+        )
+
+        referrer_profile = ReferralProfile.objects.create(
+            user=referrer,
+            code=ReferralProfile.generate_code()
+        )
+
+        friend_profile = ReferralProfile.objects.create(
+            user=friend,
+            code=ReferralProfile.generate_code(),
+            referred_by=referrer,
+            reward_granted=True
+        )
+
+        wallet, _ = Wallet.objects.get_or_create(user=referrer)
+        WalletTransaction.objects.create(
+            wallet=wallet,
+            txn_type=WalletTransaction.CREDIT,
+            amount=Decimal("200.00"),
+            reason="Referral bonus for referring friend",
+            balance_after=Decimal("200.00")
+        )
+
+        self.client.force_login(referrer)
+        response = self.client.get(reverse('profile'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['referred_count'], 1)
+        self.assertEqual(response.context['rewards_released'], '₹200 per successful referral')
+        self.assertEqual(response.context['referral_earnings'], 200)
+
+    def test_profile_referral_stats_referrer_multiple_successful(self):
+        from decimal import Decimal
+        from wallet.models import WalletTransaction
+
+        referrer = self.user_model.objects.create_user(
+            email='referrer3@example.com',
+            password='password123',
+            is_active=True,
+            is_verified=True,
+        )
+        friend1 = self.user_model.objects.create_user(
+            email='friend3a@example.com',
+            password='password123',
+            is_active=True,
+            is_verified=True,
+        )
+        friend2 = self.user_model.objects.create_user(
+            email='friend3b@example.com',
+            password='password123',
+            is_active=True,
+            is_verified=True,
+        )
+
+        referrer_profile = ReferralProfile.objects.create(
+            user=referrer,
+            code=ReferralProfile.generate_code()
+        )
+
+        ReferralProfile.objects.create(
+            user=friend1,
+            code=ReferralProfile.generate_code(),
+            referred_by=referrer,
+            reward_granted=True
+        )
+        ReferralProfile.objects.create(
+            user=friend2,
+            code=ReferralProfile.generate_code(),
+            referred_by=referrer,
+            reward_granted=True
+        )
+
+        wallet, _ = Wallet.objects.get_or_create(user=referrer)
+        WalletTransaction.objects.create(
+            wallet=wallet,
+            txn_type=WalletTransaction.CREDIT,
+            amount=Decimal("200.00"),
+            reason="Referral bonus for friend1",
+            balance_after=Decimal("200.00")
+        )
+        WalletTransaction.objects.create(
+            wallet=wallet,
+            txn_type=WalletTransaction.CREDIT,
+            amount=Decimal("200.00"),
+            reason="Referral bonus for friend2",
+            balance_after=Decimal("400.00")
+        )
+
+        self.client.force_login(referrer)
+        response = self.client.get(reverse('profile'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['referred_count'], 2)
+        self.assertEqual(response.context['rewards_released'], '₹200 per successful referral')
+        self.assertEqual(response.context['referral_earnings'], 400)
