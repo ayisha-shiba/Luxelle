@@ -68,33 +68,6 @@ def otp_session_required(view_func):
             messages.error(request, "Session expired. Please start again.")
             return redirect("register")
 
-        now = timezone.now()
-
-        if has_registration:
-            expires_at = _parse_iso(request.session.get("pending_otp_expires_at"))
-            if expires_at and now > expires_at:
-                _clear_registration_otp_session(request)
-                messages.error(
-                    request,
-                    "Your OTP has expired. Please register again.",
-                )
-                return redirect("register")
-
-        if has_pending_user:
-            expires_at = _parse_iso(request.session.get("otp_expires_at"))
-            if expires_at and now > expires_at:
-                purpose = request.session.get("otp_purpose", "")
-                _clear_pending_user_otp_session(request)
-                if purpose == "password_reset":
-                    messages.error(
-                        request,
-                        "Your OTP has expired. Please restart the password reset.",
-                    )
-                    return redirect("forgot_password")
-                else:
-                    messages.error(request, "Session expired. Please start again.")
-                    return redirect("register")
-
         return view_func(request, *args, **kwargs)
     return wrapper
 

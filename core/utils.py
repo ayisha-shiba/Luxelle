@@ -73,11 +73,10 @@ def verify_otp(user, otp_input: str, purpose: str) -> tuple[bool, str]:
             is_used=False,
         ).latest("created_at")
     except OTPVerification.DoesNotExist:
-        return False, "No active OTP found. Please request a new one."
+        return False, "OTP has expired. Please request a new OTP."
 
     # 2. Check whether it has expired
     if timezone.now() > otp_obj.expires_at:
-        otp_obj.delete()
         return False, "OTP has expired. Please request a new OTP."
 
     # 3. Check whether it matches the stored OTP
