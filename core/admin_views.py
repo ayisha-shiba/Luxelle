@@ -1738,7 +1738,7 @@ def admin_return_update_status_view(request, item_id):
             note = f"Return step updated to {allowed[new_status]} by admin."
         OrderStatusEvent.objects.create(order_item=item, status=new_status, note=note)
 
-        refund_statuses = {OrderItem.STATUS_RETURNED, OrderItem.STATUS_RETURN_REPAIR}
+        refund_statuses = {OrderItem.STATUS_RETURNED, OrderItem.STATUS_RETURN_REPAIR,OrderItem.STATUS_CANCELLED}
         if new_status in refund_statuses:
             total_before = item.order.total
             item.order.recalculate_totals()
@@ -1771,7 +1771,7 @@ def admin_return_update_status_view(request, item_id):
     messages.success(request, f"{item.product_name}: {allowed[new_status]}.")
     return redirect(request.POST.get("next") or "admin_returns")
 
-
+1
 @admin_required
 @require_POST
 def admin_return_reallow_view(request, item_id):
