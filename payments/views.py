@@ -210,7 +210,7 @@ def payment_callback(request):
                 # Order exists. Update status of items, deduct stock and record coupon.
                 for item_data in checkout_data["items"]:
                     order_item = order.items.filter(variant_id=item_data["variant_id"]).first()
-                    if order_item and order_item.status == OrderItem.STATUS_PAYMENT_FAILED:
+                    if order_item and order_item.status == OrderItem.STATUS_PAYMENT_PENDING:
                         variant = ProductVariant.objects.select_for_update().get(pk=item_data["variant_id"])
                         qty = item_data["quantity"]
                         if variant.stock < qty:
@@ -273,9 +273,22 @@ def payment_callback(request):
 @never_cache
 def payment_failure(request, order_number):
     """Failure page with retry + continue-shopping options."""
+    from core.models import OrderItem, OrderStatusEvent
+
     # Check if order actually exists in DB
     order = Order.objects.filter(order_number=order_number, user=request.user).first()
     if order:
+        # Mark any still-pending-payment items as failed so the admin sees
+        # the correct terminal state.
+        pending_items = order.items.filter(status=OrderItem.STATUS_PAYMENT_PENDING)
+        for item in pending_items:
+            item.status = OrderItem.STATUS_PAYMENT_FAILED
+            item.save(update_fields=["status"])
+            OrderStatusEvent.objects.create(
+                order_item=item,
+                status=OrderItem.STATUS_PAYMENT_FAILED,
+                note="Payment failed or cancelled by user.",
+            )
         return render(request, "payments/payment_failure.html", {"order": order})
 
     # If it is a pending (uncreated) order, we use a placeholder object/dictionary

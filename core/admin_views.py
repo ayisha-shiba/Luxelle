@@ -1543,8 +1543,18 @@ def admin_order_update_status_view(request, order_id):
         )
         return redirect("admin_order_detail", order_id=order.id)
 
+    refund_note = ""
     if new_status == Order.STATUS_CANCELLED and order.status != Order.STATUS_CANCELLED:
         with transaction.atomic():
+            # ── Capture the amount actually paid before zeroing the order total ──
+            from decimal import Decimal
+            from wallet import services as wallet_services
+            from wallet.models import WalletTransaction
+
+            logger = logging.getLogger(__name__)
+
+            refund_amount = Decimal(order.total)
+
             for item in order.items.select_related("variant"):
                 if item.variant and item.status != OrderItem.STATUS_CANCELLED:
                     item.variant.stock += item.quantity
@@ -1554,6 +1564,51 @@ def admin_order_update_status_view(request, order_id):
             order.status = new_status
             order.save(update_fields=["status"])
             order.recalculate_totals()
+
+            # ── Refund logic ──────────────────────────────────────────────────
+            # Only refund if the customer actually pre-paid (wallet or online gateway).
+            prepaid = (
+                order.payment_method == Order.PAYMENT_WALLET
+                or order.payments.filter(status="paid").exists()
+            )
+
+            # Duplicate-refund guard: check for an existing admin-cancellation
+            # refund credit at the order level (not per-item, since this is a
+            # whole-order cancellation).
+            already_refunded = WalletTransaction.objects.filter(
+                order=order,
+                txn_type=WalletTransaction.CREDIT,
+                sub_type=WalletTransaction.SUB_REFUND,
+            ).exists()
+
+            if prepaid and refund_amount > 0 and not already_refunded:
+                try:
+                    wallet_services.credit(
+                        order.user,
+                        refund_amount,
+                        f"Order Cancelled by Admin: {order.order_number}",
+                        order=order,
+                        sub_type=WalletTransaction.SUB_REFUND,
+                    )
+                    refund_note = f" ₹{refund_amount} refunded to customer wallet."
+                    logger.info(
+                        "Admin cancellation refund of ₹%s credited to wallet "
+                        "for order %s (user %s).",
+                        refund_amount,
+                        order.order_number,
+                        order.user_id,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to credit wallet refund of ₹%s for admin-cancelled "
+                        "order %s (user %s).",
+                        refund_amount,
+                        order.order_number,
+                        order.user_id,
+                    )
+                    raise  # re-raise so the atomic block rolls back the whole cancellation
+            elif already_refunded:
+                refund_note = " (refund was already processed earlier)."
     else:
         order.status = new_status
         order.save(update_fields=["status"])
@@ -1563,7 +1618,7 @@ def admin_order_update_status_view(request, order_id):
         note=f"Status updated to {valid_statuses[new_status]} by admin.",
     )
 
-    messages.success(request, f"Order {order.order_number} marked as {valid_statuses[new_status]}.")
+    messages.success(request, f"Order {order.order_number} marked as {valid_statuses[new_status]}.{refund_note}")
     return redirect("admin_order_detail", order_id=order.id)
 
 
@@ -1738,7 +1793,7 @@ def admin_return_update_status_view(request, item_id):
             note = f"Return step updated to {allowed[new_status]} by admin."
         OrderStatusEvent.objects.create(order_item=item, status=new_status, note=note)
 
-        refund_statuses = {OrderItem.STATUS_RETURNED, OrderItem.STATUS_RETURN_REPAIR,OrderItem.STATUS_CANCELLED}
+        refund_statuses = {OrderItem.STATUS_RETURNED, OrderItem.STATUS_RETURN_REPAIR}
         if new_status in refund_statuses:
             total_before = item.order.total
             item.order.recalculate_totals()

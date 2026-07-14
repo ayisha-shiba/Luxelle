@@ -676,6 +676,8 @@ class Order(models.Model):
 
         if not active:                                               # all cancelled
             return ("cancelled", "Cancelled")
+        if any(s == OrderItem.STATUS_PAYMENT_PENDING for s in active):
+            return ("payment_pending", "Payment Pending")
         if any(s == OrderItem.STATUS_PAYMENT_FAILED for s in active):
             return ("payment_failed", "Payment Failed")
         if all(s == OrderItem.STATUS_RETURNED for s in active):
@@ -704,6 +706,7 @@ class OrderItem(models.Model):
     STATUS_RETURNED         = "returned"
     STATUS_RETURN_REPAIR    = "return_repair"
     STATUS_PAYMENT_FAILED   = "payment_failed"
+    STATUS_PAYMENT_PENDING  = "payment_pending"
 
     STATUS_CHOICES = [
         (STATUS_PENDING,          "Pending"),
@@ -721,6 +724,7 @@ class OrderItem(models.Model):
         (STATUS_RETURNED,         "Returned"),
         (STATUS_RETURN_REPAIR,    "Sent for Repair"),
         (STATUS_PAYMENT_FAILED,   "Payment Failed"),
+        (STATUS_PAYMENT_PENDING,  "Payment Pending"),
     ]
 
     RETURN_STATUSES = [
@@ -759,12 +763,14 @@ class OrderItem(models.Model):
         STATUS_SHIPPED, STATUS_OUT_FOR_DELIVERY, STATUS_DELIVERED,
     ]
     CANCELLABLE_STATUSES = [
-        STATUS_PENDING, STATUS_CONFIRMED, STATUS_PACKED, STATUS_PAYMENT_FAILED,
+        STATUS_PENDING, STATUS_CONFIRMED, STATUS_PACKED,
+        STATUS_PAYMENT_FAILED, STATUS_PAYMENT_PENDING,
     ]
     NON_BILLABLE_STATUSES = [
         STATUS_CANCELLED,
         STATUS_RETURN_APPROVED, STATUS_PICKUP_SCHEDULED,
         STATUS_RETURN_PICKED, STATUS_RETURNED, STATUS_RETURN_REPAIR,
+        STATUS_PAYMENT_PENDING,  # not yet paid; exclude from billing until confirmed
     ]
 
     order   = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")

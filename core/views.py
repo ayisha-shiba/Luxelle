@@ -1348,7 +1348,10 @@ def cancel_order_item_view(request, item_id):
     from wallet import services as wallet_services
 
     with transaction.atomic():
-        if item.variant and item.status != OrderItem.STATUS_PAYMENT_FAILED:
+        if item.variant and item.status not in (
+            OrderItem.STATUS_PAYMENT_FAILED,
+            OrderItem.STATUS_PAYMENT_PENDING,
+        ):
             item.variant.stock += item.quantity
             item.variant.save(update_fields=["stock"])
 
@@ -1883,12 +1886,12 @@ def checkout_view(request):
                             original_price=variant.original_price,
                             quantity=item.quantity,
                             line_total=line_total,
-                            status=OrderItem.STATUS_PAYMENT_FAILED,
+                            status=OrderItem.STATUS_PAYMENT_PENDING,
                         )
 
                         OrderStatusEvent.objects.create(
                             order_item=order_item,
-                            status=OrderItem.STATUS_PAYMENT_FAILED,
+                            status=OrderItem.STATUS_PAYMENT_PENDING,
                             note="Order payment initiated.",
                         )
 
