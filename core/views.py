@@ -1852,54 +1852,12 @@ def checkout_view(request):
                 return redirect("checkout")
 
         if payment_method == Order.PAYMENT_RAZORPAY:
+            # Generate a temporary order number without persisting an Order
             temp_order = Order(user=request.user)
             order_number = temp_order._generate_order_number()
-            try:
-                with transaction.atomic():
-                    order = Order.objects.create(
-                        user=request.user,
-                        order_number=order_number,
-                        ship_full_name=address.full_name,
-                        ship_phone=address.phone,
-                        ship_address_line1=address.address_line1,
-                        ship_address_line2=address.address_line2,
-                        ship_city=address.city,
-                        ship_state=address.state,
-                        ship_postal_code=address.postal_code,
-                        ship_country=address.country,
-                        payment_method=payment_method,
-                        coupon=active_coupon,
-                    )
-
-                    for item in items:
-                        variant = item.variant
-                        unit_price = offers_services.best_offer_for(variant)["effective_price"]
-                        line_total = unit_price * item.quantity
-                        
-                        order_item = OrderItem.objects.create(
-                            order=order,
-                            variant=variant,
-                            product_name=variant.product.name,
-                            variant_name=variant.variant_name,
-                            sku=variant.sku,
-                            unit_price=unit_price,
-                            original_price=variant.original_price,
-                            quantity=item.quantity,
-                            line_total=line_total,
-                            status=OrderItem.STATUS_PAYMENT_PENDING,
-                        )
-
-                        OrderStatusEvent.objects.create(
-                            order_item=order_item,
-                            status=OrderItem.STATUS_PAYMENT_PENDING,
-                            note="Order payment initiated.",
-                        )
-
-                    order.recalculate_totals()
-            except Exception as exc:
-                messages.error(request, f"Error initiating order: {str(exc)}")
-                return redirect("checkout")
-
+            # Compute total amount using pricing utility
+            total_amount = pricing.summarize_items(items, coupon_discount=coupon_discount)["grand_total"]
+            # Build checkout data for payment_start view
             checkout_data = {
                 "order_number": order_number,
                 "address": {
@@ -1921,9 +1879,9 @@ def checkout_view(request):
                     }
                     for item in items
                 ],
-                "total_amount": str(order.total),
+                "total_amount": str(total_amount),
             }
-
+            # Store in session and redirect to payment start flow
             request.session["pending_razorpay_checkout"] = checkout_data
             return redirect("payment_start", order_number=order_number)
 

@@ -3,6 +3,9 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
+import logging
+
+logger = logging.getLogger(__name__)
 
 from core.models import Order
 from .models import Payment, PendingRazorpayOrder
@@ -66,18 +69,22 @@ def payment_start(request, order_number):
     from decimal import Decimal
     total_amount = Decimal(checkout_data["total_amount"])
 
-    # Check if PendingRazorpayOrder already exists for this order number
+    # Log the total amount (in paise) that will be sent to Razorpay for this checkout
+    amount_paise = services.to_paise(total_amount)
+    logger = logging.getLogger(__name__)
+    logger.debug("Creating pending Razorpay order for order %s: amount=%s paise (₹%s)", order_number, amount_paise, total_amount)
+    # Create pending Razorpay order (if not exists)
     pending_rzp = PendingRazorpayOrder.objects.filter(
         checkout_data__order_number=order_number,
         user=request.user
     ).first()
-
     if not pending_rzp:
         try:
             pending_rzp = services.create_pending_razorpay_order(request.user, checkout_data, total_amount)
         except services.RazorpayOrderError as exc:
             messages.error(request, str(exc))
             return redirect("checkout")
+
 
     order_context = {
         "order_number": order_number,

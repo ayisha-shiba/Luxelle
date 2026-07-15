@@ -1,6 +1,9 @@
-from decimal import Decimal
+import logging
+
+logger = logging.getLogger(__name__)
 
 import razorpay
+from decimal import Decimal
 from django.conf import settings
 
 from .models import Payment
@@ -20,18 +23,25 @@ def to_paise(amount):
 
 def create_razorpay_order(order):
     client = get_client()
+    # Log the amount being sent to Razorpay (in paise)
+    amount_paise = int(to_paise(order.total))
+    if amount_paise > 2000000000:
+        logger.error("Razorpay order amount exceeds maximum limit: %s", amount_paise)
+        raise RazorpayOrderError("Order amount exceeds Razorpay maximum limit.")
 
+    logger.debug("Creating Razorpay order for Order %s: amount=%s paise (₹%s)", order.order_number, amount_paise, order.total)
     try:
         rzp_order = client.order.create({
-            "amount":   to_paise(order.total),
+            "amount":   amount_paise,
             "currency": "INR",
             "receipt":  str(order.order_number),
-            "payment_capture": 1,   
+            "payment_capture": 1,
         })
     except razorpay.errors.BadRequestError as exc:
+        # Log full exception details for debugging
+        logger.error("Razorpay order creation failed for Order %s: %s", order.order_number, exc, exc_info=True)
         raise RazorpayOrderError(
-            "Unable to create the online payment order because the amount exceeds Razorpay limits. "
-            "Please try a smaller order, use a different payment method, or contact support."
+            f"Razorpay order creation failed: {exc}"
         ) from exc
 
     return Payment.objects.create(
@@ -76,17 +86,24 @@ def create_pending_razorpay_order(user, checkout_data, total_amount):
         order_number = temp_order._generate_order_number()
         checkout_data["order_number"] = order_number
 
+    # Log the amount being sent (paise) for pending Razorpay order
+    amount_paise = int(to_paise(total_amount))
+    if amount_paise > 2000000000:
+        logger.error("Pending Razorpay order amount exceeds maximum limit: %s", amount_paise)
+        raise RazorpayOrderError("Pending order amount exceeds Razorpay maximum limit.")
+
+    logger.debug("Creating pending Razorpay order for temporary order %s: amount=%s paise (₹%s)", order_number, amount_paise, total_amount)
     try:
         rzp_order = client.order.create({
-            "amount":   to_paise(total_amount),
+            "amount":   amount_paise,
             "currency": "INR",
             "receipt":  order_number,
             "payment_capture": 1,
         })
     except razorpay.errors.BadRequestError as exc:
+        logger.error("Pending Razorpay order creation failed for %s: %s", order_number, exc, exc_info=True)
         raise RazorpayOrderError(
-            "Unable to create the online payment order because the amount exceeds Razorpay limits. "
-            "Please try a smaller order, use a different payment method, or contact support."
+            f"Razorpay pending order creation failed: {exc}"
         ) from exc
 
     from .models import PendingRazorpayOrder
