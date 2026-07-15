@@ -73,6 +73,7 @@ def admin_login_view(request):
             return redirect("admin_dashboard")
         else:
             messages.error(request, "Invalid admin credentials.")
+            return render(request, "admin_panel/login.html", status=401)
 
     return render(request, "admin_panel/login.html")
 
@@ -588,7 +589,7 @@ def admin_forgot_password_view(request):
     email = request.POST.get("email", "").strip()
     if not email:
         messages.error(request, "Please provide an email address.")
-        return render(request, "admin_panel/forgot_password.html")
+        return render(request, "admin_panel/forgot_password.html", status=400)
     try:
         user = CustomUser.objects.get(email=email, is_staff=True)
     except CustomUser.DoesNotExist:
@@ -597,7 +598,7 @@ def admin_forgot_password_view(request):
     allowed, seconds_left = check_resend_cooldown(user, purpose="password_reset")
     if not allowed:
         messages.warning(request, f"Please wait {seconds_left} seconds before requesting a new OTP.")
-        return render(request, "admin_panel/forgot_password.html")
+        return render(request, "admin_panel/forgot_password.html", status=429)
     otp_obj = create_otp_for_user(user, purpose="password_reset")
     email_sent = send_otp_email(user, otp_obj.otp, purpose="password_reset")
     if not email_sent:
@@ -638,6 +639,7 @@ def admin_forgot_password_otp_view(request):
             return redirect("admin_reset_password")
         else:
             messages.error(request, msg)
+            return render(request, "admin_panel/otp.html", {"email": user.email}, status=400)
 
     return render(request, "admin_panel/otp.html", {"email": user.email})
 
@@ -696,6 +698,7 @@ def admin_reset_password_view(request):
             new_password = form.cleaned_data["new_password"]
             if user.check_password(new_password):
                 form.add_error("new_password", "Your new password cannot be the same as your current password.")
+                return render(request, "admin_panel/reset_password.html", {"form": form}, status=400)
             else:
                 user.set_password(new_password)
                 user.save(update_fields=["password"])
@@ -712,6 +715,8 @@ def admin_reset_password_view(request):
 
                 messages.success(request, "Password updated successfully. Please log in with your new password.")
                 return redirect("admin_login")
+        else:
+            return render(request, "admin_panel/reset_password.html", {"form": form}, status=400)
 
     return render(request, "admin_panel/reset_password.html", {"form": form})
 
@@ -773,7 +778,7 @@ def admin_category_add_view(request):
         context = _category_list_context(request)
         context["add_form"] = form
         context["open_modal"] = "add"
-        return render(request, "admin_panel/category_list.html", context)
+        return render(request, "admin_panel/category_list.html", context, status=400)
     return redirect("admin_categories")
 
 
@@ -795,7 +800,7 @@ def admin_category_edit_view(request, category_id):
         context["edit_form"] = form
         context["edit_category"] = category
         context["open_modal"] = "edit"
-        return render(request, "admin_panel/category_list.html", context)
+        return render(request, "admin_panel/category_list.html", context, status=400)
     return redirect("admin_categories")
 
 
@@ -1064,27 +1069,27 @@ def _apply_inline_new(data):
 @admin_required
 def admin_brand_add_ajax(request):
     if request.method != "POST":
-        return JsonResponse({"error": "Invalid request."}, status=400)
+        return JsonResponse({"error": "Invalid request. Method not allowed."}, status=405)
     name = request.POST.get("name", "").strip()
     err = _validate_name_field(name, "Brand")
     if err:
         return JsonResponse({"error": err}, status=400)
     brand = (Brand.objects.filter(name__iexact=name, is_deleted=False).first()
              or Brand.objects.create(name=name))
-    return JsonResponse({"id": brand.id, "name": brand.name})
+    return JsonResponse({"id": brand.id, "name": brand.name}, status=201)
 
 
 @admin_required
 def admin_material_add_ajax(request):
     if request.method != "POST":
-        return JsonResponse({"error": "Invalid request."}, status=400)
+        return JsonResponse({"error": "Invalid request. Method not allowed."}, status=405)
     name = request.POST.get("name", "").strip()
     err = _validate_name_field(name, "Material")
     if err:
         return JsonResponse({"error": err}, status=400)
     material = (Material.objects.filter(name__iexact=name).first()
                 or Material.objects.create(name=name))
-    return JsonResponse({"id": material.id, "name": material.name})
+    return JsonResponse({"id": material.id, "name": material.name}, status=201)
 
 
 @admin_required
@@ -1130,6 +1135,16 @@ def admin_product_add_view(request):
 
         for err in extra_errors:
             messages.error(request, err)
+
+        context = {
+            "mode":          "add",
+            "product_form":  product_form,
+            "variant_form":  variant_form,
+            "categories":    Category.objects.filter(is_deleted=False).order_by("name"),
+            "brands":        Brand.objects.filter(is_deleted=False).order_by("name"),
+            "materials":     Material.objects.all().order_by("name"),
+        }
+        return render(request, "admin_panel/product_form.html", context, status=400)
 
     context = {
         "mode":          "add",
@@ -1203,6 +1218,19 @@ def admin_product_edit_view(request, product_id):
 
         for err in extra_errors:
             messages.error(request, err)
+
+        context = {
+            "mode":            "edit",
+            "product":         product,
+            "variant":         variant,
+            "existing_images": variant.images.all() if variant else [],
+            "product_form":    product_form,
+            "variant_form":    variant_form,
+            "categories":      Category.objects.filter(is_deleted=False).order_by("name"),
+            "brands":          Brand.objects.filter(is_deleted=False).order_by("name"),
+            "materials":       Material.objects.all().order_by("name"),
+        }
+        return render(request, "admin_panel/product_form.html", context, status=400)
     else:
         product_form = ProductForm(prefix="p", instance=product)
         variant_form = ProductVariantForm(prefix="v", instance=variant)
@@ -1300,6 +1328,14 @@ def admin_variant_add_view(request, product_id):
         for err in extra_errors:
             messages.error(request, err)
 
+        context = {
+            "mode":         "add",
+            "product":      product,
+            "variant_form": variant_form,
+            "materials":    Material.objects.all().order_by("name"),
+        }
+        return render(request, "admin_panel/variant_form.html", context, status=400)
+
     context = {
         "mode":         "add",
         "product":      product,
@@ -1360,6 +1396,16 @@ def admin_variant_edit_view(request, variant_id):
 
         for err in extra_errors:
             messages.error(request, err)
+
+        context = {
+            "mode":            "edit",
+            "product":         product,
+            "variant":         variant,
+            "existing_images": variant.images.all(),
+            "variant_form":    variant_form,
+            "materials":       Material.objects.all().order_by("name"),
+        }
+        return render(request, "admin_panel/variant_form.html", context, status=400)
     else:
         variant_form = ProductVariantForm(instance=variant)
 

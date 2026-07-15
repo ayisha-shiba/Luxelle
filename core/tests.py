@@ -125,9 +125,9 @@ class RegistrationFlowTest(TestCase):
         session.save()
 
         response = self.client.post(self.verify_url, data={'otp': '000000'})
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="timerSec">30</strong>')
-        self.assertContains(response, 'Resend code in')
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, 'id="timerSec">30</strong>', status_code=400)
+        self.assertContains(response, 'Resend code in', status_code=400)
 
     def test_registration_form_rejects_invalid_mobile_prefix(self):
         form_data = {
@@ -228,7 +228,7 @@ class RegistrationFlowTest(TestCase):
         
         # 1. Wrong OTP within 1 minute -> "Invalid OTP."
         response = self.client.post(self.verify_url, data={'otp': '000000'})
-        self.assertContains(response, 'Invalid OTP. Please try again.')
+        self.assertContains(response, 'Invalid OTP. Please try again.', status_code=400)
         
         # 2. Correct OTP after 1 minute -> "OTP has expired. Please request a new OTP."
         session = self.client.session
@@ -236,12 +236,13 @@ class RegistrationFlowTest(TestCase):
         session['pending_otp_expires_at'] = past_time
         session.save()
         
+        # 3. Request after expiry
         response = self.client.post(self.verify_url, data={'otp': otp})
-        self.assertContains(response, 'OTP has expired. Please request a new OTP.')
+        self.assertContains(response, 'OTP has expired. Please request a new OTP.', status_code=400)
         
         # 3. Wrong OTP after 1 minute -> "OTP has expired. Please request a new OTP."
         response = self.client.post(self.verify_url, data={'otp': '000000'})
-        self.assertContains(response, 'OTP has expired. Please request a new OTP.')
+        self.assertContains(response, 'OTP has expired. Please request a new OTP.', status_code=400)
 
     def test_write_review_allowed_for_item_delivered_order(self):
         user = get_user_model().objects.create_user(
@@ -372,20 +373,20 @@ class ReviewValidationTest(TestCase):
 
     def test_review_rejects_only_special_characters(self):
         response = self._post_review('', '@@@@@@@@!!!!')
-        self.assertContains(response, 'Review cannot contain only special characters.')
-        self.assertContains(response, 'Write Review')
+        self.assertContains(response, 'Review cannot contain only special characters.', status_code=400)
+        self.assertContains(response, 'Write Review', status_code=400)
 
     def test_review_rejects_repeated_character_comment(self):
         response = self._post_review('', 'aaaaaaaaaa')
-        self.assertContains(response, 'Review must contain valid text.')
+        self.assertContains(response, 'Review must contain valid text.', status_code=400)
 
     def test_review_rejects_whitespace_only_comment(self):
         response = self._post_review('', '          ')
-        self.assertContains(response, 'Please enter a meaningful review.')
+        self.assertContains(response, 'Please enter a meaningful review.', status_code=400)
 
     def test_review_rejects_short_meaningless_comment(self):
         response = self._post_review('', '123456789')
-        self.assertContains(response, 'Review must be at least 10 characters long.')
+        self.assertContains(response, 'Review must be at least 10 characters long.', status_code=400)
 
     def test_review_accepts_valid_comment(self):
         response = self._post_review('Nice bag', 'This bag is excellent and well made.')

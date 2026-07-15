@@ -167,7 +167,7 @@ def admin_coupon_add_view(request):
         context = _list_context(request)
         context["add_form"] = form
         context["open_modal"] = "add"
-        return render(request, "admin_panel/coupons/coupon_list.html", context)
+        return render(request, "admin_panel/coupons/coupon_list.html", context, status=400)
     return redirect("admin_coupons")
 
 
@@ -189,7 +189,7 @@ def admin_coupon_edit_view(request, coupon_id):
         context["edit_form"] = form
         context["edit_coupon"] = coupon
         context["open_modal"] = "edit"
-        return render(request, "admin_panel/coupons/coupon_list.html", context)
+        return render(request, "admin_panel/coupons/coupon_list.html", context, status=400)
     return redirect("admin_coupons")
 
 

@@ -249,7 +249,7 @@ class RazorpayOrderFlowTest(TestCase):
 
         # Should redirect to failure page
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, reverse("payment_failure", args=[order_number]))
+        self.assertRedirects(response, reverse("payment_failure", args=[order_number]), target_status_code=400)
 
         # NO Order or Payment PAID record should be created
         self.assertEqual(Order.objects.count(), 0)

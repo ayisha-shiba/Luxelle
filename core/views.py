@@ -269,8 +269,16 @@ def register_view(request):
                 return redirect('verify_otp')
             else:
                 messages.error(request, "Failed to send verification email. Please try again.")
+                return render(request, "register.html", {
+                    "form": form,
+                    "referral_code": request.session.get("pending_referral_code", ""),
+                }, status=500)
         else:
             request.session["pending_registration"] = request.POST.dict()
+            return render(request, "register.html", {
+                "form": form,
+                "referral_code": request.session.get("pending_referral_code", ""),
+            }, status=400)
 
     return render(request, "register.html", {
         "form": form,
@@ -309,8 +317,7 @@ def verify_otp_view(request):
                     "form": form,
                     "email": registration_data["email"],
                     "seconds_remaining": _get_pending_otp_resend_seconds_remaining(request),
-                })
-
+                }, status=400)
 
             if otp_input != pending_otp:
                 messages.error(request, "Invalid OTP. Please try again.")
@@ -318,7 +325,7 @@ def verify_otp_view(request):
                     "form": form,
                     "email": registration_data["email"],
                     "seconds_remaining": _get_pending_otp_resend_seconds_remaining(request),
-                })
+                }, status=400)
 
             try:
                 with transaction.atomic():
@@ -437,11 +444,11 @@ def login_view(request):
                         messages.error(request, "Invalid email or password.")
                 except CustomUser.DoesNotExist:
                     messages.error(request, "Invalid email or password.")
-                return render(request, "login.html", {"form": form})
+                return render(request, "login.html", {"form": form}, status=401)
             else:
                 if user.is_superuser:
                     messages.error(request, "This account is for admin use only. Please login via the admin portal.")
-                    return render(request, "login.html", {"form": form})
+                    return render(request, "login.html", {"form": form}, status=403)
                 clear_pending_user_session(request)
                 request.session.cycle_key()
                 login(request, user)
@@ -499,6 +506,9 @@ def forgot_password_view(request):
                 return redirect("forgot_password_otp")
             else:
                 messages.error(request, "Failed to send OTP email. Please try again.")
+                return render(request, "forgot_password.html", {"form": form}, status=500)
+        else:
+            return render(request, "forgot_password.html", {"form": form}, status=400)
 
     return render(request, "forgot_password.html", {"form": form})
 
@@ -529,6 +539,7 @@ def forgot_password_otp_view(request):
                 return redirect("set_new_password")
             else:
                 messages.error(request, error_msg)
+                return render(request, "forgot_password_otp.html", {"form": form, "email": user.email, "seconds_remaining": seconds_remaining}, status=400)
 
     return render(request, "forgot_password_otp.html", {"form": form, "email": user.email, "seconds_remaining": seconds_remaining})
 
@@ -584,6 +595,7 @@ def set_new_password_view(request):
             new_password = form.cleaned_data["new_password"]
             if user.check_password(new_password):
                 form.add_error("new_password", "Your new password cannot be the same as your current password.")
+                return render(request, "set_new_password.html", {"form": form}, status=400)
             else:
                 user.set_password(new_password)
                 user.save(update_fields=["password"])
@@ -592,6 +604,8 @@ def set_new_password_view(request):
 
                 messages.success(request, "Password updated successfully. Please log in.")
                 return redirect("login")
+        else:
+            return render(request, "set_new_password.html", {"form": form}, status=400)
 
     return render(request, "set_new_password.html", {"form": form})
 
@@ -702,6 +716,11 @@ def profile_edit_view(request):
             return redirect("profile")
         else:
             messages.error(request, "Please correct the errors below.")
+            return render(request, "profile_edit.html", {
+                "user_form":    user_form,
+                "profile_form": profile_form,
+                "profile":      profile,
+            }, status=400)
 
     return render(request, "profile_edit.html", {
         "user_form":    user_form,
@@ -733,6 +752,7 @@ def change_password_view(request):
             return redirect("profile")
         else:
             messages.error(request, "Please correct the errors below.")
+            return render(request, "change_password.html", {"form": form, "has_password": has_password}, status=400)
     else:
         form = ChangePasswordForm(request.user) if has_password else SetNewPasswordForm()
 
@@ -763,6 +783,7 @@ def change_email_view(request):
             return redirect("verify_email_otp")
         else:
             messages.error(request, "Please correct the errors below.")
+            return render(request, "change_email.html", {"form": form}, status=400)
     else:
         form = EmailChangeForm(request.user)
     return render(request, "change_email.html", {"form": form})
@@ -797,6 +818,16 @@ def verify_email_otp_view(request):
             return redirect("profile")
         else:
             messages.error(request, error_msg)
+            latest = OTPVerification.objects.filter(
+                user=user, purpose="email_change"
+            ).order_by("-created_at").first()
+            seconds_remaining = latest.seconds_until_resend_allowed() if latest else 0
+            return render(request, "verify_email_otp.html", {
+                "form":              form,
+                "email":             user.email,
+                "new_email":         new_email,
+                "seconds_remaining": seconds_remaining,
+            }, status=400)
 
     latest = OTPVerification.objects.filter(
         user=user, purpose="email_change"
@@ -847,6 +878,12 @@ def delete_account_view(request):
             password = request.POST.get("password", "")
             if not user.check_password(password):
                 error = "Password incorrect. Account not deleted."
+                return render(request, "delete_account.html", {
+                    "error":             error,
+                    "has_password":      has_password,
+                    "otp_sent":          False,
+                    "seconds_remaining": 0,
+                }, status=400)
             else:
                 logout(request)
                 user.delete()
@@ -876,6 +913,12 @@ def delete_account_view(request):
                     return redirect("home")
                 else:
                     error = msg
+                    return render(request, "delete_account.html", {
+                        "error":             error,
+                        "has_password":      has_password,
+                        "otp_sent":          True,
+                        "seconds_remaining": 0,
+                    }, status=400)
 
     seconds_remaining = 0
     otp_sent = request.session.get("delete_otp_sent", False)
@@ -1009,7 +1052,7 @@ def write_review_view(request, product_id):
                 "rating": rating,
                 "title": title,
                 "comment": comment,
-            })
+            }, status=400)
 
         if review:
             review.rating = int(rating)

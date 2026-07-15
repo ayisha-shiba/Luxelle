@@ -296,11 +296,11 @@ def payment_failure(request, order_number):
                 status=OrderItem.STATUS_PAYMENT_FAILED,
                 note="Payment failed or cancelled by user.",
             )
-        return render(request, "payments/payment_failure.html", {"order": order})
+        return render(request, "payments/payment_failure.html", {"order": order}, status=400)
 
     # If it is a pending (uncreated) order, we use a placeholder object/dictionary
     order_context = {
         "order_number": order_number,
         "is_pending_only": True,
     }
-    return render(request, "payments/payment_failure.html", {"order": order_context})
+    return render(request, "payments/payment_failure.html", {"order": order_context}, status=400)

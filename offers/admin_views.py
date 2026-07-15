@@ -72,7 +72,7 @@ def admin_offer_add_view(request):
         context = _list_context(request)
         context["add_form"] = form
         context["open_modal"] = "add"
-        return render(request, "admin_panel/offers/offer_list.html", context)
+        return render(request, "admin_panel/offers/offer_list.html", context, status=400)
     return redirect("admin_offers")
 
 
@@ -93,7 +93,7 @@ def admin_offer_edit_view(request, offer_id):
         context["edit_form"] = form
         context["edit_offer"] = offer
         context["open_modal"] = "edit"
-        return render(request, "admin_panel/offers/offer_list.html", context)
+        return render(request, "admin_panel/offers/offer_list.html", context, status=400)
     return redirect("admin_offers")
 
 
