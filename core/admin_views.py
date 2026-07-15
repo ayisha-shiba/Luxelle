@@ -1648,6 +1648,52 @@ def admin_order_item_update_status_view(request, item_id):
         item.status = new_status
         item.save(update_fields=["status"])
 
+        # Refund logic for admin-cancelled individual item
+        if new_status == OrderItem.STATUS_CANCELLED and order.status != Order.STATUS_CANCELLED:
+            from decimal import Decimal
+            from wallet import services as wallet_services
+            from wallet.models import WalletTransaction
+            logger = logging.getLogger(__name__)
+
+            refund_amount = Decimal(item.line_total)
+            # Check if already refunded for this item
+            already_refunded = WalletTransaction.objects.filter(
+                order_item=item,
+                txn_type=WalletTransaction.CREDIT,
+                sub_type=WalletTransaction.SUB_REFUND,
+            ).exists()
+
+            prepaid = (
+                order.payment_method == Order.PAYMENT_WALLET
+                or order.payments.filter(status="paid").exists()
+            )
+
+            if prepaid and refund_amount > 0 and not already_refunded:
+                try:
+                    wallet_services.credit(
+                        order.user,
+                        refund_amount,
+                        f"Order Item Cancelled by Admin: {order.order_number} - {item.variant_name}",
+                        order=order,
+                        order_item=item,
+                        sub_type=WalletTransaction.SUB_REFUND,
+                    )
+                    logger.info(
+                        "Admin cancelled item refund of ₹%s credited to wallet for order %s (user %s).",
+                        refund_amount,
+                        order.order_number,
+                        order.user_id,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to credit wallet refund for admin-cancelled item %s of order %s (user %s).",
+                        item.id,
+                        order.order_number,
+                        order.user_id,
+                    )
+                    raise
+
+
         OrderStatusEvent.objects.create(
             order_item=item, status=new_status,
             note=note or f"Status updated to {allowed[new_status]} by admin.",
