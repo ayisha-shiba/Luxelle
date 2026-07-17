@@ -395,10 +395,32 @@ def _build_dashboard_sales_chart(request):
         granularity = "day"
         period_label = "This Month"
 
+    from django.db.models import Q
+    from payments.models import Payment
+    from core.models import OrderItem
+
+    BILLABLE_STATUSES = [
+        OrderItem.STATUS_PENDING,
+        OrderItem.STATUS_CONFIRMED,
+        OrderItem.STATUS_PACKED,
+        OrderItem.STATUS_SHIPPED,
+        OrderItem.STATUS_OUT_FOR_DELIVERY,
+        OrderItem.STATUS_DELIVERED,
+        OrderItem.STATUS_RETURN_REQUESTED,
+        OrderItem.STATUS_RETURN_REJECTED,
+    ]
+
     base_qs = (
         Order.objects
         .filter(created_at__gte=start_dt, created_at__lte=end_dt)
+        .filter(
+            Q(payments__status=Payment.STATUS_PAID) |
+            Q(payment_method=Order.PAYMENT_WALLET) |
+            Q(payment_method=Order.PAYMENT_COD, status=Order.STATUS_DELIVERED)
+        )
         .exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
+        .filter(items__status__in=BILLABLE_STATUSES)
+        .distinct()
     )
 
     labels = []
@@ -2053,10 +2075,31 @@ def admin_analytics_view(request):
     all_orders = Order.objects.all()
     period_orders = all_orders.filter(created_at__gte=start, created_at__lte=end)
 
-    if period == "today":
-        delivered_orders = period_orders.exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
-    else:
-        delivered_orders = period_orders.filter(items__status=OrderItem.STATUS_DELIVERED).distinct()
+    from django.db.models import Q
+    from payments.models import Payment
+
+    BILLABLE_STATUSES = [
+        OrderItem.STATUS_PENDING,
+        OrderItem.STATUS_CONFIRMED,
+        OrderItem.STATUS_PACKED,
+        OrderItem.STATUS_SHIPPED,
+        OrderItem.STATUS_OUT_FOR_DELIVERY,
+        OrderItem.STATUS_DELIVERED,
+        OrderItem.STATUS_RETURN_REQUESTED,
+        OrderItem.STATUS_RETURN_REJECTED,
+    ]
+
+    delivered_orders = (
+        period_orders
+        .filter(
+            Q(payments__status=Payment.STATUS_PAID) |
+            Q(payment_method=Order.PAYMENT_WALLET) |
+            Q(payment_method=Order.PAYMENT_COD, status=Order.STATUS_DELIVERED)
+        )
+        .exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
+        .filter(items__status__in=BILLABLE_STATUSES)
+        .distinct()
+    )
 
     # Metrics
     order_count = delivered_orders.count()
@@ -2066,14 +2109,12 @@ def admin_analytics_view(request):
     referral_discounts = Decimal("0.00")
     total_discount = product_discounts + coupon_discounts + referral_discounts
     
-    # Products Sold
-    if period == "today":
-        delivered_items = OrderItem.objects.filter(order__in=delivered_orders).exclude(status__in=[OrderItem.STATUS_CANCELLED, OrderItem.STATUS_RETURNED])
-    else:
-        delivered_items = OrderItem.objects.filter(order__in=delivered_orders)
+    # Products Sold & Gross Sales
+    delivered_items = OrderItem.objects.filter(
+        order__in=delivered_orders,
+        status__in=BILLABLE_STATUSES
+    )
     products_sold = delivered_items.aggregate(s=Sum("quantity"))["s"] or 0
-    
-    # Gross Sales Amount: sum of original_price * quantity for all delivered items
     gross_sales = delivered_items.aggregate(s=Sum(F("original_price") * F("quantity")))["s"] or Decimal("0.00")
     
     # Average Order Value (AOV)
@@ -2086,7 +2127,7 @@ def admin_analytics_view(request):
     from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
     report_orders_qs = (
-        period_orders
+        delivered_orders
         .select_related("user")
         .order_by("-created_at")
     )
@@ -2142,12 +2183,13 @@ def admin_analytics_pdf_view(request):
     """Generate and stream a PDF analytics report using xhtml2pdf."""
     import json
     from decimal import Decimal
-    from django.db.models import Sum, Count, Avg, Q
+    from django.db.models import Sum, Count, Avg, Q, F
     from django.db.models.functions import TruncDate
     from django.template.loader import render_to_string
     from django.http import HttpResponse
     from io import BytesIO
     from xhtml2pdf import pisa
+    from payments.models import Payment
 
     period, period_label, start, end, prev_start, prev_end, start_date_str, end_date_str = (
         _get_analytics_period(request)
@@ -2156,16 +2198,44 @@ def admin_analytics_pdf_view(request):
     _D0 = Decimal("0")
     all_orders    = Order.objects.all()
     period_orders = all_orders.filter(created_at__gte=start, created_at__lte=end)
-    period_items  = OrderItem.objects.select_related(
-        "order", "variant__product__category", "variant__product__brand"
-    ).filter(order__created_at__gte=start, order__created_at__lte=end)
 
-    if period == "today":
-        period_orders = period_orders.exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
-        period_items = period_items.exclude(status__in=[OrderItem.STATUS_CANCELLED, OrderItem.STATUS_RETURNED])
+    BILLABLE_STATUSES = [
+        OrderItem.STATUS_PENDING,
+        OrderItem.STATUS_CONFIRMED,
+        OrderItem.STATUS_PACKED,
+        OrderItem.STATUS_SHIPPED,
+        OrderItem.STATUS_OUT_FOR_DELIVERY,
+        OrderItem.STATUS_DELIVERED,
+        OrderItem.STATUS_RETURN_REQUESTED,
+        OrderItem.STATUS_RETURN_REJECTED,
+    ]
+
+    period_orders = (
+        period_orders
+        .filter(
+            Q(payments__status=Payment.STATUS_PAID) |
+            Q(payment_method=Order.PAYMENT_WALLET) |
+            Q(payment_method=Order.PAYMENT_COD, status=Order.STATUS_DELIVERED)
+        )
+        .exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
+        .filter(items__status__in=BILLABLE_STATUSES)
+        .distinct()
+    )
+
+    period_items = (
+        OrderItem.objects
+        .select_related("order", "variant__product__category", "variant__product__brand")
+        .filter(
+            order__created_at__gte=start,
+            order__created_at__lte=end,
+            order__in=period_orders,
+            status__in=BILLABLE_STATUSES
+        )
+    )
+
+    gross_sales_val = period_items.aggregate(s=Sum(F("original_price") * F("quantity")))["s"] or _D0
 
     agg = period_orders.aggregate(
-        gross_sales  = Sum("subtotal"),
         net_revenue  = Sum("total"),
         discounts    = Sum("discount"),
         coupon_disc  = Sum("coupon_discount"),
@@ -2197,14 +2267,14 @@ def admin_analytics_pdf_view(request):
         ("pending","Pending"),("confirmed","Confirmed"),("shipped","Shipped"),
         ("delivered","Delivered"),("cancelled","Cancelled"),("returned","Returned"),
     ]:
-        cnt = OrderItem.objects.filter(order__created_at__gte=start, order__created_at__lte=end, status=st_val).count()
+        cnt = OrderItem.objects.filter(order__in=period_orders, status=st_val).count()
         order_status_summary.append({"label": st_label, "count": cnt})
 
     ctx = {
         "period_label":   period_label,
         "start":          start,
         "end":            end,
-        "gross_sales":    agg["gross_sales"]  or _D0,
+        "gross_sales":    gross_sales_val,
         "net_revenue":    agg["net_revenue"]  or _D0,
         "discounts":      agg["discounts"]    or _D0,
         "coupon_disc":    agg["coupon_disc"]  or _D0,
@@ -2387,12 +2457,13 @@ def admin_ledger_csv_view(request):
 @admin_required
 def admin_analytics_excel_view(request):
     from decimal import Decimal
-    from django.db.models import Sum, Count
+    from django.db.models import Sum, Count, Q, F
     from django.http import HttpResponse
     from io import BytesIO
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
+    from payments.models import Payment
 
     period, period_label, start, end, prev_start, prev_end, start_date_str, end_date_str = (
         _get_analytics_period(request)
@@ -2401,13 +2472,42 @@ def admin_analytics_excel_view(request):
     _D0 = Decimal("0")
     all_orders    = Order.objects.all()
     period_orders = all_orders.filter(created_at__gte=start, created_at__lte=end)
-    period_items  = OrderItem.objects.select_related(
-        "order", "variant__product__category", "variant__product__brand"
-    ).filter(order__created_at__gte=start, order__created_at__lte=end)
 
-    if period == "today":
-        period_orders = period_orders.exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
-        period_items = period_items.exclude(status__in=[OrderItem.STATUS_CANCELLED, OrderItem.STATUS_RETURNED])
+    BILLABLE_STATUSES = [
+        OrderItem.STATUS_PENDING,
+        OrderItem.STATUS_CONFIRMED,
+        OrderItem.STATUS_PACKED,
+        OrderItem.STATUS_SHIPPED,
+        OrderItem.STATUS_OUT_FOR_DELIVERY,
+        OrderItem.STATUS_DELIVERED,
+        OrderItem.STATUS_RETURN_REQUESTED,
+        OrderItem.STATUS_RETURN_REJECTED,
+    ]
+
+    period_orders = (
+        period_orders
+        .filter(
+            Q(payments__status=Payment.STATUS_PAID) |
+            Q(payment_method=Order.PAYMENT_WALLET) |
+            Q(payment_method=Order.PAYMENT_COD, status=Order.STATUS_DELIVERED)
+        )
+        .exclude(status__in=[Order.STATUS_CANCELLED, Order.STATUS_RETURNED])
+        .filter(items__status__in=BILLABLE_STATUSES)
+        .distinct()
+    )
+
+    period_items = (
+        OrderItem.objects
+        .select_related("order", "variant__product__category", "variant__product__brand")
+        .filter(
+            order__created_at__gte=start,
+            order__created_at__lte=end,
+            order__in=period_orders,
+            status__in=BILLABLE_STATUSES
+        )
+    )
+
+    gross_sales_val = period_items.aggregate(s=Sum(F("original_price") * F("quantity")))["s"] or _D0
 
     wb = openpyxl.Workbook()
 
@@ -2444,7 +2544,7 @@ def admin_analytics_excel_view(request):
     ws1 = wb.active
     ws1.title = "Sales Summary"
     agg = period_orders.aggregate(
-        gross=Sum("subtotal"), net=Sum("total"), disc=Sum("discount"),
+        net=Sum("total"), disc=Sum("discount"),
         coupon=Sum("coupon_discount"), tax=Sum("tax"), ship=Sum("shipping"), cnt=Count("id"),
     )
     ws1["A1"] = f"Luxelle Analytics Report — {period_label}"
@@ -2457,7 +2557,7 @@ def admin_analytics_excel_view(request):
     style_header_row(ws1, 2, 2)
 
     rows = [
-        ("Gross Sales (₹)",       float(agg["gross"]  or 0)),
+        ("Gross Sales (₹)",       float(gross_sales_val)),
         ("Net Revenue (₹)",       float(agg["net"]    or 0)),
         ("Product Discounts (₹)", float(agg["disc"]   or 0)),
         ("Coupon Discounts (₹)",  float(agg["coupon"] or 0)),
